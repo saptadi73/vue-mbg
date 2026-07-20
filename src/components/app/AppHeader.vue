@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Bell, LogOut, Menu, Moon, Sun } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
@@ -10,7 +11,6 @@ const {
   activeTenantId,
   activeSppg,
   activeSppgId,
-  desktopSidebarCollapsed,
   profile,
   sppgOptions,
   tenants,
@@ -28,10 +28,8 @@ const handleLogout = () => {
   <header class="glass-panel sticky top-0 z-20 flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
     <div>
       <div class="mb-3 flex items-center gap-3 lg:hidden">
-        <button class="mobile-menu-button" type="button" @click="appStore.toggleMobileSidebar()">
-          <span class="mobile-menu-lines"></span>
-          <span class="mobile-menu-lines"></span>
-          <span class="mobile-menu-lines"></span>
+        <button class="mobile-menu-button" type="button" aria-label="Buka menu navigasi" title="Buka menu navigasi" @click="appStore.toggleMobileSidebar()">
+          <Menu :size="21" stroke-width="2" />
         </button>
         <span class="text-sm font-medium text-app-heading">Menu Navigasi</span>
       </div>
@@ -54,34 +52,33 @@ const handleLogout = () => {
         </select>
       </label>
 
-      <button class="theme-toggle hidden lg:inline-flex" type="button" @click="appStore.toggleDesktopSidebar()">
-        <span class="theme-toggle-icon">{{ desktopSidebarCollapsed ? 'EX' : 'CL' }}</span>
-        <span>
-          <span class="block text-xs uppercase tracking-[0.24em] text-app-muted">Sidebar</span>
-          <span class="text-sm font-medium text-app-heading">{{ desktopSidebarCollapsed ? 'Expand Menu' : 'Collapse Menu' }}</span>
-        </span>
+      <button
+        class="theme-toggle theme-toggle-square"
+        type="button"
+        :aria-label="themeMode === 'dark' ? 'Aktifkan light mode' : 'Aktifkan dark mode'"
+        :title="themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+        @click="appStore.toggleTheme()"
+      >
+        <Sun v-if="themeMode === 'dark'" :size="20" stroke-width="2" />
+        <Moon v-else :size="20" stroke-width="2" />
       </button>
 
-      <button class="theme-toggle" type="button" @click="appStore.toggleTheme()">
-        <span class="theme-toggle-icon">{{ themeMode === 'dark' ? 'LT' : 'DK' }}</span>
-        <span>
-          <span class="block text-xs uppercase tracking-[0.24em] text-app-muted">Theme</span>
-          <span class="text-sm font-medium text-app-heading">{{ themeMode === 'dark' ? 'Dark Mode' : 'Light Mode' }}</span>
-        </span>
+      <button
+        class="theme-toggle theme-toggle-square relative"
+        type="button"
+        :aria-label="`${unreadNotifications} notifikasi inbox`"
+        :title="`${unreadNotifications} notifikasi inbox`"
+      >
+        <Bell :size="20" stroke-width="2" />
+        <span v-if="unreadNotifications" class="header-icon-badge">{{ unreadNotifications }}</span>
       </button>
 
-      <div class="surface-subtle flex items-center gap-3 rounded-2xl px-4 py-3">
-        <div>
-          <p class="text-xs uppercase tracking-[0.24em] text-app-muted">Inbox</p>
-          <p class="text-sm font-medium text-app-heading">{{ unreadNotifications }} notifikasi</p>
-        </div>
-        <div class="grid h-10 w-10 place-items-center rounded-2xl bg-teal-300 text-sm font-semibold text-slate-950">
-          {{ profile.avatar }}
-        </div>
+      <div class="grid h-[52px] w-[52px] place-items-center rounded-2xl bg-teal-300 text-sm font-semibold text-slate-950" :title="profile.name">
+        {{ profile.avatar }}
       </div>
 
-      <button class="secondary-button" type="button" @click="handleLogout">
-        Logout
+      <button class="theme-toggle theme-toggle-square" type="button" aria-label="Logout" title="Logout" @click="handleLogout">
+        <LogOut :size="20" stroke-width="2" />
       </button>
     </div>
   </header>

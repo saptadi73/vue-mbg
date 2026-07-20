@@ -304,6 +304,451 @@ export interface LaborCostRecord {
   status?: string
 }
 
+export interface WorkforcePositionRecord {
+  id: string
+  tenant_id?: string
+  code: string
+  name: string
+  department_name?: string | null
+  employment_type?: string | null
+  default_daily_rate?: number | null
+  is_active: boolean
+}
+
+export interface WorkforceEmployeeRecord {
+  id: string
+  tenant_id?: string
+  position_id: string
+  position_name?: string | null
+  employee_code: string
+  full_name: string
+  employment_type: string
+  join_date: string
+  phone_number?: string | null
+  daily_rate?: number | null
+  is_active: boolean
+  active_assignment_sppg_id?: string | null
+  active_assignment_sppg_name?: string | null
+}
+
+export interface WorkforceEmployeeAssignmentRecord {
+  id: string
+  employee_id: string
+  employee_name?: string | null
+  sppg_id: string
+  sppg_name?: string | null
+  start_date: string
+  end_date?: string | null
+  assignment_role: string
+  status: string
+  notes?: string | null
+}
+
+export interface WorkforceEmployeeDetailRecord {
+  employee: WorkforceEmployeeRecord
+  assignments: WorkforceEmployeeAssignmentRecord[]
+}
+
+export interface WorkforceShiftRecord {
+  id: string
+  sppg_id?: string | null
+  sppg_name?: string | null
+  shift_code: string
+  shift_name: string
+  start_time: string
+  end_time: string
+  status: string
+  assigned_employee_count?: number | null
+}
+
+export interface WorkforceAttendanceRecord {
+  id: string
+  employee_id: string
+  employee_name: string
+  sppg_id?: string | null
+  sppg_name?: string | null
+  shift_name?: string | null
+  attendance_date: string
+  check_in_at?: string | null
+  check_out_at?: string | null
+  worked_hours?: number | null
+  status: string
+}
+
+export interface WorkforceTimesheetRecord {
+  id: string
+  employee_id: string
+  employee_name: string
+  sppg_id?: string | null
+  sppg_name?: string | null
+  period_start: string
+  period_end: string
+  total_days: number
+  total_hours: number
+  overtime_hours?: number | null
+  approved_by?: string | null
+  status: string
+}
+
+export interface CreateWorkforceEmployeePayload {
+  tenant_id: string
+  position_id: string
+  employee_code: string
+  full_name: string
+  employment_type: string
+  join_date: string
+  phone_number?: string
+  daily_rate?: number
+  is_active: boolean
+}
+
+export interface CreateWorkforceAssignmentPayload {
+  sppg_id: string
+  start_date: string
+  end_date?: string
+  assignment_role: string
+  notes?: string
+}
+
+export interface ProgramRecord {
+  id: string
+  code: string
+  name: string
+  description?: string
+  program_type: string
+  funding_source_name?: string | null
+  start_date: string
+  end_date: string
+  status: string
+  is_active: boolean
+  created_at?: string
+  updated_at?: string
+}
+
+export interface ProgramPeriodRecord {
+  id: string
+  program_id: string
+  code: string
+  name: string
+  date_start: string
+  date_end: string
+  status: string
+  notes?: string | null
+}
+
+export interface ProgramTenantAssignmentRecord {
+  id: string
+  program_id: string
+  tenant_id: string
+  tenant_name?: string | null
+  start_date: string
+  end_date?: string | null
+  is_active: boolean
+  notes?: string | null
+}
+
+export interface ProgramSppgAssignmentRecord {
+  id: string
+  program_id: string
+  tenant_id: string
+  tenant_name?: string | null
+  sppg_id: string
+  sppg_name?: string | null
+  start_date: string
+  end_date?: string | null
+  is_active: boolean
+  notes?: string | null
+}
+
+export interface ProgramDetailRecord {
+  program: ProgramRecord
+  periods: ProgramPeriodRecord[]
+  tenant_assignments: ProgramTenantAssignmentRecord[]
+  sppg_assignments: ProgramSppgAssignmentRecord[]
+}
+
+export interface CreateProgramPayload {
+  code: string
+  name: string
+  description: string
+  program_type: string
+  funding_source_name: string
+  start_date: string
+  end_date: string
+  status: string
+  is_active: boolean
+}
+
+export interface CreateProgramPeriodPayload {
+  code: string
+  name: string
+  date_start: string
+  date_end: string
+  status: string
+  notes?: string
+}
+
+export interface CreateProgramTenantAssignmentPayload {
+  tenant_id: string
+  start_date: string
+  end_date?: string
+  is_active: boolean
+  notes?: string
+}
+
+export interface CreateProgramSppgAssignmentPayload {
+  tenant_id: string
+  sppg_id: string
+  start_date: string
+  end_date?: string
+  is_active: boolean
+  notes?: string
+}
+
+export interface AssetCategoryRecord {
+  id: string
+  tenant_id?: string
+  code: string
+  name: string
+  asset_account_id: string
+  depreciation_expense_account_id: string
+  accumulated_depreciation_account_id: string
+  useful_life_months: number
+  depreciation_method: string
+  is_active: boolean
+}
+
+export interface AssetRecord {
+  id: string
+  tenant_id?: string
+  sppg_id?: string | null
+  sppg_name?: string | null
+  asset_category_id: string
+  asset_category_name?: string | null
+  asset_code: string
+  asset_name: string
+  acquisition_date: string
+  acquisition_cost: number
+  residual_value: number
+  useful_life_months: number
+  depreciation_method: string
+  status: string
+  serial_number?: string | null
+  condition_status: string
+  location_name?: string | null
+  is_active: boolean
+  notes?: string | null
+}
+
+export interface AssetAssignmentRecord {
+  id: string
+  asset_id: string
+  asset_code?: string | null
+  asset_name?: string | null
+  sppg_id: string
+  sppg_name?: string | null
+  assigned_to_name?: string | null
+  assignment_date: string
+  end_date?: string | null
+  assignment_role: string
+  status: string
+  is_active: boolean
+  notes?: string | null
+}
+
+export interface AssetDepreciationRecord {
+  id: string
+  asset_id: string
+  asset_code?: string | null
+  asset_name?: string | null
+  depreciation_date: string
+  depreciation_amount: number
+  debit_account_code: string
+  credit_account_code: string
+  status: string
+  notes?: string | null
+}
+
+export interface AssetDetailRecord {
+  asset: AssetRecord
+  assignments: AssetAssignmentRecord[]
+  depreciations: AssetDepreciationRecord[]
+}
+
+export interface CreateAssetCategoryPayload {
+  tenant_id: string
+  code: string
+  name: string
+  asset_account_id: string
+  depreciation_expense_account_id: string
+  accumulated_depreciation_account_id: string
+  useful_life_months: number
+  depreciation_method: string
+  is_active: boolean
+}
+
+export interface CreateAssetPayload {
+  tenant_id: string
+  sppg_id: string
+  asset_category_id: string
+  asset_code: string
+  asset_name: string
+  acquisition_date: string
+  acquisition_cost: number
+  residual_value: number
+  useful_life_months: number
+  depreciation_method: string
+  status: string
+  serial_number?: string
+  condition_status: string
+  location_name?: string
+  is_active: boolean
+  notes?: string
+}
+
+export interface CreateAssetAssignmentPayload {
+  sppg_id: string
+  assigned_to_name: string
+  assignment_date: string
+  end_date?: string
+  assignment_role: string
+  status: string
+  is_active: boolean
+  notes?: string
+}
+
+export interface CreateAssetDepreciationPayload {
+  depreciation_date: string
+  depreciation_amount?: number
+  debit_account_code: string
+  credit_account_code: string
+  status: string
+  notes?: string
+}
+
+export interface BeneficiaryRecord {
+  id: string
+  tenant_id?: string
+  sppg_id: string
+  sppg_name?: string | null
+  school_id: string
+  school_name?: string | null
+  full_name: string
+  beneficiary_type: string
+  gender: string
+  date_of_birth: string
+  classroom_name?: string | null
+  is_active: boolean
+  external_reference?: string | null
+  created_at?: string
+}
+
+export interface CreateBeneficiaryPayload {
+  tenant_id: string
+  sppg_id: string
+  school_id: string
+  full_name: string
+  beneficiary_type: string
+  gender: string
+  date_of_birth: string
+  classroom_name?: string
+  is_active: boolean
+}
+
+export interface DocumentRecord {
+  id: string
+  tenant_id?: string
+  sppg_id?: string | null
+  sppg_name?: string | null
+  document_type: string
+  title: string
+  description?: string | null
+  owner_entity_type?: string | null
+  owner_entity_id?: string | null
+  tags?: string[]
+  status: string
+  created_at?: string
+  updated_at?: string
+}
+
+export interface DocumentVersionRecord {
+  id: string
+  document_id: string
+  version_number: number
+  file_name: string
+  file_mime_type: string
+  file_size_bytes: number
+  checksum_sha256?: string | null
+  storage_backend: string
+  object_key: string
+  version_notes?: string | null
+  metadata_json?: Record<string, unknown> | null
+  uploaded_at: string
+}
+
+export interface DocumentLinkRecord {
+  id: string
+  document_id: string
+  linked_entity_type: string
+  linked_entity_id: string
+  relation_type: string
+  created_at?: string
+}
+
+export interface DocumentDetailRecord {
+  document: DocumentRecord
+  versions: DocumentVersionRecord[]
+  links: DocumentLinkRecord[]
+}
+
+export interface CreateDocumentPayload {
+  tenant_id: string
+  sppg_id?: string
+  document_type: string
+  title: string
+  description: string
+  owner_entity_type: string
+  owner_entity_id: string
+  tags: string[]
+}
+
+export interface CreateDocumentVersionPayload {
+  file_name: string
+  file_mime_type: string
+  file_size_bytes: number
+  checksum_sha256?: string
+  storage_backend: string
+  object_key: string
+  version_notes?: string
+  metadata_json?: Record<string, unknown>
+  uploaded_at: string
+}
+
+export interface CreateDocumentLinkPayload {
+  linked_entity_type: string
+  linked_entity_id: string
+  relation_type: string
+}
+
+export interface AuditEventRecord {
+  id: string
+  tenant_id?: string
+  sppg_id?: string | null
+  actor_user_id?: string | null
+  actor_name?: string | null
+  event_type: string
+  module_name: string
+  action_name: string
+  entity_type: string
+  entity_id: string
+  request_id?: string | null
+  success: boolean
+  ip_address?: string | null
+  summary: string
+  metadata_json?: Record<string, unknown> | null
+  occurred_at: string
+}
+
 export interface ActualExpenseRecord {
   id: string
   expense_date: string

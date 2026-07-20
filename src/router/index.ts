@@ -53,6 +53,25 @@ const TenantCreateView = () => import('@/views/TenantCreateView.vue')
 const TenantDetailView = () => import('@/views/TenantDetailView.vue')
 const UsersListView = () => import('@/views/UsersListView.vue')
 const UserCreateView = () => import('@/views/UserCreateView.vue')
+const WorkforcePositionsView = () => import('@/views/WorkforcePositionsView.vue')
+const WorkforceEmployeesView = () => import('@/views/WorkforceEmployeesView.vue')
+const WorkforceEmployeeDetailView = () => import('@/views/WorkforceEmployeeDetailView.vue')
+const WorkforceEmployeeCreateView = () => import('@/views/WorkforceEmployeeCreateView.vue')
+const WorkforceShiftsView = () => import('@/views/WorkforceShiftsView.vue')
+const WorkforceAttendanceView = () => import('@/views/WorkforceAttendanceView.vue')
+const WorkforceTimesheetsView = () => import('@/views/WorkforceTimesheetsView.vue')
+const ProgramsView = () => import('@/views/ProgramsView.vue')
+const ProgramCreateView = () => import('@/views/ProgramCreateView.vue')
+const ProgramDetailView = () => import('@/views/ProgramDetailView.vue')
+const AssetCategoriesView = () => import('@/views/AssetCategoriesView.vue')
+const AssetsView = () => import('@/views/AssetsView.vue')
+const AssetDetailView = () => import('@/views/AssetDetailView.vue')
+const BeneficiariesView = () => import('@/views/BeneficiariesView.vue')
+const BeneficiaryDetailView = () => import('@/views/BeneficiaryDetailView.vue')
+const DocumentsView = () => import('@/views/DocumentsView.vue')
+const DocumentDetailView = () => import('@/views/DocumentDetailView.vue')
+const AuditEventsView = () => import('@/views/AuditEventsView.vue')
+const AuditEventDetailView = () => import('@/views/AuditEventDetailView.vue')
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -72,6 +91,10 @@ const router = createRouter({
     { path: '/budgets', name: 'budgets', component: BudgetPlanningView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager'] } },
     { path: '/budgets/:budgetId', name: 'budget-detail', component: BudgetDetailView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager'] } },
     { path: '/workflow-approvals', name: 'workflow-approvals', component: WorkflowApprovalsView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] } },
+    { path: '/documents', name: 'documents', component: DocumentsView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'quality_officer', 'finance_manager'] } },
+    { path: '/documents/:documentId', name: 'document-detail', component: DocumentDetailView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'quality_officer', 'finance_manager'] } },
+    { path: '/audit/events', name: 'audit-events', component: AuditEventsView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin'] } },
+    { path: '/audit/events/:eventId', name: 'audit-event-detail', component: AuditEventDetailView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin'] } },
     { path: '/government-claims', name: 'government-claims', component: GovernmentClaimsView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] } },
     { path: '/government-claims/:claimId', name: 'government-claim-detail', component: GovernmentClaimDetailView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] } },
     { path: '/funding', name: 'funding', component: FundingAgreementsView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager'] } },
@@ -99,6 +122,21 @@ const router = createRouter({
     { path: '/products/:productId', name: 'products-detail', component: ProductDetailView, meta: { requiresAuth: true } },
     { path: '/recipes', name: 'recipes', component: RecipesView, meta: { requiresAuth: true } },
     { path: '/recipes/:recipeId', name: 'recipes-detail', component: RecipeDetailView, meta: { requiresAuth: true } },
+    { path: '/programs', name: 'programs', component: ProgramsView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin'] } },
+    { path: '/programs/create', name: 'program-create', component: ProgramCreateView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin'] } },
+    { path: '/programs/:programId', name: 'program-detail', component: ProgramDetailView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin'] } },
+    { path: '/assets/categories', name: 'asset-categories', component: AssetCategoriesView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] } },
+    { path: '/assets', name: 'assets', component: AssetsView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] } },
+    { path: '/assets/:assetId', name: 'asset-detail', component: AssetDetailView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] } },
+    { path: '/beneficiaries', name: 'beneficiaries', component: BeneficiariesView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager'] } },
+    { path: '/beneficiaries/:beneficiaryId', name: 'beneficiary-detail', component: BeneficiaryDetailView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager'] } },
+    { path: '/workforce/positions', name: 'workforce-positions', component: WorkforcePositionsView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager'] } },
+    { path: '/workforce/employees', name: 'workforce-employees', component: WorkforceEmployeesView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager'] } },
+    { path: '/workforce/employees/create', name: 'workforce-employee-create', component: WorkforceEmployeeCreateView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager'] } },
+    { path: '/workforce/employees/:employeeId', name: 'workforce-employee-detail', component: WorkforceEmployeeDetailView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager'] } },
+    { path: '/workforce/shifts', name: 'workforce-shifts', component: WorkforceShiftsView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager'] } },
+    { path: '/workforce/attendance', name: 'workforce-attendance', component: WorkforceAttendanceView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager'] } },
+    { path: '/workforce/timesheets', name: 'workforce-timesheets', component: WorkforceTimesheetsView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'finance_manager'] } },
     { path: '/onboarding/wizard', name: 'onboarding-wizard', component: OnboardingWizardView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin'] } },
     { path: '/sppg', name: 'sppg', component: SppgListView, meta: { requiresAuth: true } },
     { path: '/sppg/create', name: 'sppg-create', component: SppgCreateView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager'] } },

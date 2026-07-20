@@ -1,5 +1,42 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import {
+  Archive,
+  BarChart3,
+  BookOpen,
+  Boxes,
+  BriefcaseBusiness,
+  Building2,
+  Calculator,
+  CalendarDays,
+  ChevronDown,
+  ClipboardCheck,
+  ClipboardList,
+  Database,
+  FileText,
+  GraduationCap,
+  Landmark,
+  LayoutDashboard,
+  Map,
+  Menu,
+  MessageSquare,
+  PackageCheck,
+  PackageSearch,
+  PanelLeftOpen,
+  ScrollText,
+  ShieldCheck,
+  ShoppingCart,
+  Soup,
+  SquareKanban,
+  Truck,
+  UserCog,
+  UserRoundCheck,
+  Users,
+  Utensils,
+  WalletCards,
+  Warehouse,
+  Workflow,
+} from '@lucide/vue'
+import { computed, ref, watch, type Component } from 'vue'
 import { useRoute } from 'vue-router'
 import iconMbgChrome from '@/assets/images/icon_mbg_chrome.png'
 import iconMbgWarna from '@/assets/images/icon_mbg_warna.png'
@@ -16,7 +53,7 @@ const SIDEBAR_GROUP_STORAGE_KEY = 'erp-mbg-sidebar-groups'
 type NavItem = {
   label: string
   to: string
-  icon: string
+  icon: Component
   roles?: string[]
   matchPrefixes?: string[]
   badge?: 'workflowPending' | 'procurementOpen' | 'inventoryAttention'
@@ -25,7 +62,7 @@ type NavItem = {
 type NavSection = {
   id: string
   title: string
-  icon: string
+  icon: Component
   items: NavItem[]
 }
 
@@ -62,56 +99,81 @@ const sections: NavSection[] = [
   {
     id: 'command-center',
     title: 'Command Center',
-    icon: 'CC',
+    icon: LayoutDashboard,
     items: [
-      { label: 'Overview', to: '/', icon: 'OV', matchPrefixes: ['/'] },
-      { label: 'GIS Intelligence', to: '/gis', icon: 'GI' },
-      { label: 'GIS Fleet', to: '/gis/fleet', icon: 'GF', roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer'], matchPrefixes: ['/gis/fleet'] },
-      { label: 'Finance', to: '/finance', icon: 'FN', roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] },
-      { label: 'Finance Reports', to: '/finance/reports', icon: 'FR', roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'], matchPrefixes: ['/finance/reports'] },
+      { label: 'Overview', to: '/', icon: LayoutDashboard, matchPrefixes: ['/'] },
+      { label: 'GIS Intelligence', to: '/gis', icon: Map },
+      { label: 'GIS Fleet', to: '/gis/fleet', icon: Truck, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer'], matchPrefixes: ['/gis/fleet'] },
+      { label: 'Finance', to: '/finance', icon: WalletCards, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] },
+      { label: 'Finance Reports', to: '/finance/reports', icon: BarChart3, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'], matchPrefixes: ['/finance/reports'] },
     ],
   },
   {
     id: 'operations',
     title: 'Operations',
-    icon: 'OP',
+    icon: ClipboardList,
     items: [
-      { label: 'Meal Plans', to: '/meal-plans', icon: 'MP' },
-      { label: 'Inventory', to: '/inventory', icon: 'IV', badge: 'inventoryAttention' },
-      { label: 'Fleet', to: '/fleet', icon: 'FL', roles: ['super_admin', 'tenant_admin', 'operations_manager'], matchPrefixes: ['/fleet'] },
-      { label: 'Delivery', to: '/delivery', icon: 'DL', roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer', 'quality_officer'], matchPrefixes: ['/delivery'] },
-      { label: 'Delivery Reports', to: '/delivery/reports', icon: 'DR', roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer', 'quality_officer'], matchPrefixes: ['/delivery/reports'] },
-      { label: 'Feedback', to: '/feedback', icon: 'FB', roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer', 'quality_officer'], matchPrefixes: ['/feedback'] },
-      { label: 'Quality QC', to: '/quality/inspections', icon: 'QC', roles: ['super_admin', 'tenant_admin', 'operations_manager', 'quality_officer'], matchPrefixes: ['/quality'] },
-      { label: 'Procurement', to: '/procurement', icon: 'PR', roles: ['super_admin', 'tenant_admin', 'procurement_officer', 'operations_manager', 'finance_manager'], matchPrefixes: ['/procurement'], badge: 'procurementOpen' },
-      { label: 'Costing', to: '/costing', icon: 'CT', roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] },
+      { label: 'Meal Plans', to: '/meal-plans', icon: Utensils },
+      { label: 'Inventory', to: '/inventory', icon: Boxes, badge: 'inventoryAttention' },
+      { label: 'Fleet', to: '/fleet', icon: Truck, roles: ['super_admin', 'tenant_admin', 'operations_manager'], matchPrefixes: ['/fleet'] },
+      { label: 'Delivery', to: '/delivery', icon: PackageCheck, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer', 'quality_officer'], matchPrefixes: ['/delivery'] },
+      { label: 'Delivery Reports', to: '/delivery/reports', icon: ClipboardList, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer', 'quality_officer'], matchPrefixes: ['/delivery/reports'] },
+      { label: 'Feedback', to: '/feedback', icon: MessageSquare, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer', 'quality_officer'], matchPrefixes: ['/feedback'] },
+      { label: 'Quality QC', to: '/quality/inspections', icon: ShieldCheck, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'quality_officer'], matchPrefixes: ['/quality'] },
+      { label: 'Procurement', to: '/procurement', icon: ShoppingCart, roles: ['super_admin', 'tenant_admin', 'procurement_officer', 'operations_manager', 'finance_manager'], matchPrefixes: ['/procurement'], badge: 'procurementOpen' },
+      { label: 'Costing', to: '/costing', icon: Calculator, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] },
     ],
   },
   {
     id: 'governance',
     title: 'Governance',
-    icon: 'GV',
+    icon: ShieldCheck,
     items: [
-      { label: 'Budget Planning', to: '/budgets', icon: 'BD', roles: ['super_admin', 'tenant_admin', 'finance_manager'] },
-      { label: 'Workflow Approval', to: '/workflow-approvals', icon: 'WF', roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'], badge: 'workflowPending' },
-      { label: 'Government Claims', to: '/government-claims', icon: 'GC', roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'], matchPrefixes: ['/government-claims'] },
-      { label: 'Funding', to: '/funding', icon: 'FD', roles: ['super_admin', 'tenant_admin', 'finance_manager'], matchPrefixes: ['/funding'] },
-      { label: 'Chart of Accounts', to: '/accounting/accounts', icon: 'AC', roles: ['super_admin', 'tenant_admin', 'finance_manager'], matchPrefixes: ['/accounting/accounts'] },
-      { label: 'Journal Entries', to: '/accounting/journal-entries', icon: 'JE', roles: ['super_admin', 'tenant_admin', 'finance_manager'], matchPrefixes: ['/accounting/journal-entries'] },
+      { label: 'Budget Planning', to: '/budgets', icon: WalletCards, roles: ['super_admin', 'tenant_admin', 'finance_manager'] },
+      { label: 'Workflow Approval', to: '/workflow-approvals', icon: Workflow, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'], badge: 'workflowPending' },
+      { label: 'Documents', to: '/documents', icon: FileText, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'quality_officer', 'finance_manager'], matchPrefixes: ['/documents'] },
+      { label: 'Audit Events', to: '/audit/events', icon: ScrollText, roles: ['super_admin', 'tenant_admin'], matchPrefixes: ['/audit'] },
+      { label: 'Government Claims', to: '/government-claims', icon: Landmark, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'], matchPrefixes: ['/government-claims'] },
+      { label: 'Funding', to: '/funding', icon: Landmark, roles: ['super_admin', 'tenant_admin', 'finance_manager'], matchPrefixes: ['/funding'] },
+      { label: 'Chart of Accounts', to: '/accounting/accounts', icon: BookOpen, roles: ['super_admin', 'tenant_admin', 'finance_manager'], matchPrefixes: ['/accounting/accounts'] },
+      { label: 'Journal Entries', to: '/accounting/journal-entries', icon: ClipboardCheck, roles: ['super_admin', 'tenant_admin', 'finance_manager'], matchPrefixes: ['/accounting/journal-entries'] },
+    ],
+  },
+  {
+    id: 'workforce',
+    title: 'Workforce',
+    icon: Users,
+    items: [
+      { label: 'Positions', to: '/workforce/positions', icon: BriefcaseBusiness, roles: ['super_admin', 'tenant_admin', 'operations_manager'], matchPrefixes: ['/workforce/positions'] },
+      { label: 'Employees', to: '/workforce/employees', icon: Users, roles: ['super_admin', 'tenant_admin', 'operations_manager'], matchPrefixes: ['/workforce/employees'] },
+      { label: 'Shifts', to: '/workforce/shifts', icon: CalendarDays, roles: ['super_admin', 'tenant_admin', 'operations_manager'], matchPrefixes: ['/workforce/shifts'] },
+      { label: 'Attendance', to: '/workforce/attendance', icon: ClipboardCheck, roles: ['super_admin', 'tenant_admin', 'operations_manager'], matchPrefixes: ['/workforce/attendance'] },
+      { label: 'Timesheets', to: '/workforce/timesheets', icon: CalendarDays, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'finance_manager'], matchPrefixes: ['/workforce/timesheets'] },
+    ],
+  },
+  {
+    id: 'assets',
+    title: 'Assets',
+    icon: Archive,
+    items: [
+      { label: 'Asset Register', to: '/assets', icon: Archive, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'], matchPrefixes: ['/assets'] },
+      { label: 'Asset Categories', to: '/assets/categories', icon: Boxes, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'], matchPrefixes: ['/assets/categories'] },
     ],
   },
   {
     id: 'master-data',
     title: 'Master Data',
-    icon: 'MD',
+    icon: Database,
     items: [
-      { label: 'Tenants', to: '/tenants', icon: 'TN', roles: ['super_admin'], matchPrefixes: ['/tenants'] },
-      { label: 'SPPG', to: '/sppg', icon: 'SP', matchPrefixes: ['/sppg'] },
-      { label: 'Schools', to: '/schools', icon: 'SC', matchPrefixes: ['/schools'] },
-      { label: 'Products', to: '/products', icon: 'PD', matchPrefixes: ['/products'] },
-      { label: 'Recipes', to: '/recipes', icon: 'RC', matchPrefixes: ['/recipes'] },
-      { label: 'Users', to: '/users', icon: 'US', roles: ['super_admin', 'tenant_admin'], matchPrefixes: ['/users'] },
-      { label: 'Onboarding Wizard', to: '/onboarding/wizard', icon: 'OW', roles: ['super_admin', 'tenant_admin'], matchPrefixes: ['/onboarding'] },
+      { label: 'Programs', to: '/programs', icon: SquareKanban, roles: ['super_admin', 'tenant_admin'], matchPrefixes: ['/programs'] },
+      { label: 'Beneficiaries', to: '/beneficiaries', icon: UserRoundCheck, roles: ['super_admin', 'tenant_admin', 'operations_manager'], matchPrefixes: ['/beneficiaries'] },
+      { label: 'Tenants', to: '/tenants', icon: Building2, roles: ['super_admin'], matchPrefixes: ['/tenants'] },
+      { label: 'SPPG', to: '/sppg', icon: Soup, matchPrefixes: ['/sppg'] },
+      { label: 'Schools', to: '/schools', icon: GraduationCap, matchPrefixes: ['/schools'] },
+      { label: 'Products', to: '/products', icon: PackageSearch, matchPrefixes: ['/products'] },
+      { label: 'Recipes', to: '/recipes', icon: BookOpen, matchPrefixes: ['/recipes'] },
+      { label: 'Users', to: '/users', icon: UserCog, roles: ['super_admin', 'tenant_admin'], matchPrefixes: ['/users'] },
+      { label: 'Onboarding Wizard', to: '/onboarding/wizard', icon: Warehouse, roles: ['super_admin', 'tenant_admin'], matchPrefixes: ['/onboarding'] },
     ],
   },
 ]
@@ -272,16 +334,31 @@ const resolveItemTitle = (item: NavItem) => {
     :class="[
       props.mobile ? 'flex h-full rounded-none border-l-0 border-t-0 border-b-0 w-72' : 'hidden lg:flex',
       !props.mobile && desktopCollapsed ? 'w-24' : !props.mobile ? 'w-72' : '',
+      desktopCollapsed ? 'sidebar-collapsed' : '',
     ]"
   >
-    <div class="mb-8 flex items-center gap-3" :class="{ 'justify-center': desktopCollapsed }">
-      <div class="overflow-hidden rounded-2xl border border-[var(--app-panel-border)] bg-white/80 shadow-[0_12px_30px_rgba(15,23,42,0.12)]">
-        <img :src="logoSrc" alt="ERP MBG logo" class="h-14 w-14 object-cover" />
+    <div class="mb-8 flex items-center gap-3" :class="desktopCollapsed ? 'flex-col justify-center' : 'justify-between'">
+      <div class="flex min-w-0 items-center gap-3" :class="{ 'justify-center': desktopCollapsed }">
+        <div class="overflow-hidden rounded-2xl border border-[var(--app-panel-border)] bg-white/80 shadow-[0_12px_30px_rgba(15,23,42,0.12)]">
+          <img :src="logoSrc" alt="ERP MBG logo" class="h-14 w-14 object-cover" />
+        </div>
+        <div v-if="!desktopCollapsed">
+          <p class="eyebrow-text tracking-[0.34em]">ERP MBG</p>
+          <h1 v-if="!props.mobile" class="font-display text-xl text-app-heading">Control Grid</h1>
+        </div>
       </div>
-      <div v-if="!desktopCollapsed">
-        <p class="eyebrow-text tracking-[0.34em]">ERP MBG</p>
-        <h1 v-if="!props.mobile" class="font-display text-xl text-app-heading">Control Grid</h1>
-      </div>
+
+      <button
+        v-if="!props.mobile"
+        class="sidebar-collapse-button"
+        type="button"
+        :aria-label="desktopCollapsed ? 'Extend menu sidebar' : 'Collapse menu sidebar'"
+        :title="desktopCollapsed ? 'Extend menu' : 'Collapse menu'"
+        @click="appStore.toggleDesktopSidebar()"
+      >
+        <PanelLeftOpen v-if="desktopCollapsed" :size="18" stroke-width="2" />
+        <Menu v-else :size="18" stroke-width="2" />
+      </button>
     </div>
 
     <div class="space-y-3">
@@ -294,14 +371,18 @@ const resolveItemTitle = (item: NavItem) => {
           @click="toggleGroup(section.id)"
         >
           <span class="flex items-center gap-3">
-            <span class="sidebar-item-icon">{{ section.icon }}</span>
+            <span class="sidebar-item-icon">
+              <component :is="section.icon" class="sidebar-svg-icon" :size="17" stroke-width="2" />
+            </span>
             <span v-if="!desktopCollapsed" class="sidebar-group-label">{{ section.title }}</span>
           </span>
           <span
             v-if="!desktopCollapsed"
             class="sidebar-group-icon"
             :class="{ 'sidebar-group-icon-open': openGroups[section.id] }"
-          >+</span>
+          >
+            <ChevronDown :size="15" stroke-width="2.3" />
+          </span>
         </button>
 
         <div v-if="openGroups[section.id]" class="sidebar-group-body">
@@ -315,7 +396,9 @@ const resolveItemTitle = (item: NavItem) => {
             @click="handleNavigate"
           >
             <span class="flex items-center gap-3" :class="{ 'justify-center': desktopCollapsed }">
-              <span class="sidebar-item-icon">{{ item.icon }}</span>
+              <span class="sidebar-item-icon">
+                <component :is="item.icon" class="sidebar-svg-icon" :size="17" stroke-width="2" />
+              </span>
               <span v-if="!desktopCollapsed">{{ item.label }}</span>
             </span>
             <span v-if="resolveBadge(item)" class="sidebar-item-badge" :class="{ 'sidebar-item-badge-floating': desktopCollapsed }">
