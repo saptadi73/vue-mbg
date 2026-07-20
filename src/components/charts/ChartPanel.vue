@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { defineAsyncComponent } from 'vue'
 import type { ApexOptions } from 'apexcharts'
-import VueApexCharts from 'vue3-apexcharts'
+
+const VueApexCharts = defineAsyncComponent(() => import('vue3-apexcharts'))
 
 defineProps<{
   title: string

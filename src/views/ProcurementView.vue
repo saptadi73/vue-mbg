@@ -6,11 +6,15 @@ import StatusBadge from '@/components/common/StatusBadge.vue'
 import { useAsyncState } from '@/composables/useAsyncState'
 import {
   createSupplier,
+  createSupplierPriceHistory,
+  createSupplierProduct,
   getGoodsReceipts,
   getPurchaseOrders,
   getPurchaseRequests,
   getSupplierInvoices,
   getSupplierPayments,
+  getSupplierPriceHistories,
+  getSupplierProducts,
   getSuppliers,
 } from '@/services/erp-ops'
 import type {
@@ -19,11 +23,15 @@ import type {
   PurchaseRequestRecord,
   SupplierInvoiceRecord,
   SupplierPaymentRecord,
+  SupplierPriceHistoryRecord,
+  SupplierProductRecord,
   SupplierRecord,
 } from '@/types/domain'
 import { formatCurrency, formatDate } from '@/utils/format'
 
 const suppliersState = useAsyncState(getSuppliers)
+const supplierProductsState = useAsyncState(getSupplierProducts)
+const supplierPriceHistoriesState = useAsyncState(getSupplierPriceHistories)
 const prState = useAsyncState(getPurchaseRequests)
 const poState = useAsyncState(getPurchaseOrders)
 const grState = useAsyncState(getGoodsReceipts)
@@ -31,6 +39,8 @@ const invoiceState = useAsyncState(getSupplierInvoices)
 const paymentState = useAsyncState(getSupplierPayments)
 
 const saving = ref(false)
+const supplierProductSaving = ref(false)
+const supplierPriceSaving = ref(false)
 const supplierForm = reactive({
   name: 'Supplier Bahan Segar Baru',
   supplier_type: 'VENDOR',
@@ -39,6 +49,22 @@ const supplierForm = reactive({
   email: 'dewi.lestari@supplier.local',
   address: 'Jl. Ketahanan Pangan No. 12, Jakarta',
   status: 'ACTIVE',
+})
+const supplierProductForm = reactive({
+  supplier_id: 'sup-1',
+  product_id: 'product-1',
+  purchase_uom_id: 'uom-kg',
+  supplier_product_code: 'NEW-SKU-001',
+  minimum_order_qty: 25,
+  lead_time_days: 2,
+  is_preferred: true,
+  is_active: true,
+})
+const supplierPriceForm = reactive({
+  supplier_product_id: 'sup-prod-1',
+  price: 14900,
+  effective_from: '2026-07-20',
+  effective_to: '',
 })
 
 const totalOpenProcurement = computed(
@@ -63,9 +89,65 @@ const submitSupplier = async () => {
   }
 }
 
+const submitSupplierProduct = async () => {
+  supplierProductSaving.value = true
+  try {
+    const created = await createSupplierProduct({
+      supplier_id: supplierProductForm.supplier_id,
+      product_id: supplierProductForm.product_id,
+      purchase_uom_id: supplierProductForm.purchase_uom_id,
+      supplier_product_code: supplierProductForm.supplier_product_code,
+      minimum_order_qty: Number(supplierProductForm.minimum_order_qty),
+      lead_time_days: Number(supplierProductForm.lead_time_days),
+      is_preferred: supplierProductForm.is_preferred,
+      is_active: supplierProductForm.is_active,
+    })
+    if (supplierProductsState.data.value) {
+      supplierProductsState.data.value = {
+        ...supplierProductsState.data.value,
+        items: [created, ...supplierProductsState.data.value.items],
+        total: supplierProductsState.data.value.total + 1,
+      }
+    }
+  } finally {
+    supplierProductSaving.value = false
+  }
+}
+
+const submitSupplierPrice = async () => {
+  supplierPriceSaving.value = true
+  try {
+    const created = await createSupplierPriceHistory({
+      supplier_product_id: supplierPriceForm.supplier_product_id,
+      price: Number(supplierPriceForm.price),
+      effective_from: supplierPriceForm.effective_from,
+      effective_to: supplierPriceForm.effective_to || null,
+    })
+    if (supplierPriceHistoriesState.data.value) {
+      supplierPriceHistoriesState.data.value = {
+        ...supplierPriceHistoriesState.data.value,
+        items: [created, ...supplierPriceHistoriesState.data.value.items],
+        total: supplierPriceHistoriesState.data.value.total + 1,
+      }
+    }
+  } finally {
+    supplierPriceSaving.value = false
+  }
+}
+
 const supplierSearchText = (item: unknown) => {
   const row = item as SupplierRecord
   return [row.name, row.supplier_type, row.contact_person, row.email, row.status].filter(Boolean).join(' ')
+}
+
+const supplierProductSearchText = (item: unknown) => {
+  const row = item as SupplierProductRecord
+  return [row.supplier_name, row.product_code, row.product_name, row.purchase_uom_id, row.supplier_product_code].filter(Boolean).join(' ')
+}
+
+const supplierPriceHistorySearchText = (item: unknown) => {
+  const row = item as SupplierPriceHistoryRecord
+  return [row.supplier_name, row.product_name, row.effective_from, row.effective_to].filter(Boolean).join(' ')
 }
 
 const purchaseRequestSearchText = (item: unknown) => {
@@ -114,14 +196,14 @@ const supplierPaymentSearchText = (item: unknown) => {
         <p class="mt-2 text-sm text-app-body">PR dan PO yang masih bergerak di flow procurement.</p>
       </article>
       <article class="glass-panel p-5">
-        <p class="text-sm text-app-muted">Goods receipts</p>
-        <p class="mt-3 font-display text-3xl text-app-heading">{{ grState.data.value?.total || 0 }}</p>
-        <p class="mt-2 text-sm text-app-body">Tahap yang memindahkan reserve menjadi committed dan posting inventory.</p>
+        <p class="text-sm text-app-muted">Supplier products</p>
+        <p class="mt-3 font-display text-3xl text-app-heading">{{ supplierProductsState.data.value?.total || 0 }}</p>
+        <p class="mt-2 text-sm text-app-body">Mapping supplier ke produk agar shortlist vendor dan PO lebih cepat dipilih.</p>
       </article>
       <article class="glass-panel p-5">
-        <p class="text-sm text-app-muted">Supplier payments</p>
-        <p class="mt-3 font-display text-3xl text-app-heading">{{ paymentState.data.value?.total || 0 }}</p>
-        <p class="mt-2 text-sm text-app-body">Tahap akhir yang menutup hutang supplier menjadi kas keluar.</p>
+        <p class="text-sm text-app-muted">Price histories</p>
+        <p class="mt-3 font-display text-3xl text-app-heading">{{ supplierPriceHistoriesState.data.value?.total || 0 }}</p>
+        <p class="mt-2 text-sm text-app-body">Histori harga membantu negosiasi supplier dan evaluasi cost trend procurement.</p>
       </article>
     </section>
 
@@ -201,6 +283,106 @@ const supplierPaymentSearchText = (item: unknown) => {
       </article>
     </section>
 
+    <section class="grid gap-6 xl:grid-cols-2">
+      <article class="glass-panel p-6">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <p class="eyebrow-text">Supplier Product</p>
+            <h2 class="mt-2 font-display text-2xl text-app-heading">Mapping supplier ke produk</h2>
+          </div>
+          <span class="status-pill">POST /supplier-products</span>
+        </div>
+        <form class="mt-6 grid gap-4" @submit.prevent="submitSupplierProduct">
+          <div class="grid gap-4 md:grid-cols-2">
+            <label class="form-field">
+              <span>Supplier</span>
+              <select v-model="supplierProductForm.supplier_id" class="toolbar-input">
+                <option v-for="supplier in suppliersState.data.value?.items || []" :key="supplier.id" :value="supplier.id">{{ supplier.name }}</option>
+              </select>
+            </label>
+            <label class="form-field">
+              <span>Produk</span>
+              <select v-model="supplierProductForm.product_id" class="toolbar-input">
+                <option value="product-1">Beras Medium</option>
+                <option value="product-2">Ayam Fillet</option>
+                <option value="product-3">Susu UHT</option>
+              </select>
+            </label>
+            <label class="form-field">
+              <span>Purchase UOM</span>
+              <input v-model="supplierProductForm.purchase_uom_id" class="toolbar-input" required />
+            </label>
+            <label class="form-field">
+              <span>Supplier SKU</span>
+              <input v-model="supplierProductForm.supplier_product_code" class="toolbar-input" required />
+            </label>
+            <label class="form-field">
+              <span>Minimum order qty</span>
+              <input v-model.number="supplierProductForm.minimum_order_qty" class="toolbar-input" min="1" type="number" />
+            </label>
+            <label class="form-field">
+              <span>Lead time (hari)</span>
+              <input v-model.number="supplierProductForm.lead_time_days" class="toolbar-input" min="0" type="number" />
+            </label>
+            <label class="form-field">
+              <span>Preferred</span>
+              <select v-model="supplierProductForm.is_preferred" class="toolbar-input">
+                <option :value="true">Ya</option>
+                <option :value="false">Tidak</option>
+              </select>
+            </label>
+            <label class="form-field">
+              <span>Aktif</span>
+              <select v-model="supplierProductForm.is_active" class="toolbar-input">
+                <option :value="true">Aktif</option>
+                <option :value="false">Nonaktif</option>
+              </select>
+            </label>
+          </div>
+          <div class="flex justify-end">
+            <button class="primary-button" :disabled="supplierProductSaving" type="submit">{{ supplierProductSaving ? 'Menyimpan...' : 'Simpan Mapping' }}</button>
+          </div>
+        </form>
+      </article>
+
+      <article class="glass-panel p-6">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <p class="eyebrow-text">Price History</p>
+            <h2 class="mt-2 font-display text-2xl text-app-heading">Catat histori harga supplier</h2>
+          </div>
+          <span class="status-pill">POST /supplier-price-histories</span>
+        </div>
+        <form class="mt-6 grid gap-4" @submit.prevent="submitSupplierPrice">
+          <label class="form-field">
+            <span>Supplier product</span>
+            <select v-model="supplierPriceForm.supplier_product_id" class="toolbar-input">
+              <option v-for="supplierProduct in supplierProductsState.data.value?.items || []" :key="supplierProduct.id" :value="supplierProduct.id">
+                {{ supplierProduct.supplier_name }} - {{ supplierProduct.product_name }}
+              </option>
+            </select>
+          </label>
+          <div class="grid gap-4 md:grid-cols-2">
+            <label class="form-field">
+              <span>Harga</span>
+              <input v-model.number="supplierPriceForm.price" class="toolbar-input" min="0" step="100" type="number" />
+            </label>
+            <label class="form-field">
+              <span>Effective from</span>
+              <input v-model="supplierPriceForm.effective_from" class="toolbar-input" type="date" />
+            </label>
+            <label class="form-field md:col-span-2">
+              <span>Effective to</span>
+              <input v-model="supplierPriceForm.effective_to" class="toolbar-input" type="date" />
+            </label>
+          </div>
+          <div class="flex justify-end">
+            <button class="primary-button" :disabled="supplierPriceSaving" type="submit">{{ supplierPriceSaving ? 'Menyimpan...' : 'Simpan Harga' }}</button>
+          </div>
+        </form>
+      </article>
+    </section>
+
     <section class="grid gap-6">
       <DataTableCard
         :items="suppliersState.data.value?.items || []"
@@ -211,7 +393,7 @@ const supplierPaymentSearchText = (item: unknown) => {
       >
         <template #table="{ items }">
           <table class="data-table">
-            <thead><tr><th>Nama</th><th>Tipe</th><th>Kontak</th><th>Email</th><th>Status</th></tr></thead>
+            <thead><tr><th>Nama</th><th>Tipe</th><th>Kontak</th><th>Email</th><th>Status</th><th>Aksi</th></tr></thead>
             <tbody>
               <tr v-for="item in items" :key="(item as SupplierRecord).id">
                 <td>{{ (item as SupplierRecord).name }}</td>
@@ -219,11 +401,65 @@ const supplierPaymentSearchText = (item: unknown) => {
                 <td>{{ (item as SupplierRecord).contact_person }}</td>
                 <td>{{ (item as SupplierRecord).email }}</td>
                 <td><StatusBadge :status="(item as SupplierRecord).status || 'ACTIVE'" /></td>
+                <td><RouterLink class="secondary-button" :to="`/procurement/suppliers/${(item as SupplierRecord).id}`">Detail</RouterLink></td>
               </tr>
             </tbody>
           </table>
         </template>
       </DataTableCard>
+
+      <section class="grid gap-6 xl:grid-cols-2">
+        <DataTableCard
+          :items="supplierProductsState.data.value?.items || []"
+          :search-text-resolver="supplierProductSearchText"
+          empty-message="Belum ada mapping supplier-produk."
+          search-placeholder="Cari supplier, produk, atau SKU..."
+          title="Supplier Products"
+        >
+          <template #table="{ items }">
+            <table class="data-table">
+              <thead><tr><th>Supplier</th><th>Produk</th><th>UOM</th><th>MOQ</th><th>Lead Time</th><th>Preferred</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr v-for="item in items" :key="(item as SupplierProductRecord).id">
+                  <td>{{ (item as SupplierProductRecord).supplier_name }}</td>
+                  <td>
+                    {{ (item as SupplierProductRecord).product_code }} - {{ (item as SupplierProductRecord).product_name }}
+                    <p class="mt-1 text-xs text-app-muted">{{ (item as SupplierProductRecord).supplier_product_code || '-' }}</p>
+                  </td>
+                  <td>{{ (item as SupplierProductRecord).purchase_uom_id }}</td>
+                  <td>{{ (item as SupplierProductRecord).minimum_order_qty || 0 }}</td>
+                  <td>{{ (item as SupplierProductRecord).lead_time_days || 0 }} hari</td>
+                  <td>{{ (item as SupplierProductRecord).is_preferred ? 'Ya' : 'Tidak' }}</td>
+                  <td><StatusBadge :status="(item as SupplierProductRecord).is_active ? 'ACTIVE' : 'INACTIVE'" /></td>
+                </tr>
+              </tbody>
+            </table>
+          </template>
+        </DataTableCard>
+
+        <DataTableCard
+          :items="supplierPriceHistoriesState.data.value?.items || []"
+          :search-text-resolver="supplierPriceHistorySearchText"
+          empty-message="Belum ada histori harga supplier."
+          search-placeholder="Cari supplier, produk, atau periode..."
+          title="Supplier Price Histories"
+        >
+          <template #table="{ items }">
+            <table class="data-table">
+              <thead><tr><th>Supplier</th><th>Produk</th><th>Harga</th><th>Effective From</th><th>Effective To</th></tr></thead>
+              <tbody>
+                <tr v-for="item in items" :key="(item as SupplierPriceHistoryRecord).id">
+                  <td>{{ (item as SupplierPriceHistoryRecord).supplier_name }}</td>
+                  <td>{{ (item as SupplierPriceHistoryRecord).product_name }}</td>
+                  <td>{{ formatCurrency((item as SupplierPriceHistoryRecord).price) }}</td>
+                  <td>{{ formatDate((item as SupplierPriceHistoryRecord).effective_from) }}</td>
+                  <td>{{ (item as SupplierPriceHistoryRecord).effective_to ? formatDate((item as SupplierPriceHistoryRecord).effective_to || '') : '-' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </template>
+        </DataTableCard>
+      </section>
 
       <DataTableCard
         :items="prState.data.value?.items || []"

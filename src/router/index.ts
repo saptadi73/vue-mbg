@@ -8,10 +8,20 @@ const DashboardView = () => import('@/views/DashboardView.vue')
 const MealPlansView = () => import('@/views/MealPlansView.vue')
 const InventoryView = () => import('@/views/InventoryView.vue')
 const FinanceView = () => import('@/views/FinanceView.vue')
+const FinanceReportsView = () => import('@/views/FinanceReportsView.vue')
+const AccountsView = () => import('@/views/AccountsView.vue')
+const JournalEntriesView = () => import('@/views/JournalEntriesView.vue')
+const JournalEntryDetailView = () => import('@/views/JournalEntryDetailView.vue')
 const CostingView = () => import('@/views/CostingView.vue')
 const BudgetPlanningView = () => import('@/views/BudgetPlanningView.vue')
+const BudgetDetailView = () => import('@/views/BudgetDetailView.vue')
 const WorkflowApprovalsView = () => import('@/views/WorkflowApprovalsView.vue')
+const GovernmentClaimsView = () => import('@/views/GovernmentClaimsView.vue')
+const GovernmentClaimDetailView = () => import('@/views/GovernmentClaimDetailView.vue')
+const FundingAgreementsView = () => import('@/views/FundingAgreementsView.vue')
+const FundingAgreementDetailView = () => import('@/views/FundingAgreementDetailView.vue')
 const ProcurementView = () => import('@/views/ProcurementView.vue')
+const SupplierDetailView = () => import('@/views/SupplierDetailView.vue')
 const PurchaseRequestDetailView = () => import('@/views/PurchaseRequestDetailView.vue')
 const PurchaseOrderDetailView = () => import('@/views/PurchaseOrderDetailView.vue')
 const GoodsReceiptDetailView = () => import('@/views/GoodsReceiptDetailView.vue')
@@ -47,10 +57,20 @@ const router = createRouter({
     { path: '/meal-plans', name: 'meal-plans', component: MealPlansView, meta: { requiresAuth: true } },
     { path: '/inventory', name: 'inventory', component: InventoryView, meta: { requiresAuth: true } },
     { path: '/finance', name: 'finance', component: FinanceView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] } },
+    { path: '/finance/reports', name: 'finance-reports', component: FinanceReportsView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] } },
+    { path: '/accounting/accounts', name: 'accounts', component: AccountsView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager'] } },
+    { path: '/accounting/journal-entries', name: 'journal-entries', component: JournalEntriesView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager'] } },
+    { path: '/accounting/journal-entries/:journalEntryId', name: 'journal-entry-detail', component: JournalEntryDetailView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager'] } },
     { path: '/costing', name: 'costing', component: CostingView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] } },
     { path: '/budgets', name: 'budgets', component: BudgetPlanningView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager'] } },
+    { path: '/budgets/:budgetId', name: 'budget-detail', component: BudgetDetailView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager'] } },
     { path: '/workflow-approvals', name: 'workflow-approvals', component: WorkflowApprovalsView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] } },
+    { path: '/government-claims', name: 'government-claims', component: GovernmentClaimsView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] } },
+    { path: '/government-claims/:claimId', name: 'government-claim-detail', component: GovernmentClaimDetailView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] } },
+    { path: '/funding', name: 'funding', component: FundingAgreementsView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager'] } },
+    { path: '/funding/agreements/:agreementId', name: 'funding-agreement-detail', component: FundingAgreementDetailView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager'] } },
     { path: '/procurement', name: 'procurement', component: ProcurementView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'procurement_officer', 'operations_manager', 'finance_manager'] } },
+    { path: '/procurement/suppliers/:supplierId', name: 'supplier-detail', component: SupplierDetailView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'procurement_officer', 'operations_manager', 'finance_manager'] } },
     { path: '/procurement/purchase-requests/:purchaseRequestId', name: 'purchase-request-detail', component: PurchaseRequestDetailView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'procurement_officer', 'operations_manager', 'finance_manager'] } },
     { path: '/procurement/purchase-orders/:purchaseOrderId', name: 'purchase-order-detail', component: PurchaseOrderDetailView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'procurement_officer', 'operations_manager', 'finance_manager'] } },
     { path: '/procurement/goods-receipts/:goodsReceiptId', name: 'goods-receipt-detail', component: GoodsReceiptDetailView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'procurement_officer', 'operations_manager', 'finance_manager'] } },

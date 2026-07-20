@@ -1,11 +1,21 @@
 import { apiRequest } from '@/services/http'
 import {
   mockActualExpenses,
+  mockAccounts,
+  mockBudgetAvailabilities,
   mockBudgetRecords,
   mockCostPolicies,
+  mockFundingAgreementDetails,
+  mockFundingAgreements,
+  mockFundingDisbursements,
+  mockFundingRepayments,
+  mockFundingSources,
   mockGoodsReceipts,
   mockGoodsReceiptDetails,
+  mockJournalEntries,
+  mockJournalEntryDetails,
   mockLaborCosts,
+  mockMonthlyBudgetRealizations,
   mockPurchaseOrders,
   mockPurchaseOrderDetails,
   mockPurchaseRequests,
@@ -13,22 +23,35 @@ import {
   mockProductionCostSheets,
   mockProductionOrderDetails,
   mockProductionOrders,
+  mockProducts,
   mockSupplierInvoices,
   mockSupplierInvoiceDetails,
   mockSupplierPayments,
   mockSupplierPaymentDetails,
+  mockSupplierPriceHistories,
+  mockSupplierProducts,
   mockSuppliers,
   mockWorkflowDefinitions,
   mockWorkflowDocuments,
 } from '@/services/mock-data'
 import type {
   ActualExpenseRecord,
+  AccountRecord,
+  BudgetAvailabilityRecord,
   BudgetRecord,
   CostPolicyRecord,
   CreateBudgetPayload,
+  FundingAgreementDetailRecord,
+  FundingAgreementRecord,
+  FundingDisbursementRecord,
+  FundingRepaymentRecord,
+  FundingSourceRecord,
   GoodsReceiptRecord,
   GoodsReceiptDetailRecord,
+  JournalEntryDetailRecord,
+  JournalEntryRecord,
   LaborCostRecord,
+  MonthlyBudgetRealizationRecord,
   PurchaseOrderRecord,
   PurchaseOrderDetailRecord,
   PurchaseRequestRecord,
@@ -40,6 +63,9 @@ import type {
   SupplierInvoiceDetailRecord,
   SupplierPaymentRecord,
   SupplierPaymentDetailRecord,
+  SupplierDetailRecord,
+  SupplierPriceHistoryRecord,
+  SupplierProductRecord,
   SupplierRecord,
   WorkflowDefinitionRecord,
   WorkflowDocumentRecord,
@@ -118,6 +144,47 @@ const syncSupplierInvoiceStatus = (supplierInvoiceId: string, status: string) =>
   if (detail) detail.supplier_invoice.status = status
 }
 
+const syncFundingAgreement = (agreementId: string, updater: (agreement: FundingAgreementRecord) => void) => {
+  const summary = mockFundingAgreements.find((item) => item.id === agreementId)
+  if (summary) updater(summary)
+
+  const detail = mockFundingAgreementDetails.find((item) => item.agreement.id === agreementId)
+  if (detail) updater(detail.agreement)
+}
+
+const syncBudgetStatus = (budgetId: string, status: string) => {
+  const budget = mockBudgetRecords.find((item) => item.id === budgetId)
+  if (budget) {
+    budget.status = status
+  }
+}
+
+const findWorkflowDocument = (documentType: string, documentId: string) =>
+  mockWorkflowDocuments.find((item) => item.document_type === documentType && item.document_id === documentId)
+
+const ensureWorkflowDocument = (documentType: string, documentId: string, businessStatus: string) => {
+  let workflow = findWorkflowDocument(documentType, documentId)
+  if (workflow) {
+    return workflow
+  }
+
+  workflow = {
+    id: `wfd-${documentType}-${documentId}`,
+    document_type: documentType,
+    document_id: documentId,
+    current_state: businessStatus,
+    business_status: businessStatus,
+    approval_requests: [],
+    history: [],
+  }
+  mockWorkflowDocuments.unshift(workflow)
+  return workflow
+}
+
+const nextApprovalRequestId = () => `apr-${Date.now()}`
+const nextWorkflowHistoryId = () => `wfh-${Date.now()}`
+const nowIsoDateTime = () => '2026-07-20T10:30:00Z'
+
 export const getCostPolicies = async () => {
   try {
     const payload = await apiRequest<unknown>('/api/v1/costing/policies')
@@ -125,6 +192,33 @@ export const getCostPolicies = async () => {
     return { items: items.length ? items : mockCostPolicies, total: totalFromEnvelope(payload, items.length || mockCostPolicies.length) }
   } catch {
     return { items: mockCostPolicies, total: mockCostPolicies.length }
+  }
+}
+
+export const getAccounts = async () => {
+  try {
+    const payload = await apiRequest<unknown>('/api/v1/accounts')
+    const items = ensureArray<AccountRecord>(payload.data)
+    return { items: items.length ? items : mockAccounts, total: totalFromEnvelope(payload, items.length || mockAccounts.length) }
+  } catch {
+    return { items: mockAccounts, total: mockAccounts.length }
+  }
+}
+
+export const createAccount = async (input: Omit<AccountRecord, 'id'>) => {
+  try {
+    const payload = await apiRequest<AccountRecord>('/api/v1/accounts', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+    return payload.data
+  } catch {
+    const record = {
+      ...input,
+      id: `acc-${input.code}`,
+    }
+    mockAccounts.unshift(record)
+    return record
   }
 }
 
@@ -186,6 +280,62 @@ export const getBudgetRecords = async () => {
   }
 }
 
+export const getBudgetById = async (budgetId: string) => {
+  try {
+    const payload = await apiRequest<BudgetRecord>(`/api/v1/budgets/${budgetId}`)
+    return payload.data
+  } catch {
+    return ensureRecord(
+      mockBudgetRecords.find((item) => item.id === budgetId) || mockBudgetRecords[0],
+      'Budget tidak ditemukan.',
+    )
+  }
+}
+
+export const getBudgetAvailability = async (budgetId: string) => {
+  try {
+    const payload = await apiRequest<BudgetAvailabilityRecord>(`/api/v1/budgets/${budgetId}/availability`)
+    return payload.data
+  } catch {
+    return ensureRecord(
+      mockBudgetAvailabilities.find((item) => item.budget_id === budgetId),
+      'Availability budget tidak ditemukan.',
+    )
+  }
+}
+
+export const getMonthlyBudgetRealizations = async (budgetId?: string) => {
+  try {
+    const query = budgetId ? `?budget_id=${encodeURIComponent(budgetId)}` : ''
+    const payload = await apiRequest<unknown>(`/api/v1/platform/read-models/monthly-budget-realizations${query}`)
+    const items = ensureArray<MonthlyBudgetRealizationRecord>(payload.data)
+    const filteredItems = budgetId ? items.filter((item) => item.budget_id === budgetId) : items
+    const fallbackItems = budgetId
+      ? mockMonthlyBudgetRealizations.filter((item) => item.budget_id === budgetId)
+      : mockMonthlyBudgetRealizations
+    return {
+      items: filteredItems.length ? filteredItems : fallbackItems,
+      total: totalFromEnvelope(payload, filteredItems.length || fallbackItems.length),
+    }
+  } catch {
+    const items = budgetId
+      ? mockMonthlyBudgetRealizations.filter((item) => item.budget_id === budgetId)
+      : mockMonthlyBudgetRealizations
+    return { items, total: items.length }
+  }
+}
+
+export const refreshMonthlyBudgetRealizations = async () => {
+  try {
+    await apiRequest('/api/v1/platform/read-models/monthly-budget-realizations/refresh', {
+      method: 'POST',
+    })
+    return { refreshed: true }
+  } catch {
+    return { refreshed: false }
+  }
+}
+
 export const createBudgetRecord = async (input: CreateBudgetPayload) => {
   try {
     const payload = await apiRequest<BudgetRecord>('/api/v1/budgets', {
@@ -218,6 +368,129 @@ export const createBudgetRecord = async (input: CreateBudgetPayload) => {
   }
 }
 
+export const submitBudgetRecord = async (budgetId: string) => {
+  try {
+    const payload = await apiRequest<BudgetRecord>(`/api/v1/budgets/${budgetId}/submit`, {
+      method: 'POST',
+    })
+    return payload.data
+  } catch {
+    const budget = ensureRecord(
+      mockBudgetRecords.find((item) => item.id === budgetId),
+      'Budget tidak ditemukan.',
+    )
+
+    if (budget.status !== 'DRAFT') {
+      throw new Error('Budget hanya bisa disubmit dari status DRAFT.')
+    }
+
+    budget.status = 'SUBMITTED'
+    const workflow = ensureWorkflowDocument('budget', budgetId, 'SUBMITTED')
+    workflow.current_state = 'SUBMITTED'
+    workflow.business_status = 'SUBMITTED'
+
+    const existingPending = workflow.approval_requests.find((item) => item.status === 'PENDING')
+    if (!existingPending) {
+      workflow.approval_requests.unshift({
+        id: nextApprovalRequestId(),
+        title: budget.name,
+        approver_name: 'Nadia Puspita',
+        approver_role: 'tenant_admin',
+        status: 'PENDING',
+        requested_at: nowIsoDateTime(),
+        due_at: '2026-07-21T10:00:00Z',
+      })
+    }
+
+    workflow.history.unshift({
+      id: nextWorkflowHistoryId(),
+      state: 'SUBMITTED',
+      action_name: 'Submit Budget',
+      actor_name: 'ERP MBG Frontend',
+      created_at: nowIsoDateTime(),
+      notes: 'Budget dikirim ke workflow approval.',
+    })
+
+    return budget
+  }
+}
+
+export const approveBudgetRecord = async (budgetId: string, notes?: string) => {
+  try {
+    const payload = await apiRequest<BudgetRecord>(`/api/v1/budgets/${budgetId}/approve`, {
+      method: 'POST',
+      body: JSON.stringify(notes ? { notes } : {}),
+    })
+    return payload.data
+  } catch {
+    const budget = ensureRecord(
+      mockBudgetRecords.find((item) => item.id === budgetId),
+      'Budget tidak ditemukan.',
+    )
+
+    if (budget.status !== 'SUBMITTED') {
+      throw new Error('Budget hanya bisa diapprove dari status SUBMITTED.')
+    }
+
+    budget.status = 'APPROVED'
+    const workflow = ensureWorkflowDocument('budget', budgetId, 'APPROVED')
+    workflow.current_state = 'APPROVED'
+    workflow.business_status = 'APPROVED'
+    workflow.approval_requests = workflow.approval_requests.map((item) =>
+      item.status === 'PENDING'
+        ? {
+            ...item,
+            status: 'APPROVED',
+          }
+        : item,
+    )
+    workflow.history.unshift({
+      id: nextWorkflowHistoryId(),
+      state: 'APPROVED',
+      action_name: 'Approve Budget',
+      actor_name: 'ERP MBG Frontend',
+      created_at: nowIsoDateTime(),
+      notes: notes || 'Budget disetujui.',
+    })
+
+    return budget
+  }
+}
+
+export const rejectBudgetRecord = async (budgetId: string, notes?: string) => {
+  const budget = ensureRecord(
+    mockBudgetRecords.find((item) => item.id === budgetId),
+    'Budget tidak ditemukan.',
+  )
+
+  if (budget.status !== 'SUBMITTED') {
+    throw new Error('Budget hanya bisa direject dari status SUBMITTED.')
+  }
+
+  budget.status = 'REJECTED'
+  const workflow = ensureWorkflowDocument('budget', budgetId, 'REJECTED')
+  workflow.current_state = 'REJECTED'
+  workflow.business_status = 'REJECTED'
+  workflow.approval_requests = workflow.approval_requests.map((item) =>
+    item.status === 'PENDING'
+      ? {
+          ...item,
+          status: 'REJECTED',
+        }
+      : item,
+  )
+  workflow.history.unshift({
+    id: nextWorkflowHistoryId(),
+    state: 'REJECTED',
+    action_name: 'Reject Budget',
+    actor_name: 'ERP MBG Frontend',
+    created_at: nowIsoDateTime(),
+    notes: notes || 'Budget perlu revisi.',
+  })
+
+  return budget
+}
+
 export const getWorkflowDefinitions = async () => {
   try {
     const payload = await apiRequest<unknown>('/api/v1/workflows/definitions')
@@ -232,6 +505,60 @@ export const getWorkflowDocuments = async () => {
   return {
     items: mockWorkflowDocuments,
     total: mockWorkflowDocuments.length,
+  }
+}
+
+export const decideApprovalRequest = async (
+  approvalRequestId: string,
+  decision: 'APPROVED' | 'REJECTED',
+  notes?: string,
+) => {
+  try {
+    const payload = await apiRequest<WorkflowDocumentRecord>(
+      `/api/v1/workflows/approval-requests/${approvalRequestId}/decisions`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          decision,
+          notes,
+        }),
+      },
+    )
+    return payload.data
+  } catch {
+    const workflow = ensureRecord(
+      mockWorkflowDocuments.find((document) =>
+        document.approval_requests.some((request) => request.id === approvalRequestId),
+      ),
+      'Approval request tidak ditemukan.',
+    )
+
+    const request = ensureRecord(
+      workflow.approval_requests.find((item) => item.id === approvalRequestId),
+      'Approval request tidak ditemukan.',
+    )
+
+    if (request.status !== 'PENDING') {
+      throw new Error('Approval request sudah tidak pending.')
+    }
+
+    request.status = decision
+    workflow.current_state = decision === 'APPROVED' ? 'APPROVED' : 'REJECTED'
+    workflow.business_status = decision === 'APPROVED' ? 'APPROVED' : 'REJECTED'
+    workflow.history.unshift({
+      id: nextWorkflowHistoryId(),
+      state: workflow.current_state,
+      action_name: decision === 'APPROVED' ? 'Approval Decision' : 'Rejection Decision',
+      actor_name: 'ERP MBG Frontend',
+      created_at: nowIsoDateTime(),
+      notes: notes || (decision === 'APPROVED' ? 'Dokumen disetujui.' : 'Dokumen ditolak untuk revisi.'),
+    })
+
+    if (workflow.document_type === 'budget') {
+      syncBudgetStatus(workflow.document_id, decision)
+    }
+
+    return workflow
   }
 }
 
@@ -276,6 +603,32 @@ export const getSuppliers = async () => {
   }
 }
 
+export const getSupplierById = async (supplierId: string) => {
+  try {
+    const payload = await apiRequest<SupplierDetailRecord>(
+      `/api/v1/procurement/purchase-requests/suppliers/${supplierId}`,
+    )
+    return payload.data
+  } catch {
+    const supplier = ensureRecord(
+      mockSuppliers.find((item) => item.id === supplierId) || mockSuppliers[0],
+      'Supplier tidak ditemukan.',
+    )
+
+    return {
+      supplier,
+      supplier_products: mockSupplierProducts.filter((item) => item.supplier_id === supplier.id),
+      price_histories: mockSupplierPriceHistories.filter((history) =>
+        mockSupplierProducts.some(
+          (supplierProduct) =>
+            supplierProduct.id === history.supplier_product_id && supplierProduct.supplier_id === supplier.id,
+        ),
+      ),
+      purchase_orders: mockPurchaseOrders.filter((item) => item.supplier_name === supplier.name),
+    }
+  }
+}
+
 export const createSupplier = async (input: Omit<SupplierRecord, 'id'>) => {
   try {
     const payload = await apiRequest<SupplierRecord>('/api/v1/procurement/purchase-requests/suppliers', {
@@ -285,6 +638,218 @@ export const createSupplier = async (input: Omit<SupplierRecord, 'id'>) => {
     return payload.data
   } catch {
     return { ...input, id: `mock-supplier-${Date.now()}` }
+  }
+}
+
+export const getSupplierProducts = async () => {
+  try {
+    const payload = await apiRequest<unknown>('/api/v1/procurement/purchase-requests/supplier-products')
+    const items = ensureArray<SupplierProductRecord>(payload.data)
+    return { items: items.length ? items : mockSupplierProducts, total: totalFromEnvelope(payload, items.length || mockSupplierProducts.length) }
+  } catch {
+    return { items: mockSupplierProducts, total: mockSupplierProducts.length }
+  }
+}
+
+export const createSupplierProduct = async (
+  input: Omit<SupplierProductRecord, 'id' | 'supplier_name' | 'product_code' | 'product_name'>,
+) => {
+  try {
+    const payload = await apiRequest<SupplierProductRecord>('/api/v1/procurement/purchase-requests/supplier-products', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+    return payload.data
+  } catch {
+    const supplier = ensureRecord(mockSuppliers.find((item) => item.id === input.supplier_id), 'Supplier tidak ditemukan.')
+    const product = ensureRecord(mockProducts.find((item) => item.id === input.product_id), 'Produk tidak ditemukan.')
+
+    return {
+      ...input,
+      id: `mock-supplier-product-${Date.now()}`,
+      supplier_name: supplier.name,
+      product_code: product.code,
+      product_name: product.name,
+    }
+  }
+}
+
+export const getSupplierPriceHistories = async () => {
+  try {
+    const payload = await apiRequest<unknown>('/api/v1/procurement/purchase-requests/supplier-price-histories')
+    const items = ensureArray<SupplierPriceHistoryRecord>(payload.data)
+    return { items: items.length ? items : mockSupplierPriceHistories, total: totalFromEnvelope(payload, items.length || mockSupplierPriceHistories.length) }
+  } catch {
+    return { items: mockSupplierPriceHistories, total: mockSupplierPriceHistories.length }
+  }
+}
+
+export const createSupplierPriceHistory = async (
+  input: Omit<SupplierPriceHistoryRecord, 'id' | 'supplier_name' | 'product_name'>,
+) => {
+  try {
+    const payload = await apiRequest<SupplierPriceHistoryRecord>('/api/v1/procurement/purchase-requests/supplier-price-histories', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+    return payload.data
+  } catch {
+    const supplierProduct = ensureRecord(
+      mockSupplierProducts.find((item) => item.id === input.supplier_product_id),
+      'Supplier product tidak ditemukan.',
+    )
+
+    return {
+      ...input,
+      id: `mock-supplier-price-${Date.now()}`,
+      supplier_name: supplierProduct.supplier_name,
+      product_name: supplierProduct.product_name,
+    }
+  }
+}
+
+export const getFundingSources = async () => {
+  try {
+    const payload = await apiRequest<unknown>('/api/v1/funding/sources')
+    const items = ensureArray<FundingSourceRecord>(payload.data)
+    return { items: items.length ? items : mockFundingSources, total: totalFromEnvelope(payload, items.length || mockFundingSources.length) }
+  } catch {
+    return { items: mockFundingSources, total: mockFundingSources.length }
+  }
+}
+
+export const getFundingAgreements = async () => {
+  try {
+    const payload = await apiRequest<unknown>('/api/v1/funding/agreements')
+    const items = ensureArray<FundingAgreementRecord>(payload.data)
+    return { items: items.length ? items : mockFundingAgreements, total: totalFromEnvelope(payload, items.length || mockFundingAgreements.length) }
+  } catch {
+    return { items: mockFundingAgreements, total: mockFundingAgreements.length }
+  }
+}
+
+export const getFundingDisbursements = async () => {
+  try {
+    const payload = await apiRequest<unknown>('/api/v1/funding/disbursements')
+    const items = ensureArray<FundingDisbursementRecord>(payload.data)
+    return { items: items.length ? items : mockFundingDisbursements, total: totalFromEnvelope(payload, items.length || mockFundingDisbursements.length) }
+  } catch {
+    return { items: mockFundingDisbursements, total: mockFundingDisbursements.length }
+  }
+}
+
+export const getFundingRepayments = async () => {
+  try {
+    const payload = await apiRequest<unknown>('/api/v1/funding/repayments')
+    const items = ensureArray<FundingRepaymentRecord>(payload.data)
+    return { items: items.length ? items : mockFundingRepayments, total: totalFromEnvelope(payload, items.length || mockFundingRepayments.length) }
+  } catch {
+    return { items: mockFundingRepayments, total: mockFundingRepayments.length }
+  }
+}
+
+export const getFundingAgreementById = async (agreementId: string) => {
+  try {
+    const payload = await apiRequest<FundingAgreementDetailRecord>(`/api/v1/funding/agreements/${agreementId}`)
+    return payload.data
+  } catch {
+    return ensureRecord(
+      mockFundingAgreementDetails.find((item) => item.agreement.id === agreementId) || mockFundingAgreementDetails[0],
+      'Funding agreement tidak ditemukan.',
+    )
+  }
+}
+
+export const createFundingAgreement = async (
+  input: Omit<FundingAgreementRecord, 'id' | 'agreement_number' | 'funding_source_name'>,
+) => {
+  try {
+    const payload = await apiRequest<FundingAgreementRecord>('/api/v1/funding/agreements', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+    return payload.data
+  } catch {
+    const source = ensureRecord(
+      mockFundingSources.find((item) => item.id === input.funding_source_id),
+      'Funding source tidak ditemukan.',
+    )
+
+    return {
+      ...input,
+      id: `funding-agreement-${Date.now()}`,
+      agreement_number: nextDocumentNumber(
+        'FAGR',
+        mockFundingAgreements.map((item) => item.agreement_number),
+      ),
+      funding_source_name: source.name,
+    }
+  }
+}
+
+export const createFundingDisbursement = async (
+  agreementId: string,
+  input: Omit<FundingDisbursementRecord, 'id' | 'agreement_id' | 'agreement_number'>,
+) => {
+  try {
+    const payload = await apiRequest<FundingDisbursementRecord>(`/api/v1/funding/agreements/${agreementId}/disbursements`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+    return payload.data
+  } catch {
+    const agreement = await getFundingAgreementById(agreementId)
+    const record: FundingDisbursementRecord = {
+      ...input,
+      id: `funding-disbursement-${Date.now()}`,
+      agreement_id: agreementId,
+      agreement_number: agreement.agreement.agreement_number,
+    }
+
+    mockFundingDisbursements.unshift(record)
+    const detail = mockFundingAgreementDetails.find((item) => item.agreement.id === agreementId)
+    if (detail) {
+      detail.disbursements.unshift(record)
+      detail.principal_disbursed += record.amount
+      detail.outstanding_principal += record.amount
+    }
+    syncFundingAgreement(agreementId, (agreementRecord) => {
+      agreementRecord.status = 'ACTIVE'
+    })
+
+    return record
+  }
+}
+
+export const createFundingRepayment = async (
+  agreementId: string,
+  input: Omit<FundingRepaymentRecord, 'id' | 'agreement_id' | 'agreement_number'>,
+) => {
+  try {
+    const payload = await apiRequest<FundingRepaymentRecord>(`/api/v1/funding/agreements/${agreementId}/repayments`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+    return payload.data
+  } catch {
+    const agreement = await getFundingAgreementById(agreementId)
+    const record: FundingRepaymentRecord = {
+      ...input,
+      id: `funding-repayment-${Date.now()}`,
+      agreement_id: agreementId,
+      agreement_number: agreement.agreement.agreement_number,
+    }
+
+    mockFundingRepayments.unshift(record)
+    const detail = mockFundingAgreementDetails.find((item) => item.agreement.id === agreementId)
+    if (detail) {
+      detail.repayments.unshift(record)
+      detail.principal_repaid += record.principal_amount
+      detail.outstanding_principal = Math.max(detail.outstanding_principal - record.principal_amount, 0)
+      detail.realized_margin += record.margin_amount
+    }
+
+    return record
   }
 }
 
@@ -461,6 +1026,116 @@ export const createPurchaseOrderFromPurchaseRequest = async (
   syncPurchaseRequestStatus(purchaseRequestId, 'POSTED')
 
   return { created: true, record }
+}
+
+export const getJournalEntries = async () => {
+  try {
+    const payload = await apiRequest<unknown>('/api/v1/journal-entries')
+    const items = ensureArray<JournalEntryRecord>(payload.data)
+    return { items: items.length ? items : mockJournalEntries, total: totalFromEnvelope(payload, items.length || mockJournalEntries.length) }
+  } catch {
+    return { items: mockJournalEntries, total: mockJournalEntries.length }
+  }
+}
+
+export const getJournalEntryById = async (journalEntryId: string) => {
+  try {
+    const payload = await apiRequest<JournalEntryDetailRecord>(`/api/v1/journal-entries/${journalEntryId}`)
+    return payload.data
+  } catch {
+    return ensureRecord(
+      mockJournalEntryDetails.find((item) => item.journal_entry.id === journalEntryId) || mockJournalEntryDetails[0],
+      'Journal entry tidak ditemukan.',
+    )
+  }
+}
+
+export const createJournalEntry = async (input: {
+  entry_date: string
+  reference: string
+  description: string
+  source_module: string
+  source_document_type?: string | null
+  source_document_id?: string | null
+  lines: Array<{
+    account_code: string
+    account_name: string
+    line_type: 'DEBIT' | 'CREDIT'
+    amount: number
+    description?: string
+  }>
+}) => {
+  try {
+    const payload = await apiRequest<JournalEntryDetailRecord>('/api/v1/journal-entries', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+    return payload.data
+  } catch {
+    const totalDebit = input.lines.filter((line) => line.line_type === 'DEBIT').reduce((sum, line) => sum + line.amount, 0)
+    const totalCredit = input.lines.filter((line) => line.line_type === 'CREDIT').reduce((sum, line) => sum + line.amount, 0)
+
+    if (totalDebit !== totalCredit) {
+      throw new Error('Total debit dan credit harus seimbang.')
+    }
+
+    const entryNumber = nextDocumentNumber('JE', mockJournalEntries.map((item) => item.entry_number))
+    const id = `je-${Date.now()}`
+    const record: JournalEntryDetailRecord = {
+      journal_entry: {
+        id,
+        entry_number: entryNumber,
+        entry_date: input.entry_date,
+        reference: input.reference,
+        description: input.description,
+        source_module: input.source_module,
+        source_document_type: input.source_document_type || null,
+        source_document_id: input.source_document_id || null,
+        status: 'DRAFT',
+        total_debit: totalDebit,
+        total_credit: totalCredit,
+      },
+      lines: input.lines.map((line, index) => ({
+        id: `${id}-line-${index + 1}`,
+        account_code: line.account_code,
+        account_name: line.account_name,
+        line_type: line.line_type,
+        amount: line.amount,
+        description: line.description,
+      })),
+    }
+
+    mockJournalEntries.unshift(record.journal_entry)
+    mockJournalEntryDetails.unshift(record)
+    return record
+  }
+}
+
+export const postJournalEntry = async (journalEntryId: string) => {
+  try {
+    const payload = await apiRequest<JournalEntryDetailRecord>(`/api/v1/journal-entries/${journalEntryId}/post`, {
+      method: 'POST',
+    })
+    return payload.data
+  } catch {
+    const detail = ensureRecord(
+      mockJournalEntryDetails.find((item) => item.journal_entry.id === journalEntryId),
+      'Journal entry tidak ditemukan.',
+    )
+
+    detail.journal_entry.status = 'POSTED'
+    detail.journal_entry.posted_at = '2026-07-20T14:30:00Z'
+    detail.journal_entry.posted_by = 'finance.manager@mbg.local'
+
+    const summary = mockJournalEntries.find((item) => item.id === journalEntryId)
+    if (summary) {
+      summary.status = 'POSTED'
+      summary.posted_at = detail.journal_entry.posted_at
+      summary.posted_by = detail.journal_entry.posted_by
+    }
+
+    return detail
+  }
 }
 
 export const createGoodsReceiptFromPurchaseOrder = async (

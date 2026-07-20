@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import type { ApexOptions } from 'apexcharts'
 import ChartPanel from '@/components/charts/ChartPanel.vue'
@@ -13,6 +13,8 @@ import { useAppStore } from '@/stores/app'
 const appStore = useAppStore()
 const { themeMode } = storeToRefs(appStore)
 const { data, loading, error, execute } = useAsyncState(getDashboardOverview)
+const showCharts = ref(false)
+let chartTimer: ReturnType<typeof setTimeout> | null = null
 
 const axisColor = computed(() => (themeMode.value === 'dark' ? '#94a3b8' : '#526072'))
 const legendColor = computed(() => (themeMode.value === 'dark' ? '#cbd5e1' : '#334155'))
@@ -48,6 +50,35 @@ const deliveryOptions = computed<ApexOptions>(() => ({
   ...baseChartOptions.value,
   colors: ['#5cf0c6', '#ff8f8f'],
 }))
+
+const scheduleChartsRender = () => {
+  if (!data.value || showCharts.value) return
+
+  if (chartTimer) {
+    clearTimeout(chartTimer)
+  }
+
+  chartTimer = setTimeout(() => {
+    showCharts.value = true
+  }, 180)
+}
+
+watch(
+  () => data.value,
+  (value) => {
+    if (!value) {
+      showCharts.value = false
+      if (chartTimer) {
+        clearTimeout(chartTimer)
+        chartTimer = null
+      }
+      return
+    }
+
+    scheduleChartsRender()
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -68,7 +99,7 @@ const deliveryOptions = computed<ApexOptions>(() => ({
         <KpiCard v-for="item in data.tenantKpis" :key="item.id" :item="item" />
       </section>
 
-      <section class="grid gap-4 xl:grid-cols-2">
+      <section v-if="showCharts" class="grid gap-4 xl:grid-cols-2">
         <ChartPanel
           title="Meal Plan Workflow"
           subtitle="Status operasional meal plan lintas SPPG aktif."
@@ -83,6 +114,14 @@ const deliveryOptions = computed<ApexOptions>(() => ({
           :options="deliveryOptions"
           :series="data.deliveryPerformance"
         />
+      </section>
+      <section v-else class="grid gap-4 xl:grid-cols-2">
+        <article class="glass-panel p-5">
+          <div class="h-[320px] animate-pulse rounded-3xl border border-[var(--app-panel-border)] bg-white/5" />
+        </article>
+        <article class="glass-panel p-5">
+          <div class="h-[320px] animate-pulse rounded-3xl border border-[var(--app-panel-border)] bg-white/5" />
+        </article>
       </section>
 
       <section class="grid gap-4 xl:grid-cols-4">

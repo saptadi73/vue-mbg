@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import DataTableCard from '@/components/common/DataTableCard.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { useAsyncState } from '@/composables/useAsyncState'
-import { getWorkflowDefinitions, getWorkflowDocuments } from '@/services/erp-ops'
+import { decideApprovalRequest, getWorkflowDefinitions, getWorkflowDocuments } from '@/services/erp-ops'
 import type {
   ApprovalRequestRecord,
   WorkflowDefinitionRecord,
@@ -15,6 +15,9 @@ import { formatDateTime } from '@/utils/format'
 
 const definitionsState = useAsyncState(getWorkflowDefinitions)
 const documentsState = useAsyncState(getWorkflowDocuments)
+const approvalActionId = ref('')
+const approvalMessage = ref('')
+const approvalError = ref('')
 
 const pendingApprovals = computed(() =>
   (documentsState.data.value?.items || []).flatMap((item) => item.approval_requests).filter((item) => item.status === 'PENDING'),
@@ -58,6 +61,33 @@ const workflowHistoryRows = computed(() =>
 const workflowHistorySearchText = (item: unknown) => {
   const row = item as WorkflowHistoryRecord & { document_type: string; document_id: string }
   return [row.action_name, row.actor_name, row.state, row.document_type, row.document_id, row.notes].filter(Boolean).join(' ')
+}
+
+const reloadDocuments = async () => {
+  await documentsState.execute()
+}
+
+const handleDecision = async (approvalRequestId: string, decision: 'APPROVED' | 'REJECTED') => {
+  approvalActionId.value = approvalRequestId
+  approvalMessage.value = ''
+  approvalError.value = ''
+
+  try {
+    await decideApprovalRequest(
+      approvalRequestId,
+      decision,
+      decision === 'APPROVED' ? 'Disetujui dari approval queue.' : 'Ditolak untuk revisi dari approval queue.',
+    )
+    await reloadDocuments()
+    approvalMessage.value =
+      decision === 'APPROVED'
+        ? 'Approval request berhasil disetujui.'
+        : 'Approval request berhasil ditolak untuk revisi.'
+  } catch (error) {
+    approvalError.value = error instanceof Error ? error.message : 'Gagal memproses approval request.'
+  } finally {
+    approvalActionId.value = ''
+  }
 }
 </script>
 
@@ -152,8 +182,15 @@ const workflowHistorySearchText = (item: unknown) => {
         title="Approval Requests"
       >
         <template #table="{ items }">
+          <div v-if="approvalMessage" class="mb-4 rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
+            {{ approvalMessage }}
+          </div>
+          <div v-if="approvalError" class="mb-4 rounded-2xl border border-rose-400/25 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
+            {{ approvalError }}
+          </div>
+
           <table class="data-table">
-            <thead><tr><th>Request</th><th>Dokumen</th><th>Approver</th><th>Requested</th><th>Status</th></tr></thead>
+            <thead><tr><th>Request</th><th>Dokumen</th><th>Approver</th><th>Requested</th><th>Status</th><th>Aksi</th></tr></thead>
             <tbody>
               <tr v-for="item in items" :key="(item as ApprovalRequestRecord & { document_type: string; document_id: string }).id">
                 <td>{{ (item as ApprovalRequestRecord & { document_type: string; document_id: string }).title }}</td>
@@ -161,6 +198,30 @@ const workflowHistorySearchText = (item: unknown) => {
                 <td>{{ (item as ApprovalRequestRecord & { document_type: string; document_id: string }).approver_name }} | {{ (item as ApprovalRequestRecord & { document_type: string; document_id: string }).approver_role }}</td>
                 <td>{{ formatDateTime((item as ApprovalRequestRecord & { document_type: string; document_id: string }).requested_at) }}</td>
                 <td><StatusBadge :status="(item as ApprovalRequestRecord & { document_type: string; document_id: string }).status" /></td>
+                <td>
+                  <div
+                    v-if="(item as ApprovalRequestRecord & { document_type: string; document_id: string }).status === 'PENDING'"
+                    class="flex flex-wrap gap-2"
+                  >
+                    <button
+                      class="secondary-button"
+                      :disabled="approvalActionId === (item as ApprovalRequestRecord & { document_type: string; document_id: string }).id"
+                      type="button"
+                      @click="handleDecision((item as ApprovalRequestRecord & { document_type: string; document_id: string }).id, 'APPROVED')"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      class="secondary-button"
+                      :disabled="approvalActionId === (item as ApprovalRequestRecord & { document_type: string; document_id: string }).id"
+                      type="button"
+                      @click="handleDecision((item as ApprovalRequestRecord & { document_type: string; document_id: string }).id, 'REJECTED')"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                  <span v-else class="text-xs text-app-muted">Selesai</span>
+                </td>
               </tr>
             </tbody>
           </table>

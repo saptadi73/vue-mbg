@@ -41,7 +41,22 @@ const budgetSearchText = (item: unknown) => {
       </article>
     </section>
 
-    <section class="grid gap-4 xl:grid-cols-4">
+    <section class="grid gap-4 xl:grid-cols-8">
+      <RouterLink class="glass-panel p-5 transition hover:-translate-y-0.5" to="/finance/reports">
+        <p class="eyebrow-text">Reports</p>
+        <h2 class="mt-2 font-display text-2xl text-app-heading">Finance analytics</h2>
+        <p class="mt-2 text-sm text-app-body">Pantau receivable aging, funding position, ROI per SPPG, dan cash flow.</p>
+      </RouterLink>
+      <RouterLink class="glass-panel p-5 transition hover:-translate-y-0.5" to="/accounting/accounts">
+        <p class="eyebrow-text">Accounts</p>
+        <h2 class="mt-2 font-display text-2xl text-app-heading">Chart of accounts</h2>
+        <p class="mt-2 text-sm text-app-body">Kelola master account untuk jurnal, costing, claim, procurement, dan funding.</p>
+      </RouterLink>
+      <RouterLink class="glass-panel p-5 transition hover:-translate-y-0.5" to="/accounting/journal-entries">
+        <p class="eyebrow-text">Accounting</p>
+        <h2 class="mt-2 font-display text-2xl text-app-heading">Journal entries</h2>
+        <p class="mt-2 text-sm text-app-body">Lihat jurnal draft dan posted, buat jurnal manual, lalu lakukan posting resmi.</p>
+      </RouterLink>
       <RouterLink class="glass-panel p-5 transition hover:-translate-y-0.5" to="/costing">
         <p class="eyebrow-text">Costing</p>
         <h2 class="mt-2 font-display text-2xl text-app-heading">Biaya aktual</h2>
@@ -56,6 +71,16 @@ const budgetSearchText = (item: unknown) => {
         <p class="eyebrow-text">Workflow</p>
         <h2 class="mt-2 font-display text-2xl text-app-heading">Approval queue</h2>
         <p class="mt-2 text-sm text-app-body">Lihat definisi workflow, approval request, dan history keputusan.</p>
+      </RouterLink>
+      <RouterLink class="glass-panel p-5 transition hover:-translate-y-0.5" to="/government-claims">
+        <p class="eyebrow-text">Claims</p>
+        <h2 class="mt-2 font-display text-2xl text-app-heading">Government claim</h2>
+        <p class="mt-2 text-sm text-app-body">Susun dokumen klaim, verifikasi evidence, adjustment, dan monitoring payment.</p>
+      </RouterLink>
+      <RouterLink class="glass-panel p-5 transition hover:-translate-y-0.5" to="/funding">
+        <p class="eyebrow-text">Funding</p>
+        <h2 class="mt-2 font-display text-2xl text-app-heading">Investor funding</h2>
+        <p class="mt-2 text-sm text-app-body">Kelola funding source, agreement, disbursement, dan repayment dalam satu alur.</p>
       </RouterLink>
       <RouterLink class="glass-panel p-5 transition hover:-translate-y-0.5" to="/procurement">
         <p class="eyebrow-text">Procurement</p>

@@ -1,15 +1,25 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import DataTableCard from '@/components/common/DataTableCard.vue'
+import DocumentActionCard from '@/components/common/DocumentActionCard.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { useAsyncState } from '@/composables/useAsyncState'
-import { createBudgetRecord, getBudgetRecords } from '@/services/erp-ops'
+import {
+  approveBudgetRecord,
+  createBudgetRecord,
+  getBudgetRecords,
+  rejectBudgetRecord,
+  submitBudgetRecord as submitBudgetForApproval,
+} from '@/services/erp-ops'
 import type { BudgetRecord, BudgetLineRecord, CreateBudgetPayload } from '@/types/domain'
 import { formatCurrency, formatDate } from '@/utils/format'
 
 const budgetState = useAsyncState(getBudgetRecords)
 const saving = ref(false)
+const actionLoadingId = ref('')
+const actionMessage = ref('')
+const actionError = ref('')
 
 const form = reactive<CreateBudgetPayload>({
   name: 'Budget Operasional Agustus 2026',
@@ -54,6 +64,60 @@ const submitBudget = async () => {
     }
   } finally {
     saving.value = false
+  }
+}
+
+const replaceBudget = (updated: BudgetRecord) => {
+  if (!budgetState.data.value) return
+
+  budgetState.data.value = {
+    ...budgetState.data.value,
+    items: budgetState.data.value.items.map((item) => (item.id === updated.id ? updated : item)),
+  }
+}
+
+const handleSubmitBudget = async (budgetId: string) => {
+  actionLoadingId.value = budgetId
+  actionMessage.value = ''
+  actionError.value = ''
+  try {
+    const updated = await submitBudgetForApproval(budgetId)
+    replaceBudget(updated)
+    actionMessage.value = 'Budget berhasil disubmit ke workflow approval.'
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : 'Gagal submit budget.'
+  } finally {
+    actionLoadingId.value = ''
+  }
+}
+
+const handleApproveBudget = async (budgetId: string) => {
+  actionLoadingId.value = budgetId
+  actionMessage.value = ''
+  actionError.value = ''
+  try {
+    const updated = await approveBudgetRecord(budgetId, 'Approved dari panel budget planning.')
+    replaceBudget(updated)
+    actionMessage.value = 'Budget berhasil diapprove.'
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : 'Gagal approve budget.'
+  } finally {
+    actionLoadingId.value = ''
+  }
+}
+
+const handleRejectBudget = async (budgetId: string) => {
+  actionLoadingId.value = budgetId
+  actionMessage.value = ''
+  actionError.value = ''
+  try {
+    const updated = await rejectBudgetRecord(budgetId, 'Budget perlu revisi line atau nominal.')
+    replaceBudget(updated)
+    actionMessage.value = 'Budget berhasil direject untuk revisi.'
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : 'Gagal reject budget.'
+  } finally {
+    actionLoadingId.value = ''
   }
 }
 
@@ -168,8 +232,15 @@ const budgetLineSearchText = (item: unknown) => {
         title="Ringkasan Budget & Availability"
       >
         <template #table="{ items }">
+          <div v-if="actionMessage" class="mb-4 rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
+            {{ actionMessage }}
+          </div>
+          <div v-if="actionError" class="mb-4 rounded-2xl border border-rose-400/25 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
+            {{ actionError }}
+          </div>
+
           <table class="data-table">
-            <thead><tr><th>Budget</th><th>Periode</th><th>Effective</th><th>Available</th><th>Lines</th><th>Status</th></tr></thead>
+            <thead><tr><th>Budget</th><th>Periode</th><th>Effective</th><th>Available</th><th>Lines</th><th>Status</th><th>Aksi</th></tr></thead>
             <tbody>
               <tr v-for="item in items" :key="(item as BudgetRecord).id">
                 <td>
@@ -181,6 +252,43 @@ const budgetLineSearchText = (item: unknown) => {
                 <td>{{ formatCurrency((item as BudgetRecord).available_budget) }}</td>
                 <td>{{ (item as BudgetRecord).lines?.length || 0 }}</td>
                 <td><StatusBadge :status="(item as BudgetRecord).status" /></td>
+                <td>
+                  <div class="flex flex-wrap gap-2">
+                    <router-link
+                      :to="{ name: 'budget-detail', params: { budgetId: (item as BudgetRecord).id } }"
+                      class="secondary-button"
+                    >
+                      Detail
+                    </router-link>
+                    <button
+                      v-if="(item as BudgetRecord).status === 'DRAFT'"
+                      class="secondary-button"
+                      :disabled="actionLoadingId === (item as BudgetRecord).id"
+                      type="button"
+                      @click="handleSubmitBudget((item as BudgetRecord).id)"
+                    >
+                      Submit
+                    </button>
+                    <button
+                      v-if="(item as BudgetRecord).status === 'SUBMITTED'"
+                      class="secondary-button"
+                      :disabled="actionLoadingId === (item as BudgetRecord).id"
+                      type="button"
+                      @click="handleApproveBudget((item as BudgetRecord).id)"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      v-if="(item as BudgetRecord).status === 'SUBMITTED'"
+                      class="secondary-button"
+                      :disabled="actionLoadingId === (item as BudgetRecord).id"
+                      type="button"
+                      @click="handleRejectBudget((item as BudgetRecord).id)"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -197,6 +305,36 @@ const budgetLineSearchText = (item: unknown) => {
                   <p class="mt-1 text-sm text-app-body">Line budget dan utilisasi account</p>
                 </div>
                 <StatusBadge :status="budget.status" />
+              </div>
+
+              <div class="mt-4 grid gap-4 xl:grid-cols-3">
+                <DocumentActionCard
+                  v-if="budget.status === 'DRAFT'"
+                  action-label="Submit Budget"
+                  :description="`Kirim ${budget.name} ke approval queue agar governance dan tenant admin bisa menilai readiness budget.`"
+                  :loading="actionLoadingId === budget.id"
+                  helper-text="Status draft akan berubah menjadi submitted dan approval request dibuat otomatis."
+                  title="Submit ke Workflow"
+                  @action="handleSubmitBudget(budget.id)"
+                />
+                <DocumentActionCard
+                  v-if="budget.status === 'SUBMITTED'"
+                  action-label="Approve Budget"
+                  :description="`Setujui ${budget.name} agar line budget bisa dipakai untuk reserved, committed, dan actual flow berikutnya.`"
+                  :loading="actionLoadingId === budget.id"
+                  helper-text="Approval akan membuka budget untuk transaksi operasional."
+                  title="Approve Governance"
+                  @action="handleApproveBudget(budget.id)"
+                />
+                <DocumentActionCard
+                  v-if="budget.status === 'SUBMITTED'"
+                  action-label="Reject Budget"
+                  :description="`Kembalikan ${budget.name} ke tim penyusun bila nominal atau struktur account masih perlu revisi.`"
+                  :loading="actionLoadingId === budget.id"
+                  helper-text="Reject disimpan sebagai jejak keputusan governance."
+                  title="Reject untuk Revisi"
+                  @action="handleRejectBudget(budget.id)"
+                />
               </div>
 
               <DataTableCard

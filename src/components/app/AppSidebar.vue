@@ -67,6 +67,7 @@ const sections: NavSection[] = [
       { label: 'Overview', to: '/', icon: 'OV', matchPrefixes: ['/'] },
       { label: 'GIS Intelligence', to: '/gis', icon: 'GI' },
       { label: 'Finance', to: '/finance', icon: 'FN', roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] },
+      { label: 'Finance Reports', to: '/finance/reports', icon: 'FR', roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'], matchPrefixes: ['/finance/reports'] },
     ],
   },
   {
@@ -87,6 +88,10 @@ const sections: NavSection[] = [
     items: [
       { label: 'Budget Planning', to: '/budgets', icon: 'BD', roles: ['super_admin', 'tenant_admin', 'finance_manager'] },
       { label: 'Workflow Approval', to: '/workflow-approvals', icon: 'WF', roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'], badge: 'workflowPending' },
+      { label: 'Government Claims', to: '/government-claims', icon: 'GC', roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'], matchPrefixes: ['/government-claims'] },
+      { label: 'Funding', to: '/funding', icon: 'FD', roles: ['super_admin', 'tenant_admin', 'finance_manager'], matchPrefixes: ['/funding'] },
+      { label: 'Chart of Accounts', to: '/accounting/accounts', icon: 'AC', roles: ['super_admin', 'tenant_admin', 'finance_manager'], matchPrefixes: ['/accounting/accounts'] },
+      { label: 'Journal Entries', to: '/accounting/journal-entries', icon: 'JE', roles: ['super_admin', 'tenant_admin', 'finance_manager'], matchPrefixes: ['/accounting/journal-entries'] },
     ],
   },
   {
