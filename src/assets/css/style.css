@@ -1,0 +1,319 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-display: 'Space Grotesk', 'Segoe UI', sans-serif;
+  --font-sans: 'Manrope', 'Segoe UI', sans-serif;
+}
+
+:root {
+  --app-text: #e2e8f0;
+  --app-heading: #f8fafc;
+  --app-muted: #94a3b8;
+  --app-faint: #64748b;
+  --app-panel-bg: rgba(255, 255, 255, 0.045);
+  --app-panel-border: rgba(255, 255, 255, 0.08);
+  --app-subtle-bg: rgba(2, 6, 23, 0.4);
+  --app-subtle-border: rgba(255, 255, 255, 0.1);
+  --app-table-head: rgba(255, 255, 255, 0.05);
+  --app-table-row-hover: rgba(255, 255, 255, 0.03);
+  --app-grid-line: rgba(148, 163, 184, 0.05);
+  --app-shadow: 0 18px 70px rgba(2, 6, 23, 0.45);
+  --app-bg:
+    radial-gradient(circle at top left, rgba(19, 78, 74, 0.45), transparent 28%),
+    radial-gradient(circle at top right, rgba(37, 99, 235, 0.25), transparent 24%),
+    linear-gradient(145deg, #020617 0%, #07111f 44%, #0f172a 100%);
+  color-scheme: dark;
+}
+
+[data-theme='light'] {
+  --app-text: #334155;
+  --app-heading: #0f172a;
+  --app-muted: #64748b;
+  --app-faint: #94a3b8;
+  --app-panel-bg: rgba(255, 255, 255, 0.78);
+  --app-panel-border: rgba(148, 163, 184, 0.2);
+  --app-subtle-bg: rgba(248, 250, 252, 0.92);
+  --app-subtle-border: rgba(203, 213, 225, 0.88);
+  --app-table-head: rgba(226, 232, 240, 0.7);
+  --app-table-row-hover: rgba(226, 232, 240, 0.35);
+  --app-grid-line: rgba(148, 163, 184, 0.12);
+  --app-shadow: 0 24px 60px rgba(148, 163, 184, 0.22);
+  --app-bg:
+    radial-gradient(circle at top left, rgba(45, 212, 191, 0.14), transparent 28%),
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 24%),
+    linear-gradient(145deg, #f8fafc 0%, #eef6ff 48%, #f4f7fb 100%);
+  color-scheme: light;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: #020617;
+  min-height: 100vh;
+  transition: background 0.35s ease;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+.app-bg {
+  color: var(--app-text);
+  background: var(--app-bg);
+  transition:
+    background 0.35s ease,
+    color 0.25s ease;
+}
+
+.app-bg::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--app-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--app-grid-line) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.95), transparent 92%);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.glass-panel {
+  border-color: var(--app-panel-border);
+  background: var(--app-panel-bg);
+  box-shadow: var(--app-shadow);
+  @apply rounded-[30px] border backdrop-blur-xl;
+}
+
+.surface-subtle {
+  border: 1px solid var(--app-subtle-border);
+  background: var(--app-subtle-bg);
+}
+
+.text-app-heading {
+  color: var(--app-heading);
+}
+
+.text-app-body {
+  color: var(--app-text);
+}
+
+.text-app-muted {
+  color: var(--app-muted);
+}
+
+.text-app-faint {
+  color: var(--app-faint);
+}
+
+.eyebrow-text {
+  color: color-mix(in srgb, #5eead4 72%, var(--app-muted) 28%);
+  @apply text-xs uppercase tracking-[0.3em];
+}
+
+.nav-link {
+  color: var(--app-text);
+  @apply block rounded-2xl border border-transparent px-4 py-3 text-sm transition duration-200;
+}
+
+.nav-link:hover {
+  border-color: var(--app-panel-border);
+  background: var(--app-table-row-hover);
+  color: var(--app-heading);
+}
+
+.nav-link-active {
+  @apply border-teal-300/20 bg-teal-300/10 text-white;
+}
+
+.context-field {
+  border-color: var(--app-subtle-border);
+  background: var(--app-subtle-bg);
+  @apply flex min-w-[180px] flex-col gap-2 rounded-2xl border px-4 py-3 text-sm;
+}
+
+.context-field span {
+  color: var(--app-muted);
+  @apply text-xs uppercase tracking-[0.24em];
+}
+
+.context-field select {
+  color: var(--app-heading);
+  @apply bg-transparent text-sm outline-none;
+}
+
+.status-pill {
+  border-color: var(--app-subtle-border);
+  color: var(--app-text);
+  @apply inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium uppercase tracking-[0.16em];
+}
+
+.status-pill-brand {
+  @apply border-teal-300/20 bg-teal-300/10 text-teal-100;
+}
+
+.status-pill-info {
+  @apply border-sky-300/20 bg-sky-300/10 text-sky-100;
+}
+
+.status-pill-success {
+  @apply border-emerald-300/20 bg-emerald-300/10 text-emerald-100;
+}
+
+.status-pill-warning {
+  @apply border-amber-300/20 bg-amber-300/10 text-amber-100;
+}
+
+.status-pill-danger {
+  @apply border-rose-300/20 bg-rose-300/10 text-rose-100;
+}
+
+.status-pill-neutral {
+  @apply border-slate-300/10 bg-slate-300/10 text-slate-200;
+}
+
+[data-theme='light'] .status-pill {
+  background: rgba(255, 255, 255, 0.58);
+}
+
+[data-theme='light'] .status-pill-brand {
+  @apply border-teal-500/20 bg-teal-500/10 text-teal-700;
+}
+
+[data-theme='light'] .status-pill-info {
+  @apply border-sky-500/20 bg-sky-500/10 text-sky-700;
+}
+
+[data-theme='light'] .status-pill-success {
+  @apply border-emerald-500/20 bg-emerald-500/10 text-emerald-700;
+}
+
+[data-theme='light'] .status-pill-warning {
+  @apply border-amber-500/20 bg-amber-500/10 text-amber-700;
+}
+
+[data-theme='light'] .status-pill-danger {
+  @apply border-rose-500/20 bg-rose-500/10 text-rose-700;
+}
+
+[data-theme='light'] .status-pill-neutral {
+  @apply border-slate-400/20 bg-slate-100 text-slate-700;
+}
+
+.primary-button {
+  @apply inline-flex items-center justify-center rounded-2xl bg-teal-300 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-teal-200;
+}
+
+.secondary-button {
+  border: 1px solid var(--app-subtle-border);
+  background: var(--app-subtle-bg);
+  color: var(--app-heading);
+  @apply inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold transition hover:opacity-90;
+}
+
+.toolbar-grid {
+  @apply grid gap-3 md:grid-cols-[2fr_1fr_auto];
+}
+
+.toolbar-input {
+  border-color: var(--app-subtle-border);
+  background: var(--app-subtle-bg);
+  color: var(--app-heading);
+  @apply rounded-2xl border px-4 py-3 text-sm outline-none;
+}
+
+.toolbar-input::placeholder {
+  color: var(--app-faint);
+}
+
+.loading-panel,
+.error-panel {
+  border-color: var(--app-panel-border);
+  background: var(--app-panel-bg);
+  color: var(--app-text);
+  box-shadow: var(--app-shadow);
+  @apply rounded-[30px] border p-6 text-sm backdrop-blur-xl;
+}
+
+.data-table {
+  @apply min-w-full text-left text-sm;
+}
+
+.data-table thead {
+  background: var(--app-table-head);
+  color: var(--app-text);
+}
+
+.data-table th {
+  @apply px-5 py-4 text-xs uppercase tracking-[0.24em];
+}
+
+.data-table td {
+  border-top-color: var(--app-panel-border);
+  color: var(--app-heading);
+  @apply border-t px-5 py-4 align-top;
+}
+
+.data-table tbody tr:hover {
+  background: var(--app-table-row-hover);
+}
+
+.legend-chip {
+  border-color: var(--app-subtle-border);
+  background: var(--app-table-head);
+  @apply inline-flex items-center gap-2 rounded-full border px-3 py-1.5;
+}
+
+.legend-dot {
+  @apply h-2.5 w-2.5 rounded-full;
+}
+
+.theme-toggle {
+  border: 1px solid var(--app-subtle-border);
+  background: var(--app-subtle-bg);
+  @apply inline-flex items-center gap-3 rounded-2xl px-4 py-3 transition hover:scale-[1.01];
+}
+
+.theme-toggle-icon {
+  color: var(--app-heading);
+  @apply grid h-10 w-10 place-items-center rounded-2xl bg-white/10 text-xs font-bold tracking-[0.22em];
+}
+
+.mobile-menu-button {
+  border: 1px solid var(--app-subtle-border);
+  background: var(--app-subtle-bg);
+  @apply inline-flex h-11 w-11 flex-col items-center justify-center gap-1.5 rounded-2xl;
+}
+
+.mobile-menu-lines {
+  background: var(--app-heading);
+  @apply block h-0.5 w-5 rounded-full;
+}
+
+.mobile-sidebar-overlay {
+  background: rgba(2, 6, 23, 0.58);
+  @apply fixed inset-0 z-50;
+}
+
+.mobile-sidebar-panel {
+  background: var(--app-bg);
+  @apply ml-auto flex h-full w-[min(88vw,340px)] flex-col;
+}
+
+.mobile-close-button {
+  border: 1px solid var(--app-subtle-border);
+  background: var(--app-subtle-bg);
+  color: var(--app-heading);
+  @apply rounded-2xl px-4 py-2 text-sm font-medium;
+}
+
+.form-field {
+  @apply flex flex-col gap-2;
+}
+
+.form-field span:first-child {
+  color: var(--app-muted);
+  @apply text-xs uppercase tracking-[0.2em];
+}
