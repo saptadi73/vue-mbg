@@ -148,7 +148,14 @@ body {
 }
 
 .sidebar-collapsed .nav-link {
-  @apply justify-center px-0 py-2.5;
+  min-height: 3.25rem;
+  background: transparent;
+  @apply mx-auto w-14 justify-center rounded-[1.65rem] px-0 py-0;
+}
+
+.sidebar-collapsed .nav-link:hover {
+  border-color: transparent;
+  background: transparent;
 }
 
 .sidebar-collapsed .nav-link-active {
@@ -166,6 +173,25 @@ body {
 [data-theme='light'] .sidebar-collapsed .nav-link-active {
   border-color: transparent;
   background: transparent;
+}
+
+.sidebar-collapsed .sidebar-group {
+  border-color: transparent;
+  background: transparent;
+  @apply p-0;
+}
+
+.sidebar-collapsed .sidebar-group-toggle {
+  background: transparent;
+  @apply mx-auto h-14 w-14 justify-center rounded-[1.65rem] px-0 py-0;
+}
+
+.sidebar-collapsed .sidebar-group-toggle:hover {
+  background: transparent;
+}
+
+.sidebar-collapsed .sidebar-group-body {
+  @apply mt-2 space-y-3 px-0 pb-0;
 }
 
 .sidebar-group {
@@ -204,6 +230,24 @@ body {
   @apply inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl transition duration-200;
 }
 
+.sidebar-collapsed .sidebar-item-icon {
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--app-panel-bg) 92%, white 8%), color-mix(in srgb, var(--app-subtle-bg) 82%, transparent 18%));
+  border-color: color-mix(in srgb, var(--app-panel-border) 72%, transparent 28%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 14px 28px rgba(15, 23, 42, 0.08);
+  @apply h-12 w-12 rounded-[1.45rem];
+}
+
+[data-theme='light'] .sidebar-collapsed .sidebar-item-icon {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.76));
+  border-color: rgba(148, 163, 184, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 16px 34px rgba(15, 23, 42, 0.07);
+}
+
 .sidebar-svg-icon {
   @apply shrink-0;
 }
@@ -220,6 +264,24 @@ body {
   border-color: rgba(15, 118, 110, 0.24);
   color: #ecfeff;
   box-shadow: 0 14px 30px rgba(15, 118, 110, 0.16);
+}
+
+.sidebar-collapsed .nav-link-active .sidebar-item-icon {
+  background: linear-gradient(145deg, #14b8a6, #0f766e);
+  border-color: rgba(153, 246, 228, 0.64);
+  color: #ecfeff;
+  box-shadow:
+    0 16px 32px rgba(20, 184, 166, 0.28),
+    0 0 0 7px rgba(45, 212, 191, 0.1);
+}
+
+[data-theme='light'] .sidebar-collapsed .nav-link-active .sidebar-item-icon {
+  background: linear-gradient(145deg, #0f766e, #115e59);
+  border-color: rgba(15, 118, 110, 0.28);
+  color: #ecfeff;
+  box-shadow:
+    0 16px 32px rgba(15, 118, 110, 0.18),
+    0 0 0 7px rgba(20, 184, 166, 0.1);
 }
 
 .sidebar-collapse-button {
