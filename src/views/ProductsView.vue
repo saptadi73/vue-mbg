@@ -44,11 +44,12 @@ const submit = async () => {
       <section class="glass-panel overflow-hidden">
         <div class="overflow-x-auto">
           <table class="data-table">
-            <thead><tr><th>Code</th><th>Nama</th><th>Type</th><th>Kategori</th><th>Status</th></tr></thead>
+            <thead><tr><th>Code</th><th>Nama</th><th>Type</th><th>Kategori</th><th>Status</th><th>Aksi</th></tr></thead>
             <tbody>
               <tr v-for="item in data?.items || []" :key="item.id">
                 <td>{{ item.code }}</td><td>{{ item.name }}</td><td>{{ item.product_type }}</td><td>{{ item.category_name }}</td>
                 <td><StatusBadge :status="item.is_active ? 'APPROVED' : 'REJECTED'" /></td>
+                <td><RouterLink class="secondary-button" :to="`/products/${item.id}`">Detail</RouterLink></td>
               </tr>
             </tbody>
           </table>

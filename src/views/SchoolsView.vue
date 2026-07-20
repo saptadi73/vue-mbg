@@ -47,12 +47,13 @@ const submit = async () => {
       <section class="glass-panel overflow-hidden">
         <div class="overflow-x-auto">
           <table class="data-table">
-            <thead><tr><th>NPSN</th><th>Nama</th><th>Level</th><th>Status</th><th>Dibuat</th></tr></thead>
+            <thead><tr><th>NPSN</th><th>Nama</th><th>Level</th><th>Status</th><th>Dibuat</th><th>Aksi</th></tr></thead>
             <tbody>
               <tr v-for="item in data?.items || []" :key="item.id">
                 <td>{{ item.npsn }}</td><td>{{ item.name }}</td><td>{{ item.school_level }}</td>
                 <td><StatusBadge :status="item.is_active ? 'APPROVED' : 'REJECTED'" /></td>
                 <td>{{ item.created_at ? formatDateTime(item.created_at) : '-' }}</td>
+                <td><RouterLink class="secondary-button" :to="`/schools/${item.id}`">Detail</RouterLink></td>
               </tr>
             </tbody>
           </table>

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import iconMbgChrome from '@/assets/images/icon_mbg_chrome.png'
+import iconMbgWarna from '@/assets/images/icon_mbg_warna.png'
 import { useAppStore } from '@/stores/app'
 
 const props = withDefaults(
@@ -14,6 +16,8 @@ const props = withDefaults(
 
 const appStore = useAppStore()
 const route = useRoute()
+const allowedRoles = computed(() => appStore.roles)
+const logoSrc = computed(() => (appStore.themeMode === 'dark' ? iconMbgChrome : iconMbgWarna))
 
 const sections = [
   {
@@ -22,12 +26,16 @@ const sections = [
       { label: 'Overview', to: '/' },
       { label: 'Meal Plans', to: '/meal-plans' },
       { label: 'Inventory', to: '/inventory' },
-      { label: 'Finance', to: '/finance' },
+      { label: 'Finance', to: '/finance', roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] },
+      { label: 'Costing', to: '/costing', roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] },
+      { label: 'Budget Planning', to: '/budgets', roles: ['super_admin', 'tenant_admin', 'finance_manager'] },
+      { label: 'Workflow Approval', to: '/workflow-approvals', roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] },
+      { label: 'Procurement', to: '/procurement', roles: ['super_admin', 'tenant_admin', 'procurement_officer', 'operations_manager', 'finance_manager'] },
       { label: 'GIS Intelligence', to: '/gis' },
-      { label: 'Tenants', to: '/tenants' },
+      { label: 'Tenants', to: '/tenants', roles: ['super_admin'] },
       { label: 'SPPG', to: '/sppg' },
-      { label: 'Users', to: '/users' },
-      { label: 'Onboarding Wizard', to: '/onboarding/wizard' },
+      { label: 'Users', to: '/users', roles: ['super_admin', 'tenant_admin'] },
+      { label: 'Onboarding Wizard', to: '/onboarding/wizard', roles: ['super_admin', 'tenant_admin'] },
     ],
   },
   {
@@ -48,6 +56,18 @@ const sections = [
 ]
 
 const isActive = (path: string) => computed(() => route.path === path)
+const visibleSections = computed(() =>
+  sections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => {
+        if (!item.roles?.length) return true
+        return item.roles.some((role) => allowedRoles.value.includes(role))
+      }),
+    }))
+    .filter((section) => section.items.length),
+)
+
 const handleNavigate = () => {
   if (props.mobile) {
     appStore.closeMobileSidebar()
@@ -61,8 +81,8 @@ const handleNavigate = () => {
     :class="props.mobile ? 'flex h-full rounded-none border-l-0 border-t-0 border-b-0' : 'hidden lg:flex'"
   >
     <div class="mb-8 flex items-center gap-3">
-      <div class="grid h-11 w-11 place-items-center rounded-2xl bg-[radial-gradient(circle_at_top,_rgba(92,240,198,0.9),_rgba(10,23,45,0.6))] text-sm font-semibold text-slate-950">
-        MB
+      <div class="overflow-hidden rounded-2xl border border-[var(--app-panel-border)] bg-white/80 shadow-[0_12px_30px_rgba(15,23,42,0.12)]">
+        <img :src="logoSrc" alt="ERP MBG logo" class="h-14 w-14 object-cover" />
       </div>
       <div>
         <p class="eyebrow-text tracking-[0.34em]">ERP MBG</p>
@@ -70,7 +90,7 @@ const handleNavigate = () => {
       </div>
     </div>
 
-    <div v-for="section in sections" :key="section.title" class="mb-6">
+    <div v-for="section in visibleSections" :key="section.title" class="mb-6">
       <p v-if="!props.mobile" class="mb-3 text-xs uppercase tracking-[0.24em] text-app-muted">
         {{ section.title }}
       </p>

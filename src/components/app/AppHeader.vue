@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
+import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 
 const appStore = useAppStore()
+const router = useRouter()
 const {
   activeTenant,
   activeTenantId,
@@ -14,6 +16,11 @@ const {
   themeMode,
   unreadNotifications,
 } = storeToRefs(appStore)
+
+const handleLogout = () => {
+  appStore.logout()
+  router.push('/login')
+}
 </script>
 
 <template>
@@ -63,6 +70,10 @@ const {
           {{ profile.avatar }}
         </div>
       </div>
+
+      <button class="secondary-button" type="button" @click="handleLogout">
+        Logout
+      </button>
     </div>
   </header>
 

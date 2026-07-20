@@ -64,6 +64,17 @@ body {
     color 0.25s ease;
 }
 
+.login-shell {
+  background:
+    radial-gradient(circle at top left, rgba(45, 212, 191, 0.18), transparent 24%),
+    radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.16), transparent 26%),
+    var(--app-bg);
+}
+
+.login-hero {
+  min-height: 520px;
+}
+
 .app-bg::before {
   content: '';
   position: fixed;
@@ -125,7 +136,15 @@ body {
 }
 
 .nav-link-active {
-  @apply border-teal-300/20 bg-teal-300/10 text-white;
+  border-color: rgba(94, 234, 212, 0.22);
+  background: rgba(94, 234, 212, 0.12);
+  color: #f8fafc;
+}
+
+[data-theme='light'] .nav-link-active {
+  border-color: rgba(20, 184, 166, 0.18);
+  background: rgba(45, 212, 191, 0.12);
+  color: #0f172a;
 }
 
 .context-field {
@@ -307,6 +326,11 @@ body {
   background: var(--app-subtle-bg);
   color: var(--app-heading);
   @apply rounded-2xl px-4 py-2 text-sm font-medium;
+}
+
+.loading-screen {
+  color: var(--app-heading);
+  @apply grid min-h-screen place-items-center text-base font-medium;
 }
 
 .form-field {

@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import { useAccess } from '@/composables/useAccess'
 import { useAsyncState } from '@/composables/useAsyncState'
 import { getSchools, getProducts, getRecipes } from '@/services/master-data'
 import { getSppgById } from '@/services/sppg'
@@ -15,6 +16,7 @@ const sppg = computed(() => data.value?.item ?? null)
 const schoolState = useAsyncState(() => getSchools(undefined, sppgId.value))
 const productState = useAsyncState(() => getProducts(sppg.value?.tenant_id))
 const recipeState = useAsyncState(() => getRecipes(sppg.value?.tenant_id))
+const { canManageSppg } = useAccess()
 </script>
 
 <template>
@@ -65,7 +67,7 @@ const recipeState = useAsyncState(() => getRecipes(sppg.value?.tenant_id))
         <article class="glass-panel p-5">
           <p class="eyebrow-text">Quick Actions</p>
           <div class="mt-4 grid gap-3">
-            <RouterLink class="primary-button" :to="`/sppg/${sppg.id}/edit`">Edit SPPG</RouterLink>
+            <RouterLink v-if="canManageSppg" class="primary-button" :to="`/sppg/${sppg.id}/edit`">Edit SPPG</RouterLink>
             <RouterLink class="secondary-button" :to="`/schools?tenantId=${sppg.tenant_id}&sppgId=${sppg.id}`">Schools</RouterLink>
             <RouterLink class="secondary-button" :to="`/products?tenantId=${sppg.tenant_id}`">Products</RouterLink>
             <RouterLink class="secondary-button" :to="`/recipes?tenantId=${sppg.tenant_id}`">Recipes</RouterLink>

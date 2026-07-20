@@ -1,15 +1,26 @@
 <script setup lang="ts">
+import { computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import AppHeader from '@/components/app/AppHeader.vue'
 import AppSidebar from '@/components/app/AppSidebar.vue'
 import { useAppStore } from '@/stores/app'
 
 const appStore = useAppStore()
-const { mobileSidebarOpen, themeMode } = storeToRefs(appStore)
+const route = useRoute()
+const { authReady, isAuthenticated, mobileSidebarOpen, themeMode } = storeToRefs(appStore)
+const useBareLayout = computed(() => Boolean(route.meta.bareLayout))
+
+onMounted(() => {
+  appStore.initializeAuth()
+})
 </script>
 
 <template>
   <div class="app-bg min-h-screen" :data-theme="themeMode">
+    <div v-if="!authReady" class="loading-screen">Menyiapkan sesi MBG...</div>
+    <RouterView v-else-if="useBareLayout || !isAuthenticated" />
+    <template v-else>
     <div
       v-if="mobileSidebarOpen"
       class="mobile-sidebar-overlay lg:hidden"
@@ -37,5 +48,6 @@ const { mobileSidebarOpen, themeMode } = storeToRefs(appStore)
         </section>
       </main>
     </div>
+    </template>
   </div>
 </template>

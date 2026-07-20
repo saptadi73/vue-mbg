@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import { useAccess } from '@/composables/useAccess'
 import { useAsyncState } from '@/composables/useAsyncState'
 import { getUsers } from '@/services/identity'
 import { formatDateTime } from '@/utils/format'
 
 const { data, loading, error, execute } = useAsyncState(getUsers)
+const { canManageUsers } = useAccess()
 </script>
 
 <template>
@@ -24,7 +26,7 @@ const { data, loading, error, execute } = useAsyncState(getUsers)
           <option>ACTIVE</option>
           <option>INACTIVE</option>
         </select>
-        <RouterLink class="primary-button" to="/users/create">Registrasi User</RouterLink>
+        <RouterLink v-if="canManageUsers" class="primary-button" to="/users/create">Registrasi User</RouterLink>
       </div>
       <p v-if="data?.fallback" class="mt-3 text-sm text-app-muted">
         Backend list user belum mengembalikan data yang bisa dipakai, jadi halaman sedang memakai mock data aman untuk pengembangan.

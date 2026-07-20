@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import { useAccess } from '@/composables/useAccess'
 import { useAsyncState } from '@/composables/useAsyncState'
 import { getSppgs } from '@/services/sppg'
 import { formatDateTime, formatNumber } from '@/utils/format'
@@ -14,6 +15,7 @@ const tenantId = computed(() => {
 })
 
 const { data, loading, error, execute } = useAsyncState(() => getSppgs(tenantId.value || undefined))
+const { canManageSppg } = useAccess()
 </script>
 
 <template>
@@ -32,7 +34,7 @@ const { data, loading, error, execute } = useAsyncState(() => getSppgs(tenantId.
           <option>ACTIVE</option>
           <option>INACTIVE</option>
         </select>
-        <RouterLink class="primary-button" :to="tenantId ? `/sppg/create?tenantId=${tenantId}` : '/sppg/create'">
+        <RouterLink v-if="canManageSppg" class="primary-button" :to="tenantId ? `/sppg/create?tenantId=${tenantId}` : '/sppg/create'">
           Daftarkan SPPG
         </RouterLink>
       </div>

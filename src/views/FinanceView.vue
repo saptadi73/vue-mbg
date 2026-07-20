@@ -34,6 +34,29 @@ const { data, loading, error, execute } = useAsyncState(getBudgets)
       </article>
     </section>
 
+    <section class="grid gap-4 xl:grid-cols-4">
+      <RouterLink class="glass-panel p-5 transition hover:-translate-y-0.5" to="/costing">
+        <p class="eyebrow-text">Costing</p>
+        <h2 class="mt-2 font-display text-2xl text-app-heading">Biaya aktual</h2>
+        <p class="mt-2 text-sm text-app-body">Input labor cost, baca cost policy, dan kontrol variance operasional.</p>
+      </RouterLink>
+      <RouterLink class="glass-panel p-5 transition hover:-translate-y-0.5" to="/budgets">
+        <p class="eyebrow-text">Budget</p>
+        <h2 class="mt-2 font-display text-2xl text-app-heading">Rencana anggaran</h2>
+        <p class="mt-2 text-sm text-app-body">Susun budget line, pantau availability, dan siapkan approval.</p>
+      </RouterLink>
+      <RouterLink class="glass-panel p-5 transition hover:-translate-y-0.5" to="/workflow-approvals">
+        <p class="eyebrow-text">Workflow</p>
+        <h2 class="mt-2 font-display text-2xl text-app-heading">Approval queue</h2>
+        <p class="mt-2 text-sm text-app-body">Lihat definisi workflow, approval request, dan history keputusan.</p>
+      </RouterLink>
+      <RouterLink class="glass-panel p-5 transition hover:-translate-y-0.5" to="/procurement">
+        <p class="eyebrow-text">Procurement</p>
+        <h2 class="mt-2 font-display text-2xl text-app-heading">Pembelian & invoice</h2>
+        <p class="mt-2 text-sm text-app-body">Kelola supplier, PR, PO, GR, invoice supplier, dan payment.</p>
+      </RouterLink>
+    </section>
+
     <div v-if="loading" class="loading-panel">Memuat budget summary...</div>
     <div v-else-if="error" class="error-panel">
       <p>{{ error }}</p>

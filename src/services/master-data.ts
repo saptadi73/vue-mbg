@@ -1,11 +1,13 @@
 import { apiRequest } from '@/services/http'
-import { mockProducts, mockRecipes, mockSchools } from '@/services/mock-data'
+import { mockProducts, mockRecipeLines, mockRecipes, mockSchools } from '@/services/mock-data'
 import type {
   CreateProductPayload,
   CreateRecipePayload,
+  CreateRecipeLinePayload,
   CreateSchoolPayload,
   ProductRecord,
   RecipeRecord,
+  RecipeLineRecord,
   SchoolRecord,
 } from '@/types/domain'
 
@@ -41,6 +43,15 @@ export const createSchool = async (input: CreateSchoolPayload) => {
   return response.data
 }
 
+export const getSchoolById = async (schoolId: string) => {
+  try {
+    const payload = await apiRequest<SchoolRecord>(`/api/v1/geography/schools/${schoolId}`)
+    return { item: payload.data, fallback: false }
+  } catch {
+    return { item: mockSchools.find((item) => item.id === schoolId) || mockSchools[0], fallback: true }
+  }
+}
+
 export const getProducts = async (tenantId?: string) => {
   try {
     const payload = await apiRequest<unknown>('/api/v1/products/')
@@ -67,6 +78,15 @@ export const createProduct = async (input: CreateProductPayload) => {
   return response.data
 }
 
+export const getProductById = async (productId: string) => {
+  try {
+    const payload = await apiRequest<ProductRecord>(`/api/v1/products/${productId}`)
+    return { item: payload.data, fallback: false }
+  } catch {
+    return { item: mockProducts.find((item) => item.id === productId) || mockProducts[0], fallback: true }
+  }
+}
+
 export const getRecipes = async (tenantId?: string) => {
   try {
     const payload = await apiRequest<unknown>('/api/v1/recipes/')
@@ -87,6 +107,39 @@ export const getRecipes = async (tenantId?: string) => {
 
 export const createRecipe = async (input: CreateRecipePayload) => {
   const response = await apiRequest<RecipeRecord>('/api/v1/recipes/', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+  return response.data
+}
+
+export const getRecipeById = async (recipeId: string) => {
+  try {
+    const payload = await apiRequest<RecipeRecord>(`/api/v1/recipes/${recipeId}`)
+    return { item: payload.data, fallback: false }
+  } catch {
+    return { item: mockRecipes.find((item) => item.id === recipeId) || mockRecipes[0], fallback: true }
+  }
+}
+
+export const getRecipeLines = async (recipeId: string) => {
+  try {
+    const payload = await apiRequest<RecipeLineRecord[]>(`/api/v1/recipes/${recipeId}/lines`)
+    const items = normalizeArray<RecipeLineRecord>(payload.data)
+    const fallbackItems = mockRecipeLines.filter((item) => item.recipe_id === recipeId)
+    return {
+      items: items.length ? items : fallbackItems,
+      total: payload.meta?.total ?? (items.length || fallbackItems.length),
+      fallback: !items.length,
+    }
+  } catch {
+    const fallbackItems = mockRecipeLines.filter((item) => item.recipe_id === recipeId)
+    return { items: fallbackItems, total: fallbackItems.length, fallback: true }
+  }
+}
+
+export const createRecipeLine = async (recipeId: string, input: CreateRecipeLinePayload) => {
+  const response = await apiRequest<RecipeLineRecord>(`/api/v1/recipes/${recipeId}/lines`, {
     method: 'POST',
     body: JSON.stringify(input),
   })

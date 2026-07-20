@@ -9,6 +9,7 @@ const step = ref(1)
 const loading = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
+const wizardLabels = ['Tenant', 'Admin User', 'SPPG'] as const
 
 const form = reactive({
   tenant: {
@@ -43,7 +44,7 @@ const previous = () => {
   if (step.value > 1) step.value -= 1
 }
 
-const stepLabel = computed(() => ['Tenant', 'Admin User', 'SPPG'][step.value - 1])
+const stepLabel = computed(() => wizardLabels[step.value - 1] ?? 'Wizard')
 
 const submit = async () => {
   loading.value = true
@@ -90,7 +91,7 @@ const submit = async () => {
       <div class="mb-6 grid gap-3 md:grid-cols-3">
         <div v-for="index in 3" :key="index" class="surface-subtle rounded-2xl p-4" :class="{ 'ring-2 ring-teal-300/40': step === index }">
           <p class="text-xs uppercase tracking-[0.2em] text-app-muted">Step {{ index }}</p>
-          <p class="mt-2 text-sm font-semibold text-app-heading">{{ ['Tenant', 'Admin User', 'SPPG'][index - 1] }}</p>
+          <p class="mt-2 text-sm font-semibold text-app-heading">{{ wizardLabels[index - 1] }}</p>
         </div>
       </div>
 

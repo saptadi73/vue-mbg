@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import { useAccess } from '@/composables/useAccess'
 import { useAsyncState } from '@/composables/useAsyncState'
 import { getSppgs } from '@/services/sppg'
 import { getTenantById } from '@/services/tenants'
@@ -14,6 +15,7 @@ const { data, loading, error, execute } = useAsyncState(() => getTenantById(tena
 const sppgState = useAsyncState(() => getSppgs(tenantId.value))
 const tenant = computed(() => data.value?.item ?? null)
 const isFallback = computed(() => data.value?.fallback ?? false)
+const { canManageSppg, canManageTenants, canManageUsers, canUseOnboardingWizard } = useAccess()
 </script>
 
 <template>
@@ -64,12 +66,12 @@ const isFallback = computed(() => data.value?.fallback ?? false)
         <article class="glass-panel p-5">
           <p class="eyebrow-text">Quick Actions</p>
           <div class="mt-4 grid gap-3">
-            <RouterLink class="primary-button" to="/users/create">Tambah Admin Tenant</RouterLink>
-            <RouterLink class="secondary-button" :to="`/sppg/create?tenantId=${tenantId}`">Daftarkan SPPG</RouterLink>
+            <RouterLink v-if="canManageUsers" class="primary-button" to="/users/create">Tambah Admin Tenant</RouterLink>
+            <RouterLink v-if="canManageSppg" class="secondary-button" :to="`/sppg/create?tenantId=${tenantId}`">Daftarkan SPPG</RouterLink>
             <RouterLink class="secondary-button" :to="`/sppg?tenantId=${tenantId}`">Lihat SPPG Tenant</RouterLink>
-            <RouterLink class="secondary-button" to="/onboarding/wizard">Wizard Onboarding</RouterLink>
-            <RouterLink class="secondary-button" to="/tenants/create">Daftarkan Tenant Baru</RouterLink>
-            <RouterLink class="secondary-button" to="/users">Lihat Users</RouterLink>
+            <RouterLink v-if="canUseOnboardingWizard" class="secondary-button" to="/onboarding/wizard">Wizard Onboarding</RouterLink>
+            <RouterLink v-if="canManageTenants" class="secondary-button" to="/tenants/create">Daftarkan Tenant Baru</RouterLink>
+            <RouterLink v-if="canManageUsers" class="secondary-button" to="/users">Lihat Users</RouterLink>
           </div>
           <p class="mt-4 text-sm leading-6 text-app-body">
             Endpoint update tenant belum terdokumentasi di referensi backend saat ini, jadi halaman ini fokus pada detail dan alur onboarding lanjutannya.

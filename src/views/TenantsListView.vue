@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import { useAccess } from '@/composables/useAccess'
 import { useAsyncState } from '@/composables/useAsyncState'
 import { getTenants } from '@/services/tenants'
 import { formatDateTime } from '@/utils/format'
 
 const { data, loading, error, execute } = useAsyncState(getTenants)
+const { canManageTenants } = useAccess()
 </script>
 
 <template>
@@ -24,7 +26,7 @@ const { data, loading, error, execute } = useAsyncState(getTenants)
           <option>ACTIVE</option>
           <option>INACTIVE</option>
         </select>
-        <RouterLink class="primary-button" to="/tenants/create">Daftarkan Tenant</RouterLink>
+        <RouterLink v-if="canManageTenants" class="primary-button" to="/tenants/create">Daftarkan Tenant</RouterLink>
       </div>
       <p v-if="data?.fallback" class="mt-3 text-sm text-app-muted">
         Daftar tenant sedang memakai mock data pengembangan karena backend belum mengembalikan data list siap pakai.
