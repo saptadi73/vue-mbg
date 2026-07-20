@@ -8,6 +8,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 import 'leaflet.markercluster'
 import type {
   DeliveryRouteRecord,
+  FleetVehicleLocationRecord,
   GeoJsonFeature,
   GeoJsonFeatureCollection,
   GeoPointRecord,
@@ -24,16 +25,21 @@ type GisLayerMode =
   | 'distribution'
   | 'serviceAreas'
   | 'routes'
+  | 'fleet'
 
 const props = withDefaults(
   defineProps<{
     dataset: MapDataset
     mode?: GisLayerMode
     draftServiceArea?: GeoJsonFeature['geometry'] | GeoJsonFeatureCollection | null
+    fleetTrail?: FleetVehicleLocationRecord[] | null
+    fleetTrailFocusIndex?: number | null
   }>(),
   {
     mode: 'overview',
     draftServiceArea: null,
+    fleetTrail: null,
+    fleetTrailFocusIndex: null,
   },
 )
 
@@ -74,6 +80,8 @@ const panelTitle = computed(() => {
       return 'Service Areas'
     case 'routes':
       return 'Delivery Routes'
+    case 'fleet':
+      return 'Fleet Live Tracking'
     default:
       return 'PostGIS Situational Map'
   }
@@ -93,6 +101,8 @@ const panelSubtitle = computed(() => {
       return 'Polygon area layanan yang sudah tersimpan untuk tenant atau SPPG aktif.'
     case 'routes':
       return 'Visualisasi garis rute delivery dari SPPG ke sekolah berdasarkan delivery order.'
+    case 'fleet':
+      return 'Posisi terbaru armada, status pergerakan, dan titik dispatch terkini pada scope tenant/SPPG aktif.'
     default:
       return 'Layer dapur, sekolah, coverage, gap layanan, dan analisa distribusi dari endpoint GIS backend.'
   }
@@ -129,6 +139,21 @@ const distributionColor = (value?: number) => {
   if ((value || 0) >= 15) return '#fb7185'
   if ((value || 0) >= 8) return '#38bdf8'
   return '#67e8f9'
+}
+
+const fleetStatusColor = (status?: string) => {
+  switch (status) {
+    case 'IN_TRANSIT':
+      return '#38bdf8'
+    case 'LOADING':
+      return '#f59e0b'
+    case 'ARRIVED':
+      return '#34d399'
+    case 'MAINTENANCE':
+      return '#f87171'
+    default:
+      return '#c084fc'
+  }
 }
 
 const addLayer = (layer: L.Layer) => {
@@ -226,7 +251,12 @@ const renderLayers = () => {
   const clusterLayer = createClusterLayer()
   let hasClusterMarkers = false
 
-  const renderKitchens = props.mode === 'overview' || props.mode === 'coverage' || props.mode === 'routes' || props.mode === 'serviceAreas'
+  const renderKitchens =
+    props.mode === 'overview' ||
+    props.mode === 'coverage' ||
+    props.mode === 'routes' ||
+    props.mode === 'serviceAreas' ||
+    props.mode === 'fleet'
   const renderSchools = props.mode === 'overview' || props.mode === 'coverage'
 
   if (renderKitchens) {
@@ -282,6 +312,60 @@ const renderLayers = () => {
       extendBounds,
     )
     hasClusterMarkers = true
+  }
+
+  if (props.mode === 'overview' || props.mode === 'fleet') {
+    ;(props.dataset.fleetVehicles || []).forEach((vehicle) => {
+      clusterLayer.addLayer(
+        makePointMarker(
+          {
+            id: vehicle.id,
+            name: vehicle.vehicle_code,
+            latitude: vehicle.latitude,
+            longitude: vehicle.longitude,
+            status: vehicle.status,
+            code: vehicle.plate_number || undefined,
+            metric_value: vehicle.speed_kmh || undefined,
+          },
+          fleetStatusColor(vehicle.status),
+          13,
+          `Fleet ${vehicle.status}${
+            vehicle.driver_name ? `<br/>Driver: ${vehicle.driver_name}` : ''
+          }${vehicle.sppg_name ? `<br/>SPPG: ${vehicle.sppg_name}` : ''}${
+            vehicle.location_recorded_at ? `<br/>Updated: ${vehicle.location_recorded_at}` : ''
+          }`,
+        ),
+      )
+      hasClusterMarkers = true
+      extendBounds(vehicle.latitude, vehicle.longitude)
+    })
+  }
+
+  if (props.mode === 'fleet' && props.fleetTrail?.length) {
+    const trailCoordinates = props.fleetTrail.map((item) => [item.latitude, item.longitude] as [number, number])
+    const trailLine = L.polyline(trailCoordinates, {
+      color: '#f59e0b',
+      weight: 4,
+      opacity: 0.9,
+    }).bindPopup(`<strong>Vehicle Trail</strong><br/>Ping count: ${formatNumber(props.fleetTrail.length)}`)
+    addLayer(trailLine)
+
+    props.fleetTrail.forEach((point, index) => {
+      const isFocused = props.fleetTrailFocusIndex === index
+      const marker = L.circleMarker([point.latitude, point.longitude], {
+        radius: isFocused ? 9 : index === props.fleetTrail!.length - 1 ? 7 : 5,
+        color: '#fff7ed',
+        weight: 2,
+        fillColor: isFocused ? '#ef4444' : index === props.fleetTrail!.length - 1 ? '#f97316' : '#fdba74',
+        fillOpacity: 0.95,
+      }).bindPopup(
+        `<strong>${point.vehicle_code}</strong><br/>Trail point ${index + 1}<br/>${
+          point.location_recorded_at || '-'
+        }${point.speed_kmh ? `<br/>Speed: ${formatNumber(point.speed_kmh)} km/h` : ''}`,
+      )
+      addLayer(marker)
+      extendBounds(point.latitude, point.longitude)
+    })
   }
 
   if (props.mode === 'serviceAreas' && props.dataset.serviceAreas) {
@@ -407,6 +491,8 @@ onMounted(() => {
 watch(() => props.dataset, renderLayers, { deep: true })
 watch(() => props.mode, renderLayers)
 watch(() => props.draftServiceArea, renderLayers, { deep: true })
+watch(() => props.fleetTrail, renderLayers, { deep: true })
+watch(() => props.fleetTrailFocusIndex, renderLayers)
 watch(themeMode, applyBaseMap)
 </script>
 
@@ -422,6 +508,8 @@ watch(themeMode, applyBaseMap)
         <span class="legend-chip"><i class="legend-dot bg-sky-300"></i> School</span>
         <span class="legend-chip"><i class="legend-dot bg-rose-300"></i> Gap / Unserved</span>
         <span class="legend-chip"><i class="legend-dot bg-amber-300"></i> Risk / Route</span>
+        <span class="legend-chip"><i class="legend-dot bg-violet-300"></i> Fleet Live</span>
+        <span v-if="mode === 'fleet'" class="legend-chip"><i class="legend-dot bg-orange-300"></i> Trail History</span>
       </div>
     </div>
     <div ref="mapRef" class="h-[560px] rounded-[28px]"></div>

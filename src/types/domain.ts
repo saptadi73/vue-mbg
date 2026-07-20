@@ -460,6 +460,109 @@ export interface SupplierDetailRecord {
   purchase_orders: PurchaseOrderRecord[]
 }
 
+export interface VehicleTypeRecord {
+  id: string
+  tenant_id?: string
+  code: string
+  name: string
+  description?: string | null
+  capacity_portions?: number | null
+  capacity_kg?: number | null
+  temperature_controlled: boolean
+  is_active: boolean
+}
+
+export interface FleetVehicleRecord {
+  id: string
+  tenant_id?: string
+  home_sppg_id?: string | null
+  home_sppg_name?: string | null
+  vehicle_type_id: string
+  vehicle_type_name?: string | null
+  vehicle_code: string
+  plate_number: string
+  ownership_status: string
+  brand_name?: string | null
+  model_name?: string | null
+  manufacture_year?: number | null
+  capacity_portions?: number | null
+  fuel_type?: string | null
+  status: string
+  is_active: boolean
+  notes?: string | null
+}
+
+export interface FleetDriverRecord {
+  id: string
+  tenant_id?: string
+  driver_code: string
+  full_name: string
+  phone_number?: string | null
+  license_number?: string | null
+  license_type?: string | null
+  license_expiry_date?: string | null
+  status: string
+  is_active: boolean
+  notes?: string | null
+}
+
+export interface FleetAssignmentRecord {
+  id: string
+  vehicle_id: string
+  vehicle_code?: string | null
+  plate_number?: string | null
+  sppg_id: string
+  sppg_name?: string | null
+  driver_id?: string | null
+  driver_name?: string | null
+  assignment_date: string
+  end_date?: string | null
+  assignment_role: string
+  status: string
+  is_active: boolean
+  notes?: string | null
+}
+
+export interface FleetMaintenanceRecord {
+  id: string
+  vehicle_id: string
+  vehicle_code?: string | null
+  plate_number?: string | null
+  sppg_id?: string | null
+  sppg_name?: string | null
+  maintenance_date: string
+  maintenance_type: string
+  odometer_km?: number | null
+  cost_amount?: number | null
+  vendor_name?: string | null
+  status: string
+  notes?: string | null
+}
+
+export interface FleetVehicleDetailRecord {
+  vehicle: FleetVehicleRecord
+  assignments: FleetAssignmentRecord[]
+  maintenances: FleetMaintenanceRecord[]
+}
+
+export interface FleetVehicleLocationRecord {
+  id: string
+  vehicle_id: string
+  vehicle_code: string
+  plate_number?: string | null
+  driver_name?: string | null
+  assignment_role?: string | null
+  sppg_id?: string | null
+  sppg_name?: string | null
+  latitude: number
+  longitude: number
+  status: string
+  source?: string | null
+  location_recorded_at?: string | null
+  speed_kmh?: number | null
+  heading_deg?: number | null
+}
+
 export interface FundingSourceRecord {
   id: string
   name: string
@@ -829,6 +932,23 @@ export interface RoiBySppgRecord {
   period_end: string
 }
 
+export interface DeliveryPerformanceReportRecord {
+  id: string
+  sppg_id: string
+  sppg_name: string
+  delivery_count: number
+  delivered_count: number
+  in_transit_count: number
+  planned_count: number
+  school_served_count: number
+  total_received_portions: number
+  total_rejected_portions: number
+  incident_count: number
+  on_time_count: number
+  on_time_percentage: number
+  latest_delivery_at?: string | null
+}
+
 export interface GeoFeatureProperties {
   name?: string
   code?: string
@@ -993,6 +1113,122 @@ export interface DeliveryOrderDetailRecord {
   incidents: DeliveryIncidentRecord[]
 }
 
+export interface FeedbackSubmissionRecord {
+  id: string
+  tenant_id?: string
+  sppg_id?: string
+  school_id?: string
+  school_name?: string
+  meal_plan_id?: string | null
+  delivery_order_id?: string | null
+  feedback_date: string
+  source_type: string
+  respondent_name: string
+  respondent_role?: string | null
+  overall_rating: number
+  acceptance_rate?: number | null
+  food_waste_portions?: number | null
+  delivery_timeliness_rating?: number | null
+  temperature_rating?: number | null
+  comment_text?: string | null
+  status: string
+}
+
+export interface FeedbackItemRecord {
+  id: string
+  feedback_submission_id: string
+  item_type: string
+  metric_name: string
+  score: number
+  sentiment?: string | null
+  comment_text?: string | null
+}
+
+export interface ComplaintRecord {
+  id: string
+  feedback_submission_id?: string | null
+  tenant_id?: string
+  sppg_id?: string
+  school_id?: string | null
+  school_name?: string | null
+  complaint_date: string
+  category: string
+  severity: string
+  complaint_text: string
+  resolution_status: string
+  resolved_at?: string | null
+  notes?: string | null
+}
+
+export interface ServiceQualityScoreRecord {
+  id: string
+  tenant_id?: string
+  sppg_id?: string
+  sppg_name?: string | null
+  score_date: string
+  acceptance_score: number
+  waste_score: number
+  delivery_score: number
+  temperature_score: number
+  taste_score: number
+  nutrition_score: number
+  complaint_score: number
+  total_score: number
+  score_status: string
+  notes?: string | null
+}
+
+export interface FeedbackSummaryRecord {
+  submission_count: number
+  complaint_count: number
+  service_quality_score_count: number
+  average_overall_rating: number
+  average_acceptance_rate: number
+  average_food_waste: number
+  average_service_quality_score: number
+  open_complaint_count: number
+  resolved_complaint_count: number
+  high_severity_complaint_count: number
+}
+
+export interface FeedbackDetailRecord {
+  submission: FeedbackSubmissionRecord
+  items: FeedbackItemRecord[]
+  complaints: ComplaintRecord[]
+}
+
+export interface QualityInspectionRecord {
+  id: string
+  tenant_id?: string
+  sppg_id?: string
+  inspection_number: string
+  inspection_type: string
+  stage: string
+  reference_type: string
+  reference_id: string
+  inspection_at: string
+  inspector_name: string
+  status: string
+  overall_result?: string | null
+  is_mandatory_for_release: boolean
+  notes?: string | null
+}
+
+export interface QualityInspectionLineRecord {
+  id: string
+  inspection_id: string
+  parameter_name: string
+  expected_value?: string | null
+  actual_value?: string | null
+  result_status: string
+  notes?: string | null
+}
+
+export interface QualityInspectionDetailRecord {
+  inspection: QualityInspectionRecord
+  lines: QualityInspectionLineRecord[]
+}
+
 export interface ServiceAreaRecord {
   id: string
   sppg_id?: string
@@ -1034,6 +1270,7 @@ export interface MapDataset {
   serviceAreas?: GeoJsonFeatureCollection | null
   deliveryRoutes?: DeliveryRouteRecord[]
   riskPoints?: GeoPointRecord[]
+  fleetVehicles?: FleetVehicleLocationRecord[]
   coverageSummary?: ServiceCoverageRecord[]
   nearestKitchens?: NearestKitchenRecord[]
   assignmentValidation?: AssignmentValidationRecord | null

@@ -66,6 +66,7 @@ const sections: NavSection[] = [
     items: [
       { label: 'Overview', to: '/', icon: 'OV', matchPrefixes: ['/'] },
       { label: 'GIS Intelligence', to: '/gis', icon: 'GI' },
+      { label: 'GIS Fleet', to: '/gis/fleet', icon: 'GF', roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer'], matchPrefixes: ['/gis/fleet'] },
       { label: 'Finance', to: '/finance', icon: 'FN', roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] },
       { label: 'Finance Reports', to: '/finance/reports', icon: 'FR', roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'], matchPrefixes: ['/finance/reports'] },
     ],
@@ -77,6 +78,11 @@ const sections: NavSection[] = [
     items: [
       { label: 'Meal Plans', to: '/meal-plans', icon: 'MP' },
       { label: 'Inventory', to: '/inventory', icon: 'IV', badge: 'inventoryAttention' },
+      { label: 'Fleet', to: '/fleet', icon: 'FL', roles: ['super_admin', 'tenant_admin', 'operations_manager'], matchPrefixes: ['/fleet'] },
+      { label: 'Delivery', to: '/delivery', icon: 'DL', roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer', 'quality_officer'], matchPrefixes: ['/delivery'] },
+      { label: 'Delivery Reports', to: '/delivery/reports', icon: 'DR', roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer', 'quality_officer'], matchPrefixes: ['/delivery/reports'] },
+      { label: 'Feedback', to: '/feedback', icon: 'FB', roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer', 'quality_officer'], matchPrefixes: ['/feedback'] },
+      { label: 'Quality QC', to: '/quality/inspections', icon: 'QC', roles: ['super_admin', 'tenant_admin', 'operations_manager', 'quality_officer'], matchPrefixes: ['/quality'] },
       { label: 'Procurement', to: '/procurement', icon: 'PR', roles: ['super_admin', 'tenant_admin', 'procurement_officer', 'operations_manager', 'finance_manager'], matchPrefixes: ['/procurement'], badge: 'procurementOpen' },
       { label: 'Costing', to: '/costing', icon: 'CT', roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] },
     ],

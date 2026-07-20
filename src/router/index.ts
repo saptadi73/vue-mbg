@@ -29,7 +29,14 @@ const SupplierInvoiceDetailView = () => import('@/views/SupplierInvoiceDetailVie
 const SupplierPaymentDetailView = () => import('@/views/SupplierPaymentDetailView.vue')
 const ProductionOrderDetailView = () => import('@/views/ProductionOrderDetailView.vue')
 const ProductionCostSheetDetailView = () => import('@/views/ProductionCostSheetDetailView.vue')
+const DeliveryView = () => import('@/views/DeliveryView.vue')
+const DeliveryReportsView = () => import('@/views/DeliveryReportsView.vue')
+const FleetView = () => import('@/views/FleetView.vue')
+const FleetVehicleDetailView = () => import('@/views/FleetVehicleDetailView.vue')
+const FeedbackView = () => import('@/views/FeedbackView.vue')
+const QualityInspectionsView = () => import('@/views/QualityInspectionsView.vue')
 const GisView = () => import('@/views/GisView.vue')
+const FleetGisView = () => import('@/views/FleetGisView.vue')
 const SchoolsView = () => import('@/views/SchoolsView.vue')
 const SchoolDetailView = () => import('@/views/SchoolDetailView.vue')
 const ProductsView = () => import('@/views/ProductsView.vue')
@@ -78,7 +85,14 @@ const router = createRouter({
     { path: '/procurement/supplier-payments/:supplierPaymentId', name: 'supplier-payment-detail', component: SupplierPaymentDetailView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager'] } },
     { path: '/production-orders/:productionOrderId', name: 'production-order-detail', component: ProductionOrderDetailView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] } },
     { path: '/production-orders/:productionOrderId/cost-sheet', name: 'production-order-cost-sheet', component: ProductionCostSheetDetailView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] } },
+    { path: '/fleet', name: 'fleet', component: FleetView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager'] } },
+    { path: '/fleet/vehicles/:vehicleId', name: 'fleet-vehicle-detail', component: FleetVehicleDetailView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager'] } },
+    { path: '/delivery', name: 'delivery', component: DeliveryView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer', 'quality_officer'] } },
+    { path: '/delivery/reports', name: 'delivery-reports', component: DeliveryReportsView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer', 'quality_officer'] } },
+    { path: '/feedback', name: 'feedback', component: FeedbackView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer', 'quality_officer'] } },
+    { path: '/quality/inspections', name: 'quality-inspections', component: QualityInspectionsView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'quality_officer'] } },
     { path: '/gis', name: 'gis', component: GisView, meta: { requiresAuth: true } },
+    { path: '/gis/fleet', name: 'gis-fleet', component: FleetGisView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer'] } },
     { path: '/schools', name: 'schools', component: SchoolsView, meta: { requiresAuth: true } },
     { path: '/schools/:schoolId', name: 'schools-detail', component: SchoolDetailView, meta: { requiresAuth: true } },
     { path: '/products', name: 'products', component: ProductsView, meta: { requiresAuth: true } },

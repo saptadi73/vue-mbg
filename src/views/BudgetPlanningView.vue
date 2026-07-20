@@ -20,6 +20,7 @@ const saving = ref(false)
 const actionLoadingId = ref('')
 const actionMessage = ref('')
 const actionError = ref('')
+const selectedBudgetId = ref('')
 
 const form = reactive<CreateBudgetPayload>({
   name: 'Budget Operasional Agustus 2026',
@@ -38,6 +39,8 @@ const approvedBudget = computed(() =>
     .filter((item) => item.status === 'APPROVED')
     .reduce((sum, item) => sum + item.effective_budget, 0),
 )
+const budgets = computed(() => budgetState.data.value?.items || [])
+const selectedBudget = computed(() => budgets.value.find((item) => item.id === selectedBudgetId.value) || budgets.value[0] || null)
 
 const addLine = () => {
   form.lines.push({
@@ -73,6 +76,10 @@ const replaceBudget = (updated: BudgetRecord) => {
   budgetState.data.value = {
     ...budgetState.data.value,
     items: budgetState.data.value.items.map((item) => (item.id === updated.id ? updated : item)),
+  }
+
+  if (selectedBudgetId.value === updated.id || !selectedBudgetId.value) {
+    selectedBudgetId.value = updated.id
   }
 }
 
@@ -129,6 +136,10 @@ const budgetSearchText = (item: unknown) => {
 const budgetLineSearchText = (item: unknown) => {
   const row = item as BudgetLineRecord
   return [row.account_code, row.account_name].filter(Boolean).join(' ')
+}
+
+const selectBudget = (budgetId: string) => {
+  selectedBudgetId.value = budgetId
 }
 </script>
 
@@ -261,6 +272,13 @@ const budgetLineSearchText = (item: unknown) => {
                       Detail
                     </router-link>
                     <button
+                      class="secondary-button"
+                      type="button"
+                      @click="selectBudget((item as BudgetRecord).id)"
+                    >
+                      Focus
+                    </button>
+                    <button
                       v-if="(item as BudgetRecord).status === 'DRAFT'"
                       class="secondary-button"
                       :disabled="actionLoadingId === (item as BudgetRecord).id"
@@ -293,53 +311,49 @@ const budgetLineSearchText = (item: unknown) => {
             </tbody>
           </table>
 
-          <div class="mt-6 grid gap-4">
-            <div
-              v-for="budget in items as BudgetRecord[]"
-              :key="`${budget.id}-lines`"
-              class="surface-subtle rounded-3xl p-4"
-            >
+          <div v-if="selectedBudget" class="mt-6 grid gap-4">
+            <div class="surface-subtle rounded-3xl p-4">
               <div class="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p class="text-sm font-semibold text-app-heading">{{ budget.name }}</p>
+                  <p class="text-sm font-semibold text-app-heading">{{ selectedBudget.name }}</p>
                   <p class="mt-1 text-sm text-app-body">Line budget dan utilisasi account</p>
                 </div>
-                <StatusBadge :status="budget.status" />
+                <StatusBadge :status="selectedBudget.status" />
               </div>
 
               <div class="mt-4 grid gap-4 xl:grid-cols-3">
                 <DocumentActionCard
-                  v-if="budget.status === 'DRAFT'"
+                  v-if="selectedBudget.status === 'DRAFT'"
                   action-label="Submit Budget"
-                  :description="`Kirim ${budget.name} ke approval queue agar governance dan tenant admin bisa menilai readiness budget.`"
-                  :loading="actionLoadingId === budget.id"
+                  :description="`Kirim ${selectedBudget.name} ke approval queue agar governance dan tenant admin bisa menilai readiness budget.`"
+                  :loading="actionLoadingId === selectedBudget.id"
                   helper-text="Status draft akan berubah menjadi submitted dan approval request dibuat otomatis."
                   title="Submit ke Workflow"
-                  @action="handleSubmitBudget(budget.id)"
+                  @action="handleSubmitBudget(selectedBudget.id)"
                 />
                 <DocumentActionCard
-                  v-if="budget.status === 'SUBMITTED'"
+                  v-if="selectedBudget.status === 'SUBMITTED'"
                   action-label="Approve Budget"
-                  :description="`Setujui ${budget.name} agar line budget bisa dipakai untuk reserved, committed, dan actual flow berikutnya.`"
-                  :loading="actionLoadingId === budget.id"
+                  :description="`Setujui ${selectedBudget.name} agar line budget bisa dipakai untuk reserved, committed, dan actual flow berikutnya.`"
+                  :loading="actionLoadingId === selectedBudget.id"
                   helper-text="Approval akan membuka budget untuk transaksi operasional."
                   title="Approve Governance"
-                  @action="handleApproveBudget(budget.id)"
+                  @action="handleApproveBudget(selectedBudget.id)"
                 />
                 <DocumentActionCard
-                  v-if="budget.status === 'SUBMITTED'"
+                  v-if="selectedBudget.status === 'SUBMITTED'"
                   action-label="Reject Budget"
-                  :description="`Kembalikan ${budget.name} ke tim penyusun bila nominal atau struktur account masih perlu revisi.`"
-                  :loading="actionLoadingId === budget.id"
+                  :description="`Kembalikan ${selectedBudget.name} ke tim penyusun bila nominal atau struktur account masih perlu revisi.`"
+                  :loading="actionLoadingId === selectedBudget.id"
                   helper-text="Reject disimpan sebagai jejak keputusan governance."
                   title="Reject untuk Revisi"
-                  @action="handleRejectBudget(budget.id)"
+                  @action="handleRejectBudget(selectedBudget.id)"
                 />
               </div>
 
               <DataTableCard
-                v-if="budget.lines?.length"
-                :items="budget.lines"
+                v-if="selectedBudget.lines?.length"
+                :items="selectedBudget.lines"
                 :page-size="4"
                 :search-text-resolver="budgetLineSearchText"
                 empty-message="Belum ada budget line."

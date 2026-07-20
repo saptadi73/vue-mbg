@@ -2,6 +2,9 @@ import { apiRequest } from '@/services/http'
 import {
   mockBudgets,
   mockCashFlow,
+  mockDeliveryIncidents,
+  mockDeliveryOrders,
+  mockDeliveryProofs,
   mockFefoPreviewResults,
   mockGovernmentClaimDetails,
   mockGovernmentClaims,
@@ -11,10 +14,12 @@ import {
   mockInvestorFundingPositions,
   mockMealPlans,
   mockRoiBySppg,
+  mockSppgs,
 } from '@/services/mock-data'
 import type {
   BudgetSummary,
   CashFlowRecord,
+  DeliveryPerformanceReportRecord,
   FefoPreviewResult,
   GovernmentClaimAdjustmentRecord,
   GovernmentClaimDetailRecord,
@@ -369,5 +374,72 @@ export const getRoiBySppgReport = async () => {
     return { items: payload.data || [], total: totalFromEnvelope(payload, payload.data?.length || 0) }
   } catch {
     return { items: mockRoiBySppg, total: mockRoiBySppg.length }
+  }
+}
+
+export const getDeliveryPerformanceReport = async () => {
+  try {
+    const payload = await apiRequest<DeliveryPerformanceReportRecord[]>('/api/v1/reporting/delivery-performance')
+    return { items: payload.data || [], total: totalFromEnvelope(payload, payload.data?.length || 0) }
+  } catch {
+    const bySppg = new Map<string, DeliveryPerformanceReportRecord>()
+
+    for (const order of mockDeliveryOrders) {
+      const key = order.sppg_id
+      const sppgName = mockSppgs.find((item) => item.id === order.sppg_id)?.name || order.sppg_id
+      const current = bySppg.get(key) || {
+        id: `delivery-performance-${key}`,
+        sppg_id: key,
+        sppg_name: sppgName,
+        delivery_count: 0,
+        delivered_count: 0,
+        in_transit_count: 0,
+        planned_count: 0,
+        school_served_count: 0,
+        total_received_portions: 0,
+        total_rejected_portions: 0,
+        incident_count: 0,
+        on_time_count: 0,
+        on_time_percentage: 0,
+        latest_delivery_at: null,
+      }
+
+      current.delivery_count += 1
+      if (order.status === 'IN_TRANSIT') current.in_transit_count += 1
+      if (order.status === 'PLANNED') current.planned_count += 1
+      if (order.status === 'RECEIVED' || order.status === 'PARTIALLY_RECEIVED') current.delivered_count += 1
+
+      const proofs = mockDeliveryProofs.filter((item) => item.delivery_order_id === order.id)
+      for (const proof of proofs) {
+        current.total_received_portions += proof.received_portions
+        current.total_rejected_portions += proof.rejected_portions
+      }
+
+      if (order.actual_arrival && order.actual_arrival <= order.planned_arrival) {
+        current.on_time_count += 1
+      }
+
+      const incidents = mockDeliveryIncidents.filter((item) => item.delivery_order_id === order.id)
+      current.incident_count += incidents.length
+
+      const latestPoint = order.actual_arrival || order.planned_arrival
+      if (!current.latest_delivery_at || latestPoint > current.latest_delivery_at) {
+        current.latest_delivery_at = latestPoint
+      }
+
+      bySppg.set(key, current)
+    }
+
+    for (const report of bySppg.values()) {
+      const schoolIds = new Set(
+        mockDeliveryOrders.filter((item) => item.sppg_id === report.sppg_id).map((item) => item.school_id).filter(Boolean),
+      )
+      report.school_served_count = schoolIds.size
+      report.on_time_percentage =
+        report.delivered_count > 0 ? Number(((report.on_time_count / report.delivered_count) * 100).toFixed(1)) : 0
+    }
+
+    const items = [...bySppg.values()].sort((left, right) => right.delivery_count - left.delivery_count)
+    return { items, total: items.length }
   }
 }

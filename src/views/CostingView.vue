@@ -15,7 +15,7 @@ import {
   getProductionOrders,
 } from '@/services/erp-ops'
 import { useAppStore } from '@/stores/app'
-import type { ActualExpenseRecord, LaborCostRecord, ProductionOrderRecord } from '@/types/domain'
+import type { ActualExpenseRecord, CostPolicyRecord, LaborCostRecord, ProductionOrderRecord } from '@/types/domain'
 import { formatCurrency, formatDate, formatNumber } from '@/utils/format'
 
 const appStore = useAppStore()
@@ -154,6 +154,22 @@ const expenseSearchText = (item: unknown) => {
 const productionOrderSearchText = (item: unknown) => {
   const row = item as ProductionOrderRecord
   return [row.order_number, row.production_date, row.meal_plan_name, row.status, row.sppg_name].filter(Boolean).join(' ')
+}
+
+const policySearchText = (item: unknown) => {
+  const row = item as CostPolicyRecord
+  return [
+    row.code,
+    row.name,
+    row.effective_start_date,
+    row.effective_end_date,
+    row.utility_cost_per_portion,
+    row.packaging_cost_per_portion,
+    row.distribution_cost_per_portion,
+    row.overhead_cost_per_portion,
+    row.waste_cost_percentage,
+    row.is_active ? 'ACTIVE' : 'DRAFT',
+  ].join(' ')
 }
 
 const costSheetRows = computed(() => {
@@ -332,22 +348,33 @@ const costSheetRows = computed(() => {
             </div>
           </div>
 
-          <div v-for="item in policiesState.data.value?.items || []" :key="item.id" class="surface-subtle rounded-3xl p-4">
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <p class="text-sm font-semibold text-app-heading">{{ item.name }}</p>
-                <p class="mt-1 text-xs uppercase tracking-[0.2em] text-app-muted">{{ item.code }}</p>
-              </div>
-              <StatusBadge :status="item.is_active ? 'APPROVED' : 'DRAFT'" />
-            </div>
-            <div class="mt-4 grid gap-3 md:grid-cols-2">
-              <p class="text-sm text-app-body">Utility policy: <span class="font-semibold text-app-heading">{{ formatCurrency(item.utility_cost_per_portion) }}</span></p>
-              <p class="text-sm text-app-body">Packaging policy: <span class="font-semibold text-app-heading">{{ formatCurrency(item.packaging_cost_per_portion) }}</span></p>
-              <p class="text-sm text-app-body">Distribution policy: <span class="font-semibold text-app-heading">{{ formatCurrency(item.distribution_cost_per_portion) }}</span></p>
-              <p class="text-sm text-app-body">Overhead policy: <span class="font-semibold text-app-heading">{{ formatCurrency(item.overhead_cost_per_portion) }}</span></p>
-              <p class="text-sm text-app-body">Waste policy: <span class="font-semibold text-app-heading">{{ formatNumber(item.waste_cost_percentage) }}%</span></p>
-            </div>
-          </div>
+          <DataTableCard
+            :items="policiesState.data.value?.items || []"
+            :page-size="4"
+            :search-text-resolver="policySearchText"
+            search-placeholder="Cari policy code, nama, effective date..."
+            title="Policy Non-Labor"
+          >
+            <template #table="{ items }">
+              <table class="data-table">
+                <thead><tr><th>Policy</th><th>Utility</th><th>Packaging</th><th>Distribution</th><th>Overhead</th><th>Waste</th><th>Status</th></tr></thead>
+                <tbody>
+                  <tr v-for="item in items" :key="(item as CostPolicyRecord).id">
+                    <td>
+                      <p>{{ (item as CostPolicyRecord).name }}</p>
+                      <p class="mt-1 text-xs text-app-muted">{{ (item as CostPolicyRecord).code }}</p>
+                    </td>
+                    <td>{{ formatCurrency((item as CostPolicyRecord).utility_cost_per_portion) }}</td>
+                    <td>{{ formatCurrency((item as CostPolicyRecord).packaging_cost_per_portion) }}</td>
+                    <td>{{ formatCurrency((item as CostPolicyRecord).distribution_cost_per_portion) }}</td>
+                    <td>{{ formatCurrency((item as CostPolicyRecord).overhead_cost_per_portion) }}</td>
+                    <td>{{ formatNumber((item as CostPolicyRecord).waste_cost_percentage) }}%</td>
+                    <td><StatusBadge :status="(item as CostPolicyRecord).is_active ? 'APPROVED' : 'DRAFT'" /></td>
+                  </tr>
+                </tbody>
+              </table>
+            </template>
+          </DataTableCard>
         </div>
       </article>
 

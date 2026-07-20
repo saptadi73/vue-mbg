@@ -1,8 +1,9 @@
 import { apiRequest } from '@/services/http'
-import { mockMapData } from '@/services/mock-data'
+import { mockDeliveryOrders, mockFleetAssignments, mockFleetVehicles, mockMapData } from '@/services/mock-data'
 import type {
   AssignmentValidationRecord,
   DeliveryRouteRecord,
+  FleetVehicleLocationRecord,
   GeoJsonFeature,
   GeoJsonFeatureCollection,
   GeoFeatureProperties,
@@ -270,6 +271,49 @@ const normalizeAssignmentValidation = (input: unknown): AssignmentValidationReco
   }
 }
 
+const normalizeFleetVehicleLocations = (input: unknown): FleetVehicleLocationRecord[] => {
+  const list = Array.isArray(input) ? input : Array.isArray(asRecord(input)?.items) ? (asRecord(input)?.items as unknown[]) : []
+
+  return list
+    .map((item, index) => {
+      const record = asRecord(item)
+      if (!record) return null
+
+      const latestLocation = asRecord(record.latest_location) || record
+      const latLng = resolveLatLng(latestLocation)
+      if (!latLng) return null
+
+      return {
+        id: String(record.id ?? record.vehicle_location_id ?? record.vehicle_id ?? index),
+        vehicle_id: String(record.vehicle_id ?? ''),
+        vehicle_code: String(record.vehicle_code ?? `VH-${index + 1}`),
+        plate_number: record.plate_number ? String(record.plate_number) : null,
+        driver_name: record.driver_name ? String(record.driver_name) : null,
+        assignment_role: record.assignment_role ? String(record.assignment_role) : null,
+        sppg_id: record.sppg_id ? String(record.sppg_id) : null,
+        sppg_name: record.sppg_name ? String(record.sppg_name) : null,
+        latitude: latLng.latitude,
+        longitude: latLng.longitude,
+        status: String(record.status ?? latestLocation.status ?? 'ACTIVE'),
+        source: latestLocation.source ? String(latestLocation.source) : null,
+        location_recorded_at: latestLocation.recorded_at
+          ? String(latestLocation.recorded_at)
+          : latestLocation.created_at
+            ? String(latestLocation.created_at)
+            : null,
+        speed_kmh:
+          latestLocation.speed_kmh !== undefined && latestLocation.speed_kmh !== null
+            ? Number(latestLocation.speed_kmh)
+            : null,
+        heading_deg:
+          latestLocation.heading_deg !== undefined && latestLocation.heading_deg !== null
+            ? Number(latestLocation.heading_deg)
+            : null,
+      }
+    })
+    .filter(Boolean) as FleetVehicleLocationRecord[]
+}
+
 const collectionToBoundaryGeometry = (input: GeoBoundaryInput) => {
   if (!input) return null
 
@@ -417,6 +461,34 @@ const buildFallbackDataset = (): MapDataset => {
   }))
 
   const serviceAreas = mapServiceAreasToFeatureCollection(fallbackServiceAreas)
+  const fleetVehicles: FleetVehicleLocationRecord[] = mockFleetVehicles.map((vehicle, index) => {
+    const kitchen = mockMapData.kitchens.find((item) => item.id === vehicle.home_sppg_id) || primaryKitchen
+    const assignment = mockFleetAssignments.find((item) => item.vehicle_id === vehicle.id && item.is_active)
+    const delivery = mockDeliveryOrders.find((item) => item.sppg_id === vehicle.home_sppg_id)
+    const statusPool = ['LOADING', 'IN_TRANSIT', 'ARRIVED', 'MAINTENANCE'] as const
+    const status: FleetVehicleLocationRecord['status'] =
+      vehicle.status === 'MAINTENANCE' ? 'MAINTENANCE' : statusPool[index % statusPool.length] ?? 'ACTIVE'
+    const longitudeOffset = [0.0022, -0.0018, 0.0014][index % 3] ?? 0
+    const latitudeOffset = [0.0011, -0.0013, 0.0009][index % 3] ?? 0
+
+    return {
+      id: `fleet-live-${vehicle.id}`,
+      vehicle_id: vehicle.id,
+      vehicle_code: vehicle.vehicle_code,
+      plate_number: vehicle.plate_number,
+      driver_name: assignment?.driver_name || null,
+      assignment_role: assignment?.assignment_role || 'DELIVERY',
+      sppg_id: vehicle.home_sppg_id || null,
+      sppg_name: vehicle.home_sppg_name || kitchen.name,
+      latitude: (delivery ? kitchen.latitude + latitudeOffset : kitchen.latitude) as number,
+      longitude: (delivery ? kitchen.longitude + longitudeOffset : kitchen.longitude) as number,
+      status,
+      source: 'mock-fallback',
+      location_recorded_at: `2026-07-20T0${8 + index}:15:00Z`,
+      speed_kmh: status === 'IN_TRANSIT' ? 34 + index * 2 : status === 'LOADING' ? 4 : 0,
+      heading_deg: status === 'IN_TRANSIT' ? 75 + index * 12 : null,
+    }
+  })
 
   return {
     kitchens: mockMapData.kitchens,
@@ -427,6 +499,7 @@ const buildFallbackDataset = (): MapDataset => {
     serviceAreas,
     deliveryRoutes,
     riskPoints,
+    fleetVehicles,
     coverageSummary,
     nearestKitchens: [
       {
@@ -463,6 +536,7 @@ export const getGisOverview = async (filters: GisOverviewFilters = {}): Promise<
   try {
     const [
       sppgMapPayload,
+      fleetLivePayload,
       kitchensPayload,
       schoolsPayload,
       coveragePayload,
@@ -473,6 +547,7 @@ export const getGisOverview = async (filters: GisOverviewFilters = {}): Promise<
       deliveryRoutesPayload,
     ] = await Promise.all([
       apiRequest<unknown>('/api/v1/gis/sppg-map'),
+      apiRequest<unknown>('/api/v1/fleet/vehicle-locations/live'),
       apiRequest<unknown>('/api/v1/gis/kitchens', {
         query: {
           bbox: filters.bbox,
@@ -558,6 +633,7 @@ export const getGisOverview = async (filters: GisOverviewFilters = {}): Promise<
       service_radius_meter: Number(item.service_radius_meter ?? 0),
       covered_school_count: Number(item.covered_school_count ?? 0),
     }))
+    const fleetVehicles = normalizeFleetVehicleLocations(fleetLivePayload.data)
 
     const normalizedUnserved =
       unservedFeatures && unservedFeatures.features.length
@@ -586,6 +662,7 @@ export const getGisOverview = async (filters: GisOverviewFilters = {}): Promise<
       serviceAreas,
       deliveryRoutes: normalizeDeliveryRoutes(deliveryRoutesPayload.data),
       riskPoints: riskItems,
+      fleetVehicles,
       coverageSummary,
     }
 
@@ -626,6 +703,45 @@ export const getNearestKitchens = async (schoolId: string) => {
   } catch {
     const fallback = buildFallbackDataset().nearestKitchens || []
     return { items: fallback, total: fallback.length }
+  }
+}
+
+export const getFleetVehicleLocationHistory = async (vehicleId: string, limit = 20) => {
+  try {
+    const payload = await apiRequest<unknown>(`/api/v1/fleet/vehicles/${vehicleId}/locations`, {
+      query: {
+        limit: Math.min(limit, 200),
+      },
+    })
+    const items = normalizeFleetVehicleLocations(payload.data)
+    return { items, total: items.length }
+  } catch {
+    const dataset = buildFallbackDataset()
+    const liveLocation = dataset.fleetVehicles?.find((item) => item.vehicle_id === vehicleId)
+    if (!liveLocation) {
+      return { items: [] as FleetVehicleLocationRecord[], total: 0 }
+    }
+
+    const historyItems: FleetVehicleLocationRecord[] = Array.from({ length: Math.min(limit, 8) }).map((_, index) => ({
+      ...liveLocation,
+      id: `${liveLocation.id}-hist-${index + 1}`,
+      latitude: liveLocation.latitude - index * 0.00045,
+      longitude: liveLocation.longitude - index * 0.00062,
+      location_recorded_at: `2026-07-20T${String(6 + index).padStart(2, '0')}:15:00Z`,
+      speed_kmh:
+        liveLocation.status === 'IN_TRANSIT'
+          ? Math.max(12, Number(liveLocation.speed_kmh || 32) - index * 2)
+          : index === 0
+            ? Number(liveLocation.speed_kmh || 0)
+            : 0,
+      heading_deg: liveLocation.heading_deg ?? 70,
+      source: 'mock-history',
+    }))
+
+    return {
+      items: historyItems.reverse(),
+      total: historyItems.length,
+    }
   }
 }
 
