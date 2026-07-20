@@ -1,40 +1,41 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { readStoredSession } from '@/utils/auth-storage'
-import DashboardView from '@/views/DashboardView.vue'
-import BudgetPlanningView from '@/views/BudgetPlanningView.vue'
-import CostingView from '@/views/CostingView.vue'
-import FinanceView from '@/views/FinanceView.vue'
-import ForbiddenView from '@/views/ForbiddenView.vue'
-import GoodsReceiptDetailView from '@/views/GoodsReceiptDetailView.vue'
-import GisView from '@/views/GisView.vue'
-import InventoryView from '@/views/InventoryView.vue'
-import LoginView from '@/views/LoginView.vue'
-import MealPlansView from '@/views/MealPlansView.vue'
-import OnboardingWizardView from '@/views/OnboardingWizardView.vue'
-import ProductDetailView from '@/views/ProductDetailView.vue'
-import ProductionCostSheetDetailView from '@/views/ProductionCostSheetDetailView.vue'
-import ProductionOrderDetailView from '@/views/ProductionOrderDetailView.vue'
-import ProductsView from '@/views/ProductsView.vue'
-import RecipeDetailView from '@/views/RecipeDetailView.vue'
-import RecipesView from '@/views/RecipesView.vue'
-import RegisterInfoView from '@/views/RegisterInfoView.vue'
-import ProcurementView from '@/views/ProcurementView.vue'
-import SchoolDetailView from '@/views/SchoolDetailView.vue'
-import PurchaseOrderDetailView from '@/views/PurchaseOrderDetailView.vue'
-import PurchaseRequestDetailView from '@/views/PurchaseRequestDetailView.vue'
-import SchoolsView from '@/views/SchoolsView.vue'
-import SppgCreateView from '@/views/SppgCreateView.vue'
-import SppgDetailView from '@/views/SppgDetailView.vue'
-import SppgEditView from '@/views/SppgEditView.vue'
-import SppgListView from '@/views/SppgListView.vue'
-import SupplierInvoiceDetailView from '@/views/SupplierInvoiceDetailView.vue'
-import SupplierPaymentDetailView from '@/views/SupplierPaymentDetailView.vue'
-import TenantCreateView from '@/views/TenantCreateView.vue'
-import TenantDetailView from '@/views/TenantDetailView.vue'
-import TenantsListView from '@/views/TenantsListView.vue'
-import UserCreateView from '@/views/UserCreateView.vue'
-import UsersListView from '@/views/UsersListView.vue'
-import WorkflowApprovalsView from '@/views/WorkflowApprovalsView.vue'
+
+const LoginView = () => import('@/views/LoginView.vue')
+const RegisterInfoView = () => import('@/views/RegisterInfoView.vue')
+const ForbiddenView = () => import('@/views/ForbiddenView.vue')
+const DashboardView = () => import('@/views/DashboardView.vue')
+const MealPlansView = () => import('@/views/MealPlansView.vue')
+const InventoryView = () => import('@/views/InventoryView.vue')
+const FinanceView = () => import('@/views/FinanceView.vue')
+const CostingView = () => import('@/views/CostingView.vue')
+const BudgetPlanningView = () => import('@/views/BudgetPlanningView.vue')
+const WorkflowApprovalsView = () => import('@/views/WorkflowApprovalsView.vue')
+const ProcurementView = () => import('@/views/ProcurementView.vue')
+const PurchaseRequestDetailView = () => import('@/views/PurchaseRequestDetailView.vue')
+const PurchaseOrderDetailView = () => import('@/views/PurchaseOrderDetailView.vue')
+const GoodsReceiptDetailView = () => import('@/views/GoodsReceiptDetailView.vue')
+const SupplierInvoiceDetailView = () => import('@/views/SupplierInvoiceDetailView.vue')
+const SupplierPaymentDetailView = () => import('@/views/SupplierPaymentDetailView.vue')
+const ProductionOrderDetailView = () => import('@/views/ProductionOrderDetailView.vue')
+const ProductionCostSheetDetailView = () => import('@/views/ProductionCostSheetDetailView.vue')
+const GisView = () => import('@/views/GisView.vue')
+const SchoolsView = () => import('@/views/SchoolsView.vue')
+const SchoolDetailView = () => import('@/views/SchoolDetailView.vue')
+const ProductsView = () => import('@/views/ProductsView.vue')
+const ProductDetailView = () => import('@/views/ProductDetailView.vue')
+const RecipesView = () => import('@/views/RecipesView.vue')
+const RecipeDetailView = () => import('@/views/RecipeDetailView.vue')
+const OnboardingWizardView = () => import('@/views/OnboardingWizardView.vue')
+const SppgListView = () => import('@/views/SppgListView.vue')
+const SppgCreateView = () => import('@/views/SppgCreateView.vue')
+const SppgDetailView = () => import('@/views/SppgDetailView.vue')
+const SppgEditView = () => import('@/views/SppgEditView.vue')
+const TenantsListView = () => import('@/views/TenantsListView.vue')
+const TenantCreateView = () => import('@/views/TenantCreateView.vue')
+const TenantDetailView = () => import('@/views/TenantDetailView.vue')
+const UsersListView = () => import('@/views/UsersListView.vue')
+const UserCreateView = () => import('@/views/UserCreateView.vue')
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
+import DataTableCard from '@/components/common/DataTableCard.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { useAsyncState } from '@/composables/useAsyncState'
 import { createBudgetRecord, getBudgetRecords } from '@/services/erp-ops'
-import type { CreateBudgetPayload } from '@/types/domain'
+import type { BudgetRecord, BudgetLineRecord, CreateBudgetPayload } from '@/types/domain'
 import { formatCurrency, formatDate } from '@/utils/format'
 
 const budgetState = useAsyncState(getBudgetRecords)
@@ -54,6 +55,16 @@ const submitBudget = async () => {
   } finally {
     saving.value = false
   }
+}
+
+const budgetSearchText = (item: unknown) => {
+  const row = item as BudgetRecord
+  return [row.name, row.status, row.notes, row.date_start, row.date_end].filter(Boolean).join(' ')
+}
+
+const budgetLineSearchText = (item: unknown) => {
+  const row = item as BudgetLineRecord
+  return [row.account_code, row.account_name].filter(Boolean).join(' ')
 }
 </script>
 
@@ -148,55 +159,75 @@ const submitBudget = async () => {
         </form>
       </article>
 
-      <article class="glass-panel overflow-hidden">
-        <div class="flex items-center justify-between gap-3 px-6 pt-6">
-          <div>
-            <p class="eyebrow-text">Portfolio Budget</p>
-            <h2 class="mt-2 font-display text-2xl text-app-heading">Ringkasan budget & availability</h2>
-          </div>
-          <button class="secondary-button" @click="budgetState.execute">Refresh</button>
-        </div>
-        <div v-if="budgetState.loading.value" class="loading-panel m-6">Memuat daftar budget...</div>
-        <div v-else-if="budgetState.data.value" class="grid gap-4 p-6 pt-4">
-          <div v-for="budget in budgetState.data.value.items" :key="budget.id" class="surface-subtle rounded-3xl p-4">
-            <div class="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p class="text-sm font-semibold text-app-heading">{{ budget.name }}</p>
-                <p class="mt-1 text-sm text-app-body">{{ formatDate(budget.date_start) }} - {{ formatDate(budget.date_end) }}</p>
+      <div v-if="budgetState.loading.value" class="loading-panel">Memuat daftar budget...</div>
+      <DataTableCard
+        v-else
+        :items="budgetState.data.value?.items || []"
+        :search-text-resolver="budgetSearchText"
+        search-placeholder="Cari budget, status, periode..."
+        title="Ringkasan Budget & Availability"
+      >
+        <template #table="{ items }">
+          <table class="data-table">
+            <thead><tr><th>Budget</th><th>Periode</th><th>Effective</th><th>Available</th><th>Lines</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr v-for="item in items" :key="(item as BudgetRecord).id">
+                <td>
+                  <p>{{ (item as BudgetRecord).name }}</p>
+                  <p class="mt-1 text-xs text-app-muted">{{ (item as BudgetRecord).notes || 'Tanpa catatan tambahan.' }}</p>
+                </td>
+                <td>{{ formatDate((item as BudgetRecord).date_start) }} - {{ formatDate((item as BudgetRecord).date_end) }}</td>
+                <td>{{ formatCurrency((item as BudgetRecord).effective_budget) }}</td>
+                <td>{{ formatCurrency((item as BudgetRecord).available_budget) }}</td>
+                <td>{{ (item as BudgetRecord).lines?.length || 0 }}</td>
+                <td><StatusBadge :status="(item as BudgetRecord).status" /></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="mt-6 grid gap-4">
+            <div
+              v-for="budget in items as BudgetRecord[]"
+              :key="`${budget.id}-lines`"
+              class="surface-subtle rounded-3xl p-4"
+            >
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p class="text-sm font-semibold text-app-heading">{{ budget.name }}</p>
+                  <p class="mt-1 text-sm text-app-body">Line budget dan utilisasi account</p>
+                </div>
+                <StatusBadge :status="budget.status" />
               </div>
-              <StatusBadge :status="budget.status" />
-            </div>
-            <div class="mt-4 grid gap-3 md:grid-cols-2">
-              <p class="text-sm text-app-body">Effective: <span class="font-semibold text-app-heading">{{ formatCurrency(budget.effective_budget) }}</span></p>
-              <p class="text-sm text-app-body">Available: <span class="font-semibold text-app-heading">{{ formatCurrency(budget.available_budget) }}</span></p>
-            </div>
-            <div v-if="budget.lines?.length" class="mt-4 overflow-x-auto">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Account</th>
-                    <th>Planned</th>
-                    <th>Reserved</th>
-                    <th>Committed</th>
-                    <th>Actual</th>
-                    <th>Available</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="line in budget.lines" :key="line.id">
-                    <td>{{ line.account_code }} - {{ line.account_name }}</td>
-                    <td>{{ formatCurrency(line.planned_amount) }}</td>
-                    <td>{{ formatCurrency(line.reserved_amount || 0) }}</td>
-                    <td>{{ formatCurrency(line.committed_amount || 0) }}</td>
-                    <td>{{ formatCurrency(line.actual_amount || 0) }}</td>
-                    <td>{{ formatCurrency(line.available_budget || 0) }}</td>
-                  </tr>
-                </tbody>
-              </table>
+
+              <DataTableCard
+                v-if="budget.lines?.length"
+                :items="budget.lines"
+                :page-size="4"
+                :search-text-resolver="budgetLineSearchText"
+                empty-message="Belum ada budget line."
+                search-placeholder="Cari account code atau nama..."
+                title="Budget Lines"
+              >
+                <template #table="{ items: lineItems }">
+                  <table class="data-table">
+                    <thead><tr><th>Account</th><th>Planned</th><th>Reserved</th><th>Committed</th><th>Actual</th><th>Available</th></tr></thead>
+                    <tbody>
+                      <tr v-for="line in lineItems" :key="(line as BudgetLineRecord).id">
+                        <td>{{ (line as BudgetLineRecord).account_code }} - {{ (line as BudgetLineRecord).account_name }}</td>
+                        <td>{{ formatCurrency((line as BudgetLineRecord).planned_amount) }}</td>
+                        <td>{{ formatCurrency((line as BudgetLineRecord).reserved_amount || 0) }}</td>
+                        <td>{{ formatCurrency((line as BudgetLineRecord).committed_amount || 0) }}</td>
+                        <td>{{ formatCurrency((line as BudgetLineRecord).actual_amount || 0) }}</td>
+                        <td>{{ formatCurrency((line as BudgetLineRecord).available_budget || 0) }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </template>
+              </DataTableCard>
             </div>
           </div>
-        </div>
-      </article>
+        </template>
+      </DataTableCard>
     </section>
   </div>
 </template>

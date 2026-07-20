@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import DataTableCard from '@/components/common/DataTableCard.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { useAsyncState } from '@/composables/useAsyncState'
 import { mockSppgs, mockTenants } from '@/services/mock-data'
 import { createSchool, getSchools } from '@/services/master-data'
+import type { SchoolRecord } from '@/types/domain'
 import { formatDateTime } from '@/utils/format'
 
 const route = useRoute()
@@ -26,6 +28,18 @@ const form = reactive({
 })
 const formLoading = ref(false)
 const formMessage = ref('')
+const selectedStatus = ref('ALL')
+
+const filteredSchools = computed(() => {
+  const items = data.value?.items || []
+  if (selectedStatus.value === 'ALL') return items
+  return items.filter((item) => (selectedStatus.value === 'ACTIVE' ? item.is_active : !item.is_active))
+})
+
+const schoolSearchText = (item: unknown) => {
+  const row = item as SchoolRecord
+  return [row.npsn, row.name, row.school_level, row.address].filter(Boolean).join(' ')
+}
 
 const submit = async () => {
   formLoading.value = true
@@ -44,21 +58,44 @@ const submit = async () => {
   <div class="space-y-6">
     <PageHeader title="Schools" subtitle="Master data sekolah penerima manfaat per tenant dan SPPG." :badges="['Schools', tenantId, sppgId]" />
     <section class="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-      <section class="glass-panel overflow-hidden">
-        <div class="overflow-x-auto">
-          <table class="data-table">
-            <thead><tr><th>NPSN</th><th>Nama</th><th>Level</th><th>Status</th><th>Dibuat</th><th>Aksi</th></tr></thead>
-            <tbody>
-              <tr v-for="item in data?.items || []" :key="item.id">
-                <td>{{ item.npsn }}</td><td>{{ item.name }}</td><td>{{ item.school_level }}</td>
-                <td><StatusBadge :status="item.is_active ? 'APPROVED' : 'REJECTED'" /></td>
-                <td>{{ item.created_at ? formatDateTime(item.created_at) : '-' }}</td>
-                <td><RouterLink class="secondary-button" :to="`/schools/${item.id}`">Detail</RouterLink></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <div class="space-y-4">
+        <section class="glass-panel p-5">
+          <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p class="eyebrow-text">Filter</p>
+              <p class="mt-2 text-sm text-app-body">Saring status sekolah aktif atau nonaktif sebelum melakukan pencarian.</p>
+            </div>
+            <select v-model="selectedStatus" class="toolbar-input md:w-56">
+              <option value="ALL">Semua Status</option>
+              <option value="ACTIVE">ACTIVE</option>
+              <option value="INACTIVE">INACTIVE</option>
+            </select>
+          </div>
+        </section>
+
+        <DataTableCard
+          :items="filteredSchools"
+          :search-text-resolver="schoolSearchText"
+          search-placeholder="Cari NPSN, nama, level, atau alamat..."
+          title="Daftar Schools"
+        >
+          <template #table="{ items }">
+            <table class="data-table">
+              <thead><tr><th>NPSN</th><th>Nama</th><th>Level</th><th>Status</th><th>Dibuat</th><th>Aksi</th></tr></thead>
+              <tbody>
+                <tr v-for="item in items" :key="(item as SchoolRecord).id">
+                  <td>{{ (item as SchoolRecord).npsn }}</td>
+                  <td>{{ (item as SchoolRecord).name }}</td>
+                  <td>{{ (item as SchoolRecord).school_level }}</td>
+                  <td><StatusBadge :status="(item as SchoolRecord).is_active ? 'APPROVED' : 'REJECTED'" /></td>
+                  <td>{{ (item as SchoolRecord).created_at ? formatDateTime((item as SchoolRecord).created_at!) : '-' }}</td>
+                  <td><RouterLink class="secondary-button" :to="`/schools/${(item as SchoolRecord).id}`">Detail</RouterLink></td>
+                </tr>
+              </tbody>
+            </table>
+          </template>
+        </DataTableCard>
+      </div>
       <section class="glass-panel p-5">
         <h3 class="font-display text-xl text-app-heading">Tambah School</h3>
         <form class="mt-4 grid gap-4" @submit.prevent="submit">

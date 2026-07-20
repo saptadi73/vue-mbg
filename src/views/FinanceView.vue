@@ -1,11 +1,18 @@
 <script setup lang="ts">
+import DataTableCard from '@/components/common/DataTableCard.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { useAsyncState } from '@/composables/useAsyncState'
 import { getBudgets } from '@/services/operations'
+import type { BudgetSummary } from '@/types/domain'
 import { formatCurrency, formatDate } from '@/utils/format'
 
 const { data, loading, error, execute } = useAsyncState(getBudgets)
+
+const budgetSearchText = (item: unknown) => {
+  const row = item as BudgetSummary
+  return [row.name, row.status, row.date_start, row.date_end].filter(Boolean).join(' ')
+}
 </script>
 
 <template>
@@ -62,8 +69,14 @@ const { data, loading, error, execute } = useAsyncState(getBudgets)
       <p>{{ error }}</p>
       <button class="primary-button mt-3" @click="execute">Muat ulang</button>
     </div>
-    <section v-else-if="data" class="glass-panel overflow-hidden">
-      <div class="overflow-x-auto">
+    <DataTableCard
+      v-else-if="data"
+      :items="data.items"
+      :search-text-resolver="budgetSearchText"
+      search-placeholder="Cari budget, periode, atau status..."
+      title="Budget Summary"
+    >
+      <template #table="{ items }">
         <table class="data-table">
           <thead>
             <tr>
@@ -75,16 +88,16 @@ const { data, loading, error, execute } = useAsyncState(getBudgets)
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in data.items" :key="item.id">
-              <td>{{ item.name }}</td>
-              <td>{{ formatDate(item.date_start) }} - {{ formatDate(item.date_end) }}</td>
-              <td><StatusBadge :status="item.status" /></td>
-              <td>{{ formatCurrency(item.effective_budget) }}</td>
-              <td>{{ formatCurrency(item.available_budget) }}</td>
+            <tr v-for="item in items" :key="(item as BudgetSummary).id">
+              <td>{{ (item as BudgetSummary).name }}</td>
+              <td>{{ formatDate((item as BudgetSummary).date_start) }} - {{ formatDate((item as BudgetSummary).date_end) }}</td>
+              <td><StatusBadge :status="(item as BudgetSummary).status" /></td>
+              <td>{{ formatCurrency((item as BudgetSummary).effective_budget) }}</td>
+              <td>{{ formatCurrency((item as BudgetSummary).available_budget) }}</td>
             </tr>
           </tbody>
         </table>
-      </div>
-    </section>
+      </template>
+    </DataTableCard>
   </div>
 </template>

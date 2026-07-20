@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import DataTableCard from '@/components/common/DataTableCard.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { useAsyncState } from '@/composables/useAsyncState'
@@ -14,6 +15,7 @@ import {
   getProductionOrders,
 } from '@/services/erp-ops'
 import { useAppStore } from '@/stores/app'
+import type { ActualExpenseRecord, LaborCostRecord, ProductionOrderRecord } from '@/types/domain'
 import { formatCurrency, formatDate, formatNumber } from '@/utils/format'
 
 const appStore = useAppStore()
@@ -138,6 +140,40 @@ const submitActualExpense = async () => {
     savingExpense.value = false
   }
 }
+
+const laborSearchText = (item: unknown) => {
+  const row = item as LaborCostRecord
+  return [row.work_date, row.sppg_name, row.sppg_id, row.status, row.notes].filter(Boolean).join(' ')
+}
+
+const expenseSearchText = (item: unknown) => {
+  const row = item as ActualExpenseRecord
+  return [row.expense_date, row.sppg_name, row.sppg_id, row.cost_category, row.reference_type, row.reference_id, row.status, row.notes].filter(Boolean).join(' ')
+}
+
+const productionOrderSearchText = (item: unknown) => {
+  const row = item as ProductionOrderRecord
+  return [row.order_number, row.production_date, row.meal_plan_name, row.status, row.sppg_name].filter(Boolean).join(' ')
+}
+
+const costSheetRows = computed(() => {
+  const sheet = costSheetState.data.value
+  if (!sheet) return []
+
+  return [
+    { id: 'material', component: 'Material Cost', amount: sheet.actual_material_cost, note: 'Berasal dari konsumsi material produksi dan pergerakan inventory/procurement.' },
+    { id: 'labor', component: 'Labor Cost', amount: sheet.labor_cost_amount, note: `Sumber: ${sheet.labor_cost_source}` },
+    { id: 'utility', component: 'Utility Cost', amount: sheet.utility_cost_amount, note: 'Aktual operasional atau fallback policy aktif.' },
+    { id: 'packaging', component: 'Packaging Cost', amount: sheet.packaging_cost_amount, note: 'Tray, segel, label, dan kebutuhan kemasan.' },
+    { id: 'distribution', component: 'Distribution Cost', amount: sheet.distribution_cost_amount, note: 'Biaya rute, fuel, handling, dan penyaluran.' },
+    { id: 'overhead', component: 'Overhead Cost', amount: sheet.overhead_cost_amount, note: 'Sanitasi, admin dapur, dan overhead terkait produksi.' },
+    { id: 'waste', component: 'Waste Cost', amount: sheet.waste_cost_amount, note: 'Biaya penyusutan atau waste sesuai aktual atau policy.' },
+    { id: 'total', component: 'Total Actual Cost', amount: sheet.total_actual_cost, note: 'Akumulasi seluruh komponen biaya produksi.' },
+    { id: 'portion', component: 'Actual Cost / Portion', amount: sheet.actual_cost_per_portion, note: 'Dibagi menggunakan accepted portions.' },
+    { id: 'variance-total', component: 'Variance Total', amount: sheet.variance_total, note: 'Dibanding budget meal plan.' },
+    { id: 'variance-portion', component: 'Variance / Portion', amount: sheet.variance_per_portion, note: 'Variance terhadap budget cost per portion.' },
+  ]
+})
 </script>
 
 <template>
@@ -349,186 +385,106 @@ const submitActualExpense = async () => {
             </div>
           </div>
 
-          <div class="overflow-x-auto">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Komponen</th>
-                  <th>Nilai Aktual</th>
-                  <th>Keterangan</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Material Cost</td>
-                  <td>{{ formatCurrency(costSheetState.data.value.actual_material_cost) }}</td>
-                  <td>Berasal dari konsumsi material produksi dan pergerakan inventory/procurement.</td>
-                </tr>
-                <tr>
-                  <td>Labor Cost</td>
-                  <td>{{ formatCurrency(costSheetState.data.value.labor_cost_amount) }}</td>
-                  <td>Sumber: {{ costSheetState.data.value.labor_cost_source }}</td>
-                </tr>
-                <tr>
-                  <td>Utility Cost</td>
-                  <td>{{ formatCurrency(costSheetState.data.value.utility_cost_amount) }}</td>
-                  <td>Aktual operasional atau fallback policy aktif.</td>
-                </tr>
-                <tr>
-                  <td>Packaging Cost</td>
-                  <td>{{ formatCurrency(costSheetState.data.value.packaging_cost_amount) }}</td>
-                  <td>Tray, segel, label, dan kebutuhan kemasan.</td>
-                </tr>
-                <tr>
-                  <td>Distribution Cost</td>
-                  <td>{{ formatCurrency(costSheetState.data.value.distribution_cost_amount) }}</td>
-                  <td>Biaya rute, fuel, handling, dan penyaluran.</td>
-                </tr>
-                <tr>
-                  <td>Overhead Cost</td>
-                  <td>{{ formatCurrency(costSheetState.data.value.overhead_cost_amount) }}</td>
-                  <td>Sanitasi, admin dapur, dan overhead terkait produksi.</td>
-                </tr>
-                <tr>
-                  <td>Waste Cost</td>
-                  <td>{{ formatCurrency(costSheetState.data.value.waste_cost_amount) }}</td>
-                  <td>Biaya penyusutan/waste sesuai aktual atau policy.</td>
-                </tr>
-                <tr>
-                  <td>Total Actual Cost</td>
-                  <td>{{ formatCurrency(costSheetState.data.value.total_actual_cost) }}</td>
-                  <td>Akumulasi seluruh komponen biaya produksi.</td>
-                </tr>
-                <tr>
-                  <td>Actual Cost / Portion</td>
-                  <td>{{ formatCurrency(costSheetState.data.value.actual_cost_per_portion) }}</td>
-                  <td>Dibagi menggunakan accepted portions.</td>
-                </tr>
-                <tr>
-                  <td>Variance Total</td>
-                  <td>{{ formatCurrency(costSheetState.data.value.variance_total) }}</td>
-                  <td>Dibanding budget meal plan.</td>
-                </tr>
-                <tr>
-                  <td>Variance / Portion</td>
-                  <td>{{ formatCurrency(costSheetState.data.value.variance_per_portion) }}</td>
-                  <td>Variance terhadap budget cost per portion.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <DataTableCard
+            :items="costSheetRows"
+            search-placeholder="Cari komponen costing..."
+            title="Komponen Cost Sheet"
+          >
+            <template #table="{ items }">
+              <table class="data-table">
+                <thead><tr><th>Komponen</th><th>Nilai Aktual</th><th>Keterangan</th></tr></thead>
+                <tbody>
+                  <tr v-for="item in items" :key="(item as { id: string }).id">
+                    <td>{{ (item as { component: string }).component }}</td>
+                    <td>{{ formatCurrency((item as { amount: number }).amount) }}</td>
+                    <td>{{ (item as { note: string }).note }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </template>
+          </DataTableCard>
         </div>
       </article>
     </section>
 
     <section class="grid gap-6 xl:grid-cols-2">
-      <article class="glass-panel overflow-hidden">
-        <div class="flex items-center justify-between gap-3 px-6 pt-6">
-          <div>
-            <p class="eyebrow-text">Riwayat Labor</p>
-            <h2 class="mt-2 font-display text-2xl text-app-heading">Labor cost harian</h2>
-          </div>
-          <button class="secondary-button" @click="laborState.execute">Refresh</button>
-        </div>
-        <div v-if="laborState.loading.value" class="loading-panel m-6">Memuat labor cost...</div>
-        <div v-else-if="laborState.data.value" class="overflow-x-auto p-6 pt-4">
+      <div v-if="laborState.loading.value" class="loading-panel">Memuat labor cost...</div>
+      <DataTableCard
+        v-else
+        :items="laborState.data.value?.items || []"
+        :search-text-resolver="laborSearchText"
+        search-placeholder="Cari labor, SPPG, catatan..."
+        title="Labor Cost Harian"
+      >
+        <template #table="{ items }">
           <table class="data-table">
-            <thead>
-              <tr>
-                <th>Tanggal</th>
-                <th>SPPG</th>
-                <th>Employee</th>
-                <th>Jam Kerja</th>
-                <th>Total</th>
-                <th>Status</th>
-              </tr>
-            </thead>
+            <thead><tr><th>Tanggal</th><th>SPPG</th><th>Employee</th><th>Jam Kerja</th><th>Total</th><th>Status</th></tr></thead>
             <tbody>
-              <tr v-for="item in laborState.data.value.items" :key="item.id">
-                <td>{{ formatDate(item.work_date) }}</td>
-                <td>{{ item.sppg_name || item.sppg_id }}</td>
-                <td>{{ formatNumber(item.employee_count) }}</td>
-                <td>{{ formatNumber(item.hours_worked) }}</td>
-                <td>{{ formatCurrency(item.total_cost) }}</td>
-                <td><StatusBadge :status="item.status || 'DRAFT'" /></td>
+              <tr v-for="item in items" :key="(item as LaborCostRecord).id">
+                <td>{{ formatDate((item as LaborCostRecord).work_date) }}</td>
+                <td>{{ (item as LaborCostRecord).sppg_name || (item as LaborCostRecord).sppg_id }}</td>
+                <td>{{ formatNumber((item as LaborCostRecord).employee_count) }}</td>
+                <td>{{ formatNumber((item as LaborCostRecord).hours_worked) }}</td>
+                <td>{{ formatCurrency((item as LaborCostRecord).total_cost) }}</td>
+                <td><StatusBadge :status="(item as LaborCostRecord).status || 'DRAFT'" /></td>
               </tr>
             </tbody>
           </table>
-        </div>
-      </article>
+        </template>
+      </DataTableCard>
 
-      <article class="glass-panel overflow-hidden">
-        <div class="flex items-center justify-between gap-3 px-6 pt-6">
-          <div>
-            <p class="eyebrow-text">Riwayat Non-Labor</p>
-            <h2 class="mt-2 font-display text-2xl text-app-heading">Biaya aktual non-labor</h2>
-          </div>
-          <button class="secondary-button" @click="actualExpensesState.execute">Refresh</button>
-        </div>
-        <div v-if="actualExpensesState.loading.value" class="loading-panel m-6">Memuat biaya non-labor...</div>
-        <div v-else-if="actualExpensesState.data.value" class="overflow-x-auto p-6 pt-4">
+      <div v-if="actualExpensesState.loading.value" class="loading-panel">Memuat biaya non-labor...</div>
+      <DataTableCard
+        v-else
+        :items="actualExpensesState.data.value?.items || []"
+        :search-text-resolver="expenseSearchText"
+        search-placeholder="Cari kategori, reference, SPPG..."
+        title="Biaya Aktual Non-Labor"
+      >
+        <template #table="{ items }">
           <table class="data-table">
-            <thead>
-              <tr>
-                <th>Tanggal</th>
-                <th>SPPG</th>
-                <th>Kategori</th>
-                <th>Reference</th>
-                <th>Amount</th>
-                <th>Status</th>
-              </tr>
-            </thead>
+            <thead><tr><th>Tanggal</th><th>SPPG</th><th>Kategori</th><th>Reference</th><th>Amount</th><th>Status</th></tr></thead>
             <tbody>
-              <tr v-for="item in actualExpensesState.data.value.items" :key="item.id">
-                <td>{{ formatDate(item.expense_date) }}</td>
-                <td>{{ item.sppg_name || item.sppg_id }}</td>
-                <td>{{ item.cost_category }}</td>
-                <td>{{ item.reference_type }} / {{ item.reference_id }}</td>
-                <td>{{ formatCurrency(item.amount) }}</td>
-                <td><StatusBadge :status="item.status || 'DRAFT'" /></td>
+              <tr v-for="item in items" :key="(item as ActualExpenseRecord).id">
+                <td>{{ formatDate((item as ActualExpenseRecord).expense_date) }}</td>
+                <td>{{ (item as ActualExpenseRecord).sppg_name || (item as ActualExpenseRecord).sppg_id }}</td>
+                <td>{{ (item as ActualExpenseRecord).cost_category }}</td>
+                <td>{{ (item as ActualExpenseRecord).reference_type }} / {{ (item as ActualExpenseRecord).reference_id }}</td>
+                <td>{{ formatCurrency((item as ActualExpenseRecord).amount) }}</td>
+                <td><StatusBadge :status="(item as ActualExpenseRecord).status || 'DRAFT'" /></td>
               </tr>
             </tbody>
           </table>
-        </div>
-      </article>
+        </template>
+      </DataTableCard>
     </section>
 
-    <section class="glass-panel overflow-hidden">
-      <div class="flex items-center justify-between gap-3 px-6 pt-6">
-        <div>
-          <p class="eyebrow-text">Production Orders</p>
-          <h2 class="mt-2 font-display text-2xl text-app-heading">Dokumen produksi terkait costing</h2>
-        </div>
-      </div>
-      <div class="overflow-x-auto p-6 pt-4">
+    <DataTableCard
+      :items="productionOrdersState.data.value?.items || []"
+      :search-text-resolver="productionOrderSearchText"
+      search-placeholder="Cari production order atau meal plan..."
+      title="Dokumen Produksi Terkait Costing"
+    >
+      <template #table="{ items }">
         <table class="data-table">
-          <thead>
-            <tr>
-              <th>Order</th>
-              <th>Tanggal</th>
-              <th>Meal Plan</th>
-              <th>Accepted</th>
-              <th>Status</th>
-              <th>Aksi</th>
-            </tr>
-          </thead>
+          <thead><tr><th>Order</th><th>Tanggal</th><th>Meal Plan</th><th>Accepted</th><th>Status</th><th>Aksi</th></tr></thead>
           <tbody>
-            <tr v-for="item in productionOrdersState.data.value?.items || []" :key="item.id">
-              <td>{{ item.order_number }}</td>
-              <td>{{ formatDate(item.production_date) }}</td>
-              <td>{{ item.meal_plan_name }}</td>
-              <td>{{ formatNumber(item.accepted_portions || 0) }}</td>
-              <td><StatusBadge :status="item.status" /></td>
+            <tr v-for="item in items" :key="(item as ProductionOrderRecord).id">
+              <td>{{ (item as ProductionOrderRecord).order_number }}</td>
+              <td>{{ formatDate((item as ProductionOrderRecord).production_date) }}</td>
+              <td>{{ (item as ProductionOrderRecord).meal_plan_name }}</td>
+              <td>{{ formatNumber((item as ProductionOrderRecord).accepted_portions || 0) }}</td>
+              <td><StatusBadge :status="(item as ProductionOrderRecord).status" /></td>
               <td>
                 <div class="flex flex-wrap gap-2">
-                  <RouterLink class="secondary-button" :to="`/production-orders/${item.id}`">Detail</RouterLink>
-                  <RouterLink class="secondary-button" :to="`/production-orders/${item.id}/cost-sheet`">Cost Sheet</RouterLink>
+                  <RouterLink class="secondary-button" :to="`/production-orders/${(item as ProductionOrderRecord).id}`">Detail</RouterLink>
+                  <RouterLink class="secondary-button" :to="`/production-orders/${(item as ProductionOrderRecord).id}/cost-sheet`">Cost Sheet</RouterLink>
                 </div>
               </td>
             </tr>
           </tbody>
         </table>
-      </div>
-    </section>
+      </template>
+    </DataTableCard>
   </div>
 </template>

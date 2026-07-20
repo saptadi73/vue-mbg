@@ -1,11 +1,18 @@
 <script setup lang="ts">
+import DataTableCard from '@/components/common/DataTableCard.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { useAsyncState } from '@/composables/useAsyncState'
 import { getInventoryBalances } from '@/services/operations'
+import type { InventoryBalance } from '@/types/domain'
 import { formatCurrency, formatNumber } from '@/utils/format'
 
 const { data, loading, error, execute } = useAsyncState(getInventoryBalances)
+
+const inventorySearchText = (item: unknown) => {
+  const row = item as InventoryBalance
+  return [row.warehouse_name, row.location_name, row.product_name, row.quality_status].filter(Boolean).join(' ')
+}
 </script>
 
 <template>
@@ -33,8 +40,14 @@ const { data, loading, error, execute } = useAsyncState(getInventoryBalances)
       <p>{{ error }}</p>
       <button class="primary-button mt-3" @click="execute">Muat ulang</button>
     </div>
-    <section v-else-if="data" class="glass-panel overflow-hidden">
-      <div class="overflow-x-auto">
+    <DataTableCard
+      v-else-if="data"
+      :items="data.items"
+      :search-text-resolver="inventorySearchText"
+      search-placeholder="Cari warehouse, lokasi, produk, atau quality..."
+      title="Inventory Balances"
+    >
+      <template #table="{ items }">
         <table class="data-table">
           <thead>
             <tr>
@@ -49,19 +62,19 @@ const { data, loading, error, execute } = useAsyncState(getInventoryBalances)
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in data.items" :key="item.id">
-              <td>{{ item.warehouse_name }}</td>
-              <td>{{ item.location_name }}</td>
-              <td>{{ item.product_name }}</td>
-              <td>{{ formatNumber(item.quantity_on_hand) }}</td>
-              <td>{{ formatNumber(item.reserved_quantity) }}</td>
-              <td>{{ formatNumber(item.available_quantity) }}</td>
-              <td>{{ formatCurrency(item.average_cost) }}</td>
-              <td><StatusBadge :status="item.quality_status || 'OPEN'" /></td>
+            <tr v-for="item in items" :key="(item as InventoryBalance).id">
+              <td>{{ (item as InventoryBalance).warehouse_name }}</td>
+              <td>{{ (item as InventoryBalance).location_name }}</td>
+              <td>{{ (item as InventoryBalance).product_name }}</td>
+              <td>{{ formatNumber((item as InventoryBalance).quantity_on_hand) }}</td>
+              <td>{{ formatNumber((item as InventoryBalance).reserved_quantity) }}</td>
+              <td>{{ formatNumber((item as InventoryBalance).available_quantity) }}</td>
+              <td>{{ formatCurrency((item as InventoryBalance).average_cost) }}</td>
+              <td><StatusBadge :status="(item as InventoryBalance).quality_status || 'OPEN'" /></td>
             </tr>
           </tbody>
         </table>
-      </div>
-    </section>
+      </template>
+    </DataTableCard>
   </div>
 </template>

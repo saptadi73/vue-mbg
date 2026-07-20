@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import DataTableCard from '@/components/common/DataTableCard.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { useAccess } from '@/composables/useAccess'
 import { useAsyncState } from '@/composables/useAsyncState'
 import { getSppgs } from '@/services/sppg'
+import type { SppgRecord } from '@/types/domain'
 import { formatDateTime, formatNumber } from '@/utils/format'
 
 const route = useRoute()
@@ -16,6 +18,18 @@ const tenantId = computed(() => {
 
 const { data, loading, error, execute } = useAsyncState(() => getSppgs(tenantId.value || undefined))
 const { canManageSppg } = useAccess()
+const selectedStatus = ref('ALL')
+
+const filteredSppgs = computed(() => {
+  const items = data.value?.items || []
+  if (selectedStatus.value === 'ALL') return items
+  return items.filter((item) => (selectedStatus.value === 'ACTIVE' ? item.is_active : !item.is_active))
+})
+
+const sppgSearchText = (item: unknown) => {
+  const row = item as SppgRecord
+  return [row.code, row.name, row.address].filter(Boolean).join(' ')
+}
 </script>
 
 <template>
@@ -28,11 +42,11 @@ const { canManageSppg } = useAccess()
 
     <section class="glass-panel p-5">
       <div class="toolbar-grid">
-        <input class="toolbar-input" placeholder="Cari nama atau code SPPG" />
-        <select class="toolbar-input">
-          <option>Semua Status</option>
-          <option>ACTIVE</option>
-          <option>INACTIVE</option>
+        <div class="toolbar-input flex items-center text-app-muted">Pencarian tersedia di dalam tabel</div>
+        <select v-model="selectedStatus" class="toolbar-input">
+          <option value="ALL">Semua Status</option>
+          <option value="ACTIVE">ACTIVE</option>
+          <option value="INACTIVE">INACTIVE</option>
         </select>
         <RouterLink v-if="canManageSppg" class="primary-button" :to="tenantId ? `/sppg/create?tenantId=${tenantId}` : '/sppg/create'">
           Daftarkan SPPG
@@ -48,8 +62,14 @@ const { canManageSppg } = useAccess()
       <p>{{ error }}</p>
       <button class="primary-button mt-3" @click="execute">Muat ulang</button>
     </div>
-    <section v-else-if="data" class="glass-panel overflow-hidden">
-      <div class="overflow-x-auto">
+    <DataTableCard
+      v-else-if="data"
+      :items="filteredSppgs"
+      :search-text-resolver="sppgSearchText"
+      search-placeholder="Cari code, nama, atau alamat SPPG..."
+      title="Daftar SPPG"
+    >
+      <template #table="{ items }">
         <table class="data-table">
           <thead>
             <tr>
@@ -63,18 +83,18 @@ const { canManageSppg } = useAccess()
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in data.items" :key="item.id">
-              <td>{{ item.code }}</td>
-              <td>{{ item.name }}</td>
-              <td class="max-w-md text-app-body">{{ item.address }}</td>
-              <td>{{ formatNumber(item.radius_km) }} km</td>
-              <td><StatusBadge :status="item.is_active ? 'APPROVED' : 'REJECTED'" /></td>
-              <td>{{ item.created_at ? formatDateTime(item.created_at) : '-' }}</td>
-              <td><RouterLink class="secondary-button" :to="`/sppg/${item.id}`">Detail</RouterLink></td>
+            <tr v-for="item in items" :key="(item as SppgRecord).id">
+              <td>{{ (item as SppgRecord).code }}</td>
+              <td>{{ (item as SppgRecord).name }}</td>
+              <td class="max-w-md text-app-body">{{ (item as SppgRecord).address }}</td>
+              <td>{{ formatNumber((item as SppgRecord).radius_km) }} km</td>
+              <td><StatusBadge :status="(item as SppgRecord).is_active ? 'APPROVED' : 'REJECTED'" /></td>
+              <td>{{ (item as SppgRecord).created_at ? formatDateTime((item as SppgRecord).created_at!) : '-' }}</td>
+              <td><RouterLink class="secondary-button" :to="`/sppg/${(item as SppgRecord).id}`">Detail</RouterLink></td>
             </tr>
           </tbody>
         </table>
-      </div>
-    </section>
+      </template>
+    </DataTableCard>
   </div>
 </template>

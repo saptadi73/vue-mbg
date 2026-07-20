@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
+import DataTableCard from '@/components/common/DataTableCard.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { useAsyncState } from '@/composables/useAsyncState'
@@ -12,6 +13,14 @@ import {
   getSupplierPayments,
   getSuppliers,
 } from '@/services/erp-ops'
+import type {
+  GoodsReceiptRecord,
+  PurchaseOrderRecord,
+  PurchaseRequestRecord,
+  SupplierInvoiceRecord,
+  SupplierPaymentRecord,
+  SupplierRecord,
+} from '@/types/domain'
 import { formatCurrency, formatDate } from '@/utils/format'
 
 const suppliersState = useAsyncState(getSuppliers)
@@ -52,6 +61,36 @@ const submitSupplier = async () => {
   } finally {
     saving.value = false
   }
+}
+
+const supplierSearchText = (item: unknown) => {
+  const row = item as SupplierRecord
+  return [row.name, row.supplier_type, row.contact_person, row.email, row.status].filter(Boolean).join(' ')
+}
+
+const purchaseRequestSearchText = (item: unknown) => {
+  const row = item as PurchaseRequestRecord
+  return [row.request_number, row.meal_plan_id, row.supplier_name, row.status].filter(Boolean).join(' ')
+}
+
+const purchaseOrderSearchText = (item: unknown) => {
+  const row = item as PurchaseOrderRecord
+  return [row.po_number, row.supplier_name, row.status].filter(Boolean).join(' ')
+}
+
+const goodsReceiptSearchText = (item: unknown) => {
+  const row = item as GoodsReceiptRecord
+  return [row.receipt_number, row.source_number, row.status].filter(Boolean).join(' ')
+}
+
+const supplierInvoiceSearchText = (item: unknown) => {
+  const row = item as SupplierInvoiceRecord
+  return [row.invoice_number, row.supplier_name, row.status].filter(Boolean).join(' ')
+}
+
+const supplierPaymentSearchText = (item: unknown) => {
+  const row = item as SupplierPaymentRecord
+  return [row.payment_number, row.supplier_name, row.status].filter(Boolean).join(' ')
 }
 </script>
 
@@ -163,89 +202,153 @@ const submitSupplier = async () => {
     </section>
 
     <section class="grid gap-6">
-      <article class="glass-panel overflow-hidden">
-        <div class="overflow-x-auto p-6">
-          <h2 class="font-display text-2xl text-app-heading">Supplier</h2>
-          <table class="data-table mt-4">
+      <DataTableCard
+        :items="suppliersState.data.value?.items || []"
+        :search-text-resolver="supplierSearchText"
+        empty-message="Belum ada supplier."
+        search-placeholder="Cari supplier, kontak, email..."
+        title="Supplier"
+      >
+        <template #table="{ items }">
+          <table class="data-table">
             <thead><tr><th>Nama</th><th>Tipe</th><th>Kontak</th><th>Email</th><th>Status</th></tr></thead>
             <tbody>
-              <tr v-for="item in suppliersState.data.value?.items || []" :key="item.id">
-                <td>{{ item.name }}</td><td>{{ item.supplier_type }}</td><td>{{ item.contact_person }}</td><td>{{ item.email }}</td><td><StatusBadge :status="item.status || 'ACTIVE'" /></td>
+              <tr v-for="item in items" :key="(item as SupplierRecord).id">
+                <td>{{ (item as SupplierRecord).name }}</td>
+                <td>{{ (item as SupplierRecord).supplier_type }}</td>
+                <td>{{ (item as SupplierRecord).contact_person }}</td>
+                <td>{{ (item as SupplierRecord).email }}</td>
+                <td><StatusBadge :status="(item as SupplierRecord).status || 'ACTIVE'" /></td>
               </tr>
             </tbody>
           </table>
-        </div>
-      </article>
+        </template>
+      </DataTableCard>
 
-      <article class="glass-panel overflow-hidden">
-        <div class="overflow-x-auto p-6">
-          <h2 class="font-display text-2xl text-app-heading">Purchase Request</h2>
-          <table class="data-table mt-4">
+      <DataTableCard
+        :items="prState.data.value?.items || []"
+        :search-text-resolver="purchaseRequestSearchText"
+        empty-message="Belum ada purchase request."
+        search-placeholder="Cari nomor PR, meal plan, supplier..."
+        title="Purchase Request"
+      >
+        <template #table="{ items }">
+          <table class="data-table">
             <thead><tr><th>Nomor</th><th>Tanggal</th><th>Meal Plan</th><th>Supplier</th><th>Estimasi</th><th>Status</th><th>Aksi</th></tr></thead>
             <tbody>
-              <tr v-for="item in prState.data.value?.items || []" :key="item.id">
-                <td>{{ item.request_number }}</td><td>{{ formatDate(item.request_date) }}</td><td>{{ item.meal_plan_id || '-' }}</td><td>{{ item.supplier_name || '-' }}</td><td>{{ formatCurrency(item.total_estimated_cost) }}</td><td><StatusBadge :status="item.status" /></td><td><RouterLink class="secondary-button" :to="`/procurement/purchase-requests/${item.id}`">Detail</RouterLink></td>
+              <tr v-for="item in items" :key="(item as PurchaseRequestRecord).id">
+                <td>{{ (item as PurchaseRequestRecord).request_number }}</td>
+                <td>{{ formatDate((item as PurchaseRequestRecord).request_date) }}</td>
+                <td>{{ (item as PurchaseRequestRecord).meal_plan_id || '-' }}</td>
+                <td>{{ (item as PurchaseRequestRecord).supplier_name || '-' }}</td>
+                <td>{{ formatCurrency((item as PurchaseRequestRecord).total_estimated_cost) }}</td>
+                <td><StatusBadge :status="(item as PurchaseRequestRecord).status" /></td>
+                <td><RouterLink class="secondary-button" :to="`/procurement/purchase-requests/${(item as PurchaseRequestRecord).id}`">Detail</RouterLink></td>
               </tr>
             </tbody>
           </table>
-        </div>
-      </article>
+        </template>
+      </DataTableCard>
 
-      <article class="glass-panel overflow-hidden">
-        <div class="grid gap-6 p-6 xl:grid-cols-2">
-          <div class="overflow-x-auto">
-            <h2 class="font-display text-2xl text-app-heading">Purchase Order</h2>
-            <table class="data-table mt-4">
+      <section class="grid gap-6 xl:grid-cols-2">
+        <DataTableCard
+          :items="poState.data.value?.items || []"
+          :search-text-resolver="purchaseOrderSearchText"
+          empty-message="Belum ada purchase order."
+          search-placeholder="Cari nomor PO atau supplier..."
+          title="Purchase Order"
+        >
+          <template #table="{ items }">
+            <table class="data-table">
               <thead><tr><th>Nomor</th><th>Tanggal</th><th>Supplier</th><th>Total</th><th>Status</th><th>Aksi</th></tr></thead>
               <tbody>
-                <tr v-for="item in poState.data.value?.items || []" :key="item.id">
-                  <td>{{ item.po_number }}</td><td>{{ formatDate(item.po_date) }}</td><td>{{ item.supplier_name }}</td><td>{{ formatCurrency(item.total_amount) }}</td><td><StatusBadge :status="item.status" /></td><td><RouterLink class="secondary-button" :to="`/procurement/purchase-orders/${item.id}`">Detail</RouterLink></td>
+                <tr v-for="item in items" :key="(item as PurchaseOrderRecord).id">
+                  <td>{{ (item as PurchaseOrderRecord).po_number }}</td>
+                  <td>{{ formatDate((item as PurchaseOrderRecord).po_date) }}</td>
+                  <td>{{ (item as PurchaseOrderRecord).supplier_name }}</td>
+                  <td>{{ formatCurrency((item as PurchaseOrderRecord).total_amount) }}</td>
+                  <td><StatusBadge :status="(item as PurchaseOrderRecord).status" /></td>
+                  <td><RouterLink class="secondary-button" :to="`/procurement/purchase-orders/${(item as PurchaseOrderRecord).id}`">Detail</RouterLink></td>
                 </tr>
               </tbody>
             </table>
-          </div>
+          </template>
+        </DataTableCard>
 
-          <div class="overflow-x-auto">
-            <h2 class="font-display text-2xl text-app-heading">Goods Receipt</h2>
-            <table class="data-table mt-4">
+        <DataTableCard
+          :items="grState.data.value?.items || []"
+          :search-text-resolver="goodsReceiptSearchText"
+          empty-message="Belum ada goods receipt."
+          search-placeholder="Cari nomor GR atau sumber..."
+          title="Goods Receipt"
+        >
+          <template #table="{ items }">
+            <table class="data-table">
               <thead><tr><th>Nomor</th><th>Tanggal</th><th>Sumber</th><th>Total</th><th>Status</th><th>Aksi</th></tr></thead>
               <tbody>
-                <tr v-for="item in grState.data.value?.items || []" :key="item.id">
-                  <td>{{ item.receipt_number }}</td><td>{{ formatDate(item.receipt_date) }}</td><td>{{ item.source_number }}</td><td>{{ formatCurrency(item.total_amount) }}</td><td><StatusBadge :status="item.status" /></td><td><RouterLink class="secondary-button" :to="`/procurement/goods-receipts/${item.id}`">Detail</RouterLink></td>
+                <tr v-for="item in items" :key="(item as GoodsReceiptRecord).id">
+                  <td>{{ (item as GoodsReceiptRecord).receipt_number }}</td>
+                  <td>{{ formatDate((item as GoodsReceiptRecord).receipt_date) }}</td>
+                  <td>{{ (item as GoodsReceiptRecord).source_number }}</td>
+                  <td>{{ formatCurrency((item as GoodsReceiptRecord).total_amount) }}</td>
+                  <td><StatusBadge :status="(item as GoodsReceiptRecord).status" /></td>
+                  <td><RouterLink class="secondary-button" :to="`/procurement/goods-receipts/${(item as GoodsReceiptRecord).id}`">Detail</RouterLink></td>
                 </tr>
               </tbody>
             </table>
-          </div>
-        </div>
-      </article>
+          </template>
+        </DataTableCard>
+      </section>
 
-      <article class="glass-panel overflow-hidden">
-        <div class="grid gap-6 p-6 xl:grid-cols-2">
-          <div class="overflow-x-auto">
-            <h2 class="font-display text-2xl text-app-heading">Supplier Invoice</h2>
-            <table class="data-table mt-4">
+      <section class="grid gap-6 xl:grid-cols-2">
+        <DataTableCard
+          :items="invoiceState.data.value?.items || []"
+          :search-text-resolver="supplierInvoiceSearchText"
+          empty-message="Belum ada supplier invoice."
+          search-placeholder="Cari nomor invoice atau supplier..."
+          title="Supplier Invoice"
+        >
+          <template #table="{ items }">
+            <table class="data-table">
               <thead><tr><th>Nomor</th><th>Tanggal</th><th>Supplier</th><th>Total</th><th>Status</th><th>Aksi</th></tr></thead>
               <tbody>
-                <tr v-for="item in invoiceState.data.value?.items || []" :key="item.id">
-                  <td>{{ item.invoice_number }}</td><td>{{ formatDate(item.invoice_date) }}</td><td>{{ item.supplier_name }}</td><td>{{ formatCurrency(item.total_amount) }}</td><td><StatusBadge :status="item.status" /></td><td><RouterLink class="secondary-button" :to="`/procurement/supplier-invoices/${item.id}`">Detail</RouterLink></td>
+                <tr v-for="item in items" :key="(item as SupplierInvoiceRecord).id">
+                  <td>{{ (item as SupplierInvoiceRecord).invoice_number }}</td>
+                  <td>{{ formatDate((item as SupplierInvoiceRecord).invoice_date) }}</td>
+                  <td>{{ (item as SupplierInvoiceRecord).supplier_name }}</td>
+                  <td>{{ formatCurrency((item as SupplierInvoiceRecord).total_amount) }}</td>
+                  <td><StatusBadge :status="(item as SupplierInvoiceRecord).status" /></td>
+                  <td><RouterLink class="secondary-button" :to="`/procurement/supplier-invoices/${(item as SupplierInvoiceRecord).id}`">Detail</RouterLink></td>
                 </tr>
               </tbody>
             </table>
-          </div>
+          </template>
+        </DataTableCard>
 
-          <div class="overflow-x-auto">
-            <h2 class="font-display text-2xl text-app-heading">Supplier Payment</h2>
-            <table class="data-table mt-4">
+        <DataTableCard
+          :items="paymentState.data.value?.items || []"
+          :search-text-resolver="supplierPaymentSearchText"
+          empty-message="Belum ada supplier payment."
+          search-placeholder="Cari nomor payment atau supplier..."
+          title="Supplier Payment"
+        >
+          <template #table="{ items }">
+            <table class="data-table">
               <thead><tr><th>Nomor</th><th>Tanggal</th><th>Supplier</th><th>Amount</th><th>Status</th><th>Aksi</th></tr></thead>
               <tbody>
-                <tr v-for="item in paymentState.data.value?.items || []" :key="item.id">
-                  <td>{{ item.payment_number }}</td><td>{{ formatDate(item.payment_date) }}</td><td>{{ item.supplier_name }}</td><td>{{ formatCurrency(item.amount) }}</td><td><StatusBadge :status="item.status" /></td><td><RouterLink class="secondary-button" :to="`/procurement/supplier-payments/${item.id}`">Detail</RouterLink></td>
+                <tr v-for="item in items" :key="(item as SupplierPaymentRecord).id">
+                  <td>{{ (item as SupplierPaymentRecord).payment_number }}</td>
+                  <td>{{ formatDate((item as SupplierPaymentRecord).payment_date) }}</td>
+                  <td>{{ (item as SupplierPaymentRecord).supplier_name }}</td>
+                  <td>{{ formatCurrency((item as SupplierPaymentRecord).amount) }}</td>
+                  <td><StatusBadge :status="(item as SupplierPaymentRecord).status" /></td>
+                  <td><RouterLink class="secondary-button" :to="`/procurement/supplier-payments/${(item as SupplierPaymentRecord).id}`">Detail</RouterLink></td>
                 </tr>
               </tbody>
             </table>
-          </div>
-        </div>
-      </article>
+          </template>
+        </DataTableCard>
+      </section>
     </section>
   </div>
 </template>

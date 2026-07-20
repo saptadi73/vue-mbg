@@ -7,6 +7,12 @@ import { clearStoredSession, readStoredSession, writeStoredSession } from '@/uti
 
 type ThemeMode = 'dark' | 'light'
 
+const resolveDesktopSidebarCollapsed = () => {
+  if (typeof window === 'undefined') return false
+
+  return window.localStorage.getItem('mbg-sidebar-collapsed') === 'true'
+}
+
 const resolveInitialTheme = (): ThemeMode => {
   if (typeof window === 'undefined') return 'dark'
 
@@ -31,6 +37,7 @@ export const useAppStore = defineStore('app', () => {
   const unreadNotifications = ref(7)
   const themeMode = ref<ThemeMode>(resolveInitialTheme())
   const mobileSidebarOpen = ref(false)
+  const desktopSidebarCollapsed = ref(resolveDesktopSidebarCollapsed())
   const accessToken = ref(existingSession?.accessToken || '')
   const roles = ref<string[]>(existingSession?.roles || ['operations_manager'])
   const accessibleSppgIds = ref<string[]>(existingSession?.accessibleSppgIds || [])
@@ -133,6 +140,17 @@ export const useAppStore = defineStore('app', () => {
     mobileSidebarOpen.value = !mobileSidebarOpen.value
   }
 
+  const setDesktopSidebarCollapsed = (value: boolean) => {
+    desktopSidebarCollapsed.value = value
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('mbg-sidebar-collapsed', String(value))
+    }
+  }
+
+  const toggleDesktopSidebar = () => {
+    setDesktopSidebarCollapsed(!desktopSidebarCollapsed.value)
+  }
+
   const setAccessToken = (token: string) => {
     accessToken.value = token
     writeStoredSession({
@@ -179,6 +197,7 @@ export const useAppStore = defineStore('app', () => {
     unreadNotifications,
     themeMode,
     mobileSidebarOpen,
+    desktopSidebarCollapsed,
     accessToken,
     roles,
     accessibleSppgIds,
@@ -193,6 +212,8 @@ export const useAppStore = defineStore('app', () => {
     openMobileSidebar,
     closeMobileSidebar,
     toggleMobileSidebar,
+    setDesktopSidebarCollapsed,
+    toggleDesktopSidebar,
     setAccessToken,
     applyProfile,
     initializeAuth,

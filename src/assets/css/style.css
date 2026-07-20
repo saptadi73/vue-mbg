@@ -126,7 +126,7 @@ body {
 
 .nav-link {
   color: var(--app-text);
-  @apply block rounded-2xl border border-transparent px-4 py-3 text-sm transition duration-200;
+  @apply relative flex items-center justify-between rounded-2xl border border-transparent px-4 py-3 text-sm transition duration-200;
 }
 
 .nav-link:hover {
@@ -145,6 +145,50 @@ body {
   border-color: rgba(20, 184, 166, 0.18);
   background: rgba(45, 212, 191, 0.12);
   color: #0f172a;
+}
+
+.sidebar-group {
+  border: 1px solid var(--app-panel-border);
+  background: color-mix(in srgb, var(--app-subtle-bg) 78%, transparent 22%);
+  @apply rounded-3xl p-2;
+}
+
+.sidebar-group-toggle {
+  color: var(--app-heading);
+  @apply flex w-full items-center justify-between rounded-2xl px-3 py-3 text-left transition duration-200 hover:bg-white/5;
+}
+
+.sidebar-group-label {
+  color: var(--app-muted);
+  @apply text-xs uppercase tracking-[0.24em];
+}
+
+.sidebar-group-icon {
+  color: var(--app-heading);
+  @apply inline-flex h-7 w-7 items-center justify-center rounded-full border border-[var(--app-panel-border)] text-sm font-semibold leading-none transition duration-200;
+}
+
+.sidebar-group-icon-open {
+  transform: rotate(45deg);
+}
+
+.sidebar-group-body {
+  @apply mt-2 space-y-2 px-1 pb-1;
+}
+
+.sidebar-item-icon {
+  color: var(--app-heading);
+  background: color-mix(in srgb, var(--app-subtle-bg) 72%, white 8%);
+  border: 1px solid var(--app-panel-border);
+  @apply inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl text-[10px] font-semibold uppercase tracking-[0.16em];
+}
+
+.sidebar-item-badge {
+  @apply inline-flex min-w-7 items-center justify-center rounded-full bg-teal-300 px-2 py-1 text-[10px] font-bold text-slate-950;
+}
+
+.sidebar-item-badge-floating {
+  @apply absolute -right-1 -top-1 min-w-6 px-1.5 py-0.5 text-[9px];
 }
 
 .context-field {

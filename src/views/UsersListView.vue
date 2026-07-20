@@ -1,13 +1,28 @@
 <script setup lang="ts">
+import { computed, ref } from 'vue'
+import DataTableCard from '@/components/common/DataTableCard.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { useAccess } from '@/composables/useAccess'
 import { useAsyncState } from '@/composables/useAsyncState'
 import { getUsers } from '@/services/identity'
+import type { UserRecord } from '@/types/domain'
 import { formatDateTime } from '@/utils/format'
 
 const { data, loading, error, execute } = useAsyncState(getUsers)
 const { canManageUsers } = useAccess()
+const selectedStatus = ref('ALL')
+
+const filteredUsers = computed(() => {
+  const items = data.value?.items || []
+  if (selectedStatus.value === 'ALL') return items
+  return items.filter((item) => (selectedStatus.value === 'ACTIVE' ? item.is_active : !item.is_active))
+})
+
+const userSearchText = (item: unknown) => {
+  const row = item as UserRecord
+  return [row.full_name, row.email, row.role_names.join(' '), row.active_sppg_id, row.accessible_sppg_ids?.join(' ')].filter(Boolean).join(' ')
+}
 </script>
 
 <template>
@@ -20,11 +35,11 @@ const { canManageUsers } = useAccess()
 
     <section class="glass-panel p-5">
       <div class="toolbar-grid">
-        <input class="toolbar-input" placeholder="Cari nama, email, atau role" />
-        <select class="toolbar-input">
-          <option>Semua Status</option>
-          <option>ACTIVE</option>
-          <option>INACTIVE</option>
+        <div class="toolbar-input flex items-center text-app-muted">Pencarian tersedia di dalam tabel</div>
+        <select v-model="selectedStatus" class="toolbar-input">
+          <option value="ALL">Semua Status</option>
+          <option value="ACTIVE">ACTIVE</option>
+          <option value="INACTIVE">INACTIVE</option>
         </select>
         <RouterLink v-if="canManageUsers" class="primary-button" to="/users/create">Registrasi User</RouterLink>
       </div>
@@ -38,8 +53,14 @@ const { canManageUsers } = useAccess()
       <p>{{ error }}</p>
       <button class="primary-button mt-3" @click="execute">Muat ulang</button>
     </div>
-    <section v-else-if="data" class="glass-panel overflow-hidden">
-      <div class="overflow-x-auto">
+    <DataTableCard
+      v-else-if="data"
+      :items="filteredUsers"
+      :search-text-resolver="userSearchText"
+      search-placeholder="Cari nama, email, role, atau SPPG..."
+      title="Daftar Users"
+    >
+      <template #table="{ items }">
         <table class="data-table">
           <thead>
             <tr>
@@ -53,18 +74,18 @@ const { canManageUsers } = useAccess()
             </tr>
           </thead>
           <tbody>
-            <tr v-for="user in data.items" :key="user.id">
-              <td>{{ user.full_name }}</td>
-              <td>{{ user.email }}</td>
-              <td>{{ user.role_names.join(', ') }}</td>
-              <td><StatusBadge :status="user.is_active ? 'APPROVED' : 'REJECTED'" /></td>
-              <td>{{ user.active_sppg_id || '-' }}</td>
-              <td>{{ user.accessible_sppg_ids?.join(', ') || '-' }}</td>
-              <td>{{ user.created_at ? formatDateTime(user.created_at) : '-' }}</td>
+            <tr v-for="user in items" :key="(user as UserRecord).id">
+              <td>{{ (user as UserRecord).full_name }}</td>
+              <td>{{ (user as UserRecord).email }}</td>
+              <td>{{ (user as UserRecord).role_names.join(', ') }}</td>
+              <td><StatusBadge :status="(user as UserRecord).is_active ? 'APPROVED' : 'REJECTED'" /></td>
+              <td>{{ (user as UserRecord).active_sppg_id || '-' }}</td>
+              <td>{{ (user as UserRecord).accessible_sppg_ids?.join(', ') || '-' }}</td>
+              <td>{{ (user as UserRecord).created_at ? formatDateTime((user as UserRecord).created_at!) : '-' }}</td>
             </tr>
           </tbody>
         </table>
-      </div>
-    </section>
+      </template>
+    </DataTableCard>
   </div>
 </template>

@@ -1,17 +1,35 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import DocumentActionCard from '@/components/common/DocumentActionCard.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { useAsyncState } from '@/composables/useAsyncState'
-import { getPurchaseOrderById } from '@/services/erp-ops'
+import { createGoodsReceiptFromPurchaseOrder, getPurchaseOrderById } from '@/services/erp-ops'
 import { formatCurrency, formatDate, formatNumber } from '@/utils/format'
 
 const route = useRoute()
+const router = useRouter()
 const purchaseOrderId = computed(() => String(route.params.purchaseOrderId || ''))
 const { data, loading, error, execute } = useAsyncState(() => getPurchaseOrderById(purchaseOrderId.value))
 const detail = computed(() => data.value ?? null)
 const header = computed(() => detail.value?.purchase_order ?? null)
+const actionLoading = ref(false)
+const actionError = ref('')
+
+const handleCreateGoodsReceipt = async () => {
+  actionLoading.value = true
+  actionError.value = ''
+
+  try {
+    const result = await createGoodsReceiptFromPurchaseOrder(purchaseOrderId.value)
+    await router.push(`/procurement/goods-receipts/${result.record.goods_receipt.id}`)
+  } catch (err) {
+    actionError.value = err instanceof Error ? err.message : 'Gagal membuat goods receipt dari purchase order.'
+  } finally {
+    actionLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -42,11 +60,27 @@ const header = computed(() => detail.value?.purchase_order ?? null)
             <div class="surface-subtle rounded-3xl p-4"><p class="text-xs uppercase tracking-[0.2em] text-app-muted">Type</p><p class="mt-2 text-sm font-semibold text-app-heading">{{ header.order_type || 'PO' }}</p></div>
           </div>
         </article>
-        <article class="glass-panel p-5">
-          <p class="eyebrow-text">Notes</p>
-          <p class="mt-4 text-sm text-app-body">{{ header.notes }}</p>
-          <RouterLink class="primary-button mt-5" to="/procurement">Kembali ke Procurement</RouterLink>
-        </article>
+        <div class="space-y-4">
+          <DocumentActionCard
+            action-label="Create Goods Receipt"
+            :description="`Terima barang dari ${header.po_number} untuk memindahkan commitment pembelian ke receiving dan inventory.`"
+            :helper-text="actionError || 'Jika goods receipt untuk PO ini sudah ada, sistem akan membuka dokumen tersebut.'"
+            :loading="actionLoading"
+            title="Lanjut ke Goods Receipt"
+            @action="handleCreateGoodsReceipt"
+          >
+            <div class="mt-4 flex items-center justify-between rounded-3xl border border-[var(--app-panel-border)] px-4 py-3 text-sm">
+              <span class="text-app-muted">PO status</span>
+              <StatusBadge :status="header.status" />
+            </div>
+          </DocumentActionCard>
+
+          <article class="glass-panel p-5">
+            <p class="eyebrow-text">Notes</p>
+            <p class="mt-4 text-sm text-app-body">{{ header.notes }}</p>
+            <RouterLink class="secondary-button mt-5 w-full" to="/procurement">Kembali ke Procurement</RouterLink>
+          </article>
+        </div>
       </section>
 
       <section class="glass-panel overflow-hidden">

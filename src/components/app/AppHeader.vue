@@ -10,6 +10,7 @@ const {
   activeTenantId,
   activeSppg,
   activeSppgId,
+  desktopSidebarCollapsed,
   profile,
   sppgOptions,
   tenants,
@@ -52,6 +53,14 @@ const handleLogout = () => {
           <option v-for="sppg in sppgOptions" :key="sppg.id" :value="sppg.id">{{ sppg.label }}</option>
         </select>
       </label>
+
+      <button class="theme-toggle hidden lg:inline-flex" type="button" @click="appStore.toggleDesktopSidebar()">
+        <span class="theme-toggle-icon">{{ desktopSidebarCollapsed ? 'EX' : 'CL' }}</span>
+        <span>
+          <span class="block text-xs uppercase tracking-[0.24em] text-app-muted">Sidebar</span>
+          <span class="text-sm font-medium text-app-heading">{{ desktopSidebarCollapsed ? 'Expand Menu' : 'Collapse Menu' }}</span>
+        </span>
+      </button>
 
       <button class="theme-toggle" type="button" @click="appStore.toggleTheme()">
         <span class="theme-toggle-icon">{{ themeMode === 'dark' ? 'LT' : 'DK' }}</span>

@@ -1,17 +1,35 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import DocumentActionCard from '@/components/common/DocumentActionCard.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { useAsyncState } from '@/composables/useAsyncState'
-import { getSupplierInvoiceById } from '@/services/erp-ops'
+import { createSupplierPaymentFromInvoice, getSupplierInvoiceById } from '@/services/erp-ops'
 import { formatCurrency, formatDate, formatNumber } from '@/utils/format'
 
 const route = useRoute()
+const router = useRouter()
 const supplierInvoiceId = computed(() => String(route.params.supplierInvoiceId || ''))
 const { data, loading, error, execute } = useAsyncState(() => getSupplierInvoiceById(supplierInvoiceId.value))
 const detail = computed(() => data.value ?? null)
 const header = computed(() => detail.value?.supplier_invoice ?? null)
+const actionLoading = ref(false)
+const actionError = ref('')
+
+const handleCreatePayment = async () => {
+  actionLoading.value = true
+  actionError.value = ''
+
+  try {
+    const result = await createSupplierPaymentFromInvoice(supplierInvoiceId.value)
+    await router.push(`/procurement/supplier-payments/${result.record.supplier_payment.id}`)
+  } catch (err) {
+    actionError.value = err instanceof Error ? err.message : 'Gagal membuat supplier payment dari supplier invoice.'
+  } finally {
+    actionLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -42,11 +60,27 @@ const header = computed(() => detail.value?.supplier_invoice ?? null)
             <div class="surface-subtle rounded-3xl p-4"><p class="text-xs uppercase tracking-[0.2em] text-app-muted">Total</p><p class="mt-2 text-sm font-semibold text-app-heading">{{ formatCurrency(header.total_amount) }}</p></div>
           </div>
         </article>
-        <article class="glass-panel p-5">
-          <p class="eyebrow-text">Notes</p>
-          <p class="mt-4 text-sm text-app-body">{{ header.notes }}</p>
-          <RouterLink class="primary-button mt-5" to="/procurement">Kembali ke Procurement</RouterLink>
-        </article>
+        <div class="space-y-4">
+          <DocumentActionCard
+            action-label="Create Supplier Payment"
+            :description="`Buat pembayaran untuk ${header.invoice_number} agar hutang supplier bisa diproses menjadi cash out atau bank out.`"
+            :helper-text="actionError || 'Jika payment untuk invoice ini sudah ada, sistem akan membuka dokumen pembayaran yang sudah tersedia.'"
+            :loading="actionLoading"
+            title="Lanjut ke Supplier Payment"
+            @action="handleCreatePayment"
+          >
+            <div class="mt-4 flex items-center justify-between rounded-3xl border border-[var(--app-panel-border)] px-4 py-3 text-sm">
+              <span class="text-app-muted">Invoice status</span>
+              <StatusBadge :status="header.status" />
+            </div>
+          </DocumentActionCard>
+
+          <article class="glass-panel p-5">
+            <p class="eyebrow-text">Notes</p>
+            <p class="mt-4 text-sm text-app-body">{{ header.notes }}</p>
+            <RouterLink class="secondary-button mt-5 w-full" to="/procurement">Kembali ke Procurement</RouterLink>
+          </article>
+        </div>
       </section>
 
       <section class="glass-panel overflow-hidden">

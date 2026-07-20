@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import DataTableCard from '@/components/common/DataTableCard.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { useAsyncState } from '@/composables/useAsyncState'
 import { mockTenants } from '@/services/mock-data'
 import { createProduct, getProducts } from '@/services/master-data'
-import { formatDateTime } from '@/utils/format'
+import type { ProductRecord } from '@/types/domain'
 
 const route = useRoute()
 const tenantId = computed(() => (typeof route.query.tenantId === 'string' ? route.query.tenantId : mockTenants[0]?.id || ''))
@@ -23,6 +24,18 @@ const form = reactive({
 })
 const formLoading = ref(false)
 const formMessage = ref('')
+const selectedStatus = ref('ALL')
+
+const filteredProducts = computed(() => {
+  const items = data.value?.items || []
+  if (selectedStatus.value === 'ALL') return items
+  return items.filter((item) => (selectedStatus.value === 'ACTIVE' ? item.is_active : !item.is_active))
+})
+
+const productSearchText = (item: unknown) => {
+  const row = item as ProductRecord
+  return [row.code, row.name, row.product_type, row.category_name, row.uom_id].filter(Boolean).join(' ')
+}
 
 const submit = async () => {
   formLoading.value = true
@@ -41,20 +54,44 @@ const submit = async () => {
   <div class="space-y-6">
     <PageHeader title="Products" subtitle="Master data bahan dan produk tenant untuk meal plan, procurement, dan inventory." :badges="['Products', tenantId, 'Master Data']" />
     <section class="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-      <section class="glass-panel overflow-hidden">
-        <div class="overflow-x-auto">
-          <table class="data-table">
-            <thead><tr><th>Code</th><th>Nama</th><th>Type</th><th>Kategori</th><th>Status</th><th>Aksi</th></tr></thead>
-            <tbody>
-              <tr v-for="item in data?.items || []" :key="item.id">
-                <td>{{ item.code }}</td><td>{{ item.name }}</td><td>{{ item.product_type }}</td><td>{{ item.category_name }}</td>
-                <td><StatusBadge :status="item.is_active ? 'APPROVED' : 'REJECTED'" /></td>
-                <td><RouterLink class="secondary-button" :to="`/products/${item.id}`">Detail</RouterLink></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <div class="space-y-4">
+        <section class="glass-panel p-5">
+          <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p class="eyebrow-text">Filter</p>
+              <p class="mt-2 text-sm text-app-body">Tampilkan produk aktif atau nonaktif untuk memudahkan kurasi master data.</p>
+            </div>
+            <select v-model="selectedStatus" class="toolbar-input md:w-56">
+              <option value="ALL">Semua Status</option>
+              <option value="ACTIVE">ACTIVE</option>
+              <option value="INACTIVE">INACTIVE</option>
+            </select>
+          </div>
+        </section>
+
+        <DataTableCard
+          :items="filteredProducts"
+          :search-text-resolver="productSearchText"
+          search-placeholder="Cari code, nama, kategori, atau type..."
+          title="Daftar Products"
+        >
+          <template #table="{ items }">
+            <table class="data-table">
+              <thead><tr><th>Code</th><th>Nama</th><th>Type</th><th>Kategori</th><th>Status</th><th>Aksi</th></tr></thead>
+              <tbody>
+                <tr v-for="item in items" :key="(item as ProductRecord).id">
+                  <td>{{ (item as ProductRecord).code }}</td>
+                  <td>{{ (item as ProductRecord).name }}</td>
+                  <td>{{ (item as ProductRecord).product_type }}</td>
+                  <td>{{ (item as ProductRecord).category_name }}</td>
+                  <td><StatusBadge :status="(item as ProductRecord).is_active ? 'APPROVED' : 'REJECTED'" /></td>
+                  <td><RouterLink class="secondary-button" :to="`/products/${(item as ProductRecord).id}`">Detail</RouterLink></td>
+                </tr>
+              </tbody>
+            </table>
+          </template>
+        </DataTableCard>
+      </div>
       <section class="glass-panel p-5">
         <h3 class="font-display text-xl text-app-heading">Tambah Product</h3>
         <form class="mt-4 grid gap-4" @submit.prevent="submit">
