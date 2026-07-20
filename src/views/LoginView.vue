@@ -40,7 +40,7 @@ const submit = async () => {
         <p class="eyebrow-text">ERP MBG</p>
         <h1 class="mt-4 font-display text-4xl text-app-heading lg:text-6xl">Operational Command Center</h1>
         <p class="mt-5 max-w-2xl text-base leading-7 text-app-body">
-          Masuk ke dashboard MBG untuk mengelola tenant, SPPG, distribusi, finance, GIS, dan master data dengan satu konteks kerja yang konsisten.
+          Masuk ke dashboard MBG untuk mengelola yayasan, SPPG, distribusi, finance, GIS, dan master data dengan satu konteks kerja yang konsisten.
         </p>
         <div class="mt-8 grid gap-4 md:grid-cols-3">
           <div class="surface-subtle rounded-3xl p-4">
@@ -61,7 +61,7 @@ const submit = async () => {
       <section class="glass-panel p-8 lg:p-10">
         <p class="eyebrow-text">Sign In</p>
         <h2 class="mt-4 font-display text-3xl text-app-heading">Login ke ERP MBG</h2>
-        <p class="mt-3 text-sm text-app-body">Gunakan akun backend aktif untuk memuat role, tenant, dan SPPG context yang valid.</p>
+        <p class="mt-3 text-sm text-app-body">Gunakan akun backend aktif untuk memuat role, yayasan, dan SPPG context yang valid.</p>
 
         <form class="mt-8 grid gap-4" @submit.prevent="submit">
           <label class="form-field">

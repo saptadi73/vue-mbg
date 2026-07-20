@@ -28,9 +28,9 @@ const tenantSearchText = (item: unknown) => {
 <template>
   <div class="space-y-6">
     <PageHeader
-      title="Tenants"
-      subtitle="Kelola entitas tenant MBG untuk onboarding wilayah, organisasi, dan scope operasional baru."
-      :badges="['Master Data', 'Tenant Admin', 'Platform Setup']"
+      title="Yayasan"
+      subtitle="Kelola entitas yayasan MBG untuk onboarding wilayah, organisasi, dan scope operasional baru."
+      :badges="['Master Data', 'Admin Yayasan', 'Platform Setup']"
     />
 
     <section class="glass-panel p-5">
@@ -41,14 +41,14 @@ const tenantSearchText = (item: unknown) => {
           <option value="ACTIVE">ACTIVE</option>
           <option value="INACTIVE">INACTIVE</option>
         </select>
-        <RouterLink v-if="canManageTenants" class="primary-button" to="/tenants/create">Daftarkan Tenant</RouterLink>
+        <RouterLink v-if="canManageTenants" class="primary-button" to="/tenants/create">Daftarkan Yayasan</RouterLink>
       </div>
       <p v-if="data?.fallback" class="mt-3 text-sm text-app-muted">
-        Daftar tenant sedang memakai mock data pengembangan karena backend belum mengembalikan data list siap pakai.
+        Daftar yayasan sedang memakai mock data pengembangan karena backend belum mengembalikan data list siap pakai.
       </p>
     </section>
 
-    <div v-if="loading" class="loading-panel">Memuat data tenant...</div>
+    <div v-if="loading" class="loading-panel">Memuat data yayasan...</div>
     <div v-else-if="error" class="error-panel">
       <p>{{ error }}</p>
       <button class="primary-button mt-3" @click="execute">Muat ulang</button>
@@ -57,14 +57,14 @@ const tenantSearchText = (item: unknown) => {
       v-else-if="data"
       :items="filteredTenants"
       :search-text-resolver="tenantSearchText"
-      search-placeholder="Cari nama tenant, code, atau deskripsi..."
-      title="Daftar Tenants"
+      search-placeholder="Cari nama yayasan, code, atau deskripsi..."
+      title="Daftar Yayasan"
     >
       <template #table="{ items }">
         <table class="data-table">
           <thead>
             <tr>
-              <th>Nama Tenant</th>
+              <th>Nama Yayasan</th>
               <th>Code</th>
               <th>Deskripsi</th>
               <th>Status</th>

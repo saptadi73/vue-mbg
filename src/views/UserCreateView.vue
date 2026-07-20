@@ -54,7 +54,7 @@ const submit = async () => {
       active_sppg_id: form.active_sppg_id,
     })
 
-    successMessage.value = 'User baru berhasil didaftarkan ke tenant MBG.'
+    successMessage.value = 'User baru berhasil didaftarkan ke yayasan MBG.'
     form.full_name = ''
     form.email = ''
     form.password = ''
@@ -73,7 +73,7 @@ const submit = async () => {
   <div class="space-y-6">
     <PageHeader
       title="Registrasi User"
-      subtitle="Form admin untuk membuat user tenant baru beserta role dan akses SPPG aktif."
+      subtitle="Form admin untuk membuat user yayasan baru beserta role dan akses SPPG aktif."
       :badges="['POST /identity/users', 'Role-based', 'SPPG Access']"
     />
 

@@ -17,12 +17,12 @@ const isFallback = computed(() => detailState.data.value?.fallback ?? false)
 <template>
   <div class="space-y-6">
     <PageHeader
-      title="Beneficiary Detail"
-      subtitle="Ringkasan penerima manfaat menampilkan hubungan beneficiary dengan sekolah dan SPPG agar validasi cakupan layanan lebih mudah."
-      :badges="[beneficiaryId || 'beneficiary', 'Detail View', 'School Linked']"
+      title="Detail Penerima Manfaat"
+      subtitle="Ringkasan penerima manfaat menampilkan hubungan dengan sekolah dan SPPG agar validasi cakupan layanan lebih mudah."
+      :badges="[beneficiaryId || 'penerima-manfaat', 'Detail View', 'School Linked']"
     />
 
-    <div v-if="detailState.loading.value" class="loading-panel">Memuat detail beneficiary...</div>
+    <div v-if="detailState.loading.value" class="loading-panel">Memuat detail penerima manfaat...</div>
     <div v-else-if="detailState.error.value" class="error-panel">
       <p>{{ detailState.error.value }}</p>
       <button class="primary-button mt-3" @click="detailState.execute">Muat ulang</button>
@@ -32,7 +32,7 @@ const isFallback = computed(() => detailState.data.value?.fallback ?? false)
         <article class="glass-panel p-5 xl:col-span-2">
           <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <p class="eyebrow-text">Beneficiary Profile</p>
+              <p class="eyebrow-text">Profil Penerima Manfaat</p>
               <h2 class="mt-2 font-display text-3xl text-app-heading">{{ beneficiary.full_name }}</h2>
               <p class="mt-2 text-sm text-app-body">
                 {{ beneficiary.beneficiary_type }} · {{ beneficiary.gender }} ·
@@ -78,7 +78,7 @@ const isFallback = computed(() => detailState.data.value?.fallback ?? false)
               </p>
             </div>
           </div>
-          <RouterLink class="secondary-button mt-4 inline-flex" to="/beneficiaries">Kembali ke Beneficiaries</RouterLink>
+          <RouterLink class="secondary-button mt-4 inline-flex" to="/beneficiaries">Kembali ke Penerima Manfaat</RouterLink>
         </article>
       </section>
     </template>

@@ -4,6 +4,8 @@ import { readStoredSession } from '@/utils/auth-storage'
 const LoginView = () => import('@/views/LoginView.vue')
 const RegisterInfoView = () => import('@/views/RegisterInfoView.vue')
 const ForbiddenView = () => import('@/views/ForbiddenView.vue')
+const MyProfileView = () => import('@/views/MyProfileView.vue')
+const NotificationInboxView = () => import('@/views/NotificationInboxView.vue')
 const DashboardView = () => import('@/views/DashboardView.vue')
 const MealPlansView = () => import('@/views/MealPlansView.vue')
 const InventoryView = () => import('@/views/InventoryView.vue')
@@ -53,6 +55,8 @@ const TenantCreateView = () => import('@/views/TenantCreateView.vue')
 const TenantDetailView = () => import('@/views/TenantDetailView.vue')
 const UsersListView = () => import('@/views/UsersListView.vue')
 const UserCreateView = () => import('@/views/UserCreateView.vue')
+const UserDetailView = () => import('@/views/UserDetailView.vue')
+const UserEditView = () => import('@/views/UserEditView.vue')
 const WorkforcePositionsView = () => import('@/views/WorkforcePositionsView.vue')
 const WorkforceEmployeesView = () => import('@/views/WorkforceEmployeesView.vue')
 const WorkforceEmployeeDetailView = () => import('@/views/WorkforceEmployeeDetailView.vue')
@@ -72,6 +76,7 @@ const DocumentsView = () => import('@/views/DocumentsView.vue')
 const DocumentDetailView = () => import('@/views/DocumentDetailView.vue')
 const AuditEventsView = () => import('@/views/AuditEventsView.vue')
 const AuditEventDetailView = () => import('@/views/AuditEventDetailView.vue')
+const IntegrationPlatformOpsView = () => import('@/views/IntegrationPlatformOpsView.vue')
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -79,6 +84,8 @@ const router = createRouter({
     { path: '/login', name: 'login', component: LoginView, meta: { guestOnly: true, bareLayout: true } },
     { path: '/register', name: 'register', component: RegisterInfoView, meta: { guestOnly: true, bareLayout: true } },
     { path: '/forbidden', name: 'forbidden', component: ForbiddenView, meta: { requiresAuth: true } },
+    { path: '/profile', name: 'profile', component: MyProfileView, meta: { requiresAuth: true } },
+    { path: '/notifications/inbox', name: 'notification-inbox', component: NotificationInboxView, meta: { requiresAuth: true } },
     { path: '/', name: 'dashboard', component: DashboardView, meta: { requiresAuth: true } },
     { path: '/meal-plans', name: 'meal-plans', component: MealPlansView, meta: { requiresAuth: true } },
     { path: '/inventory', name: 'inventory', component: InventoryView, meta: { requiresAuth: true } },
@@ -95,6 +102,7 @@ const router = createRouter({
     { path: '/documents/:documentId', name: 'document-detail', component: DocumentDetailView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'quality_officer', 'finance_manager'] } },
     { path: '/audit/events', name: 'audit-events', component: AuditEventsView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin'] } },
     { path: '/audit/events/:eventId', name: 'audit-event-detail', component: AuditEventDetailView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin'] } },
+    { path: '/integration-platform', name: 'integration-platform', component: IntegrationPlatformOpsView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin'] } },
     { path: '/government-claims', name: 'government-claims', component: GovernmentClaimsView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] } },
     { path: '/government-claims/:claimId', name: 'government-claim-detail', component: GovernmentClaimDetailView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] } },
     { path: '/funding', name: 'funding', component: FundingAgreementsView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager'] } },
@@ -147,6 +155,8 @@ const router = createRouter({
     { path: '/tenants/:tenantId', name: 'tenants-detail', component: TenantDetailView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin'] } },
     { path: '/users', name: 'users', component: UsersListView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin'] } },
     { path: '/users/create', name: 'users-create', component: UserCreateView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin'] } },
+    { path: '/users/:userId', name: 'users-detail', component: UserDetailView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin'] } },
+    { path: '/users/:userId/edit', name: 'users-edit', component: UserEditView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin'] } },
   ],
 })
 

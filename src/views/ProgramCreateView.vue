@@ -66,7 +66,7 @@ const submit = async () => {
   <div class="space-y-6">
     <PageHeader
       title="Buat Program"
-      subtitle="Form program mengikuti payload `POST /api/v1/programs/` agar program baru bisa langsung menjadi payung tenant, SPPG, dan periode."
+      subtitle="Form program mengikuti payload `POST /api/v1/programs/` agar program baru bisa langsung menjadi payung yayasan, SPPG, dan periode."
       :badges="['Program', 'Create Program', 'POST /programs']"
     />
 

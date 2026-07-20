@@ -21,6 +21,7 @@ const legendColor = computed(() => (themeMode.value === 'dark' ? '#cbd5e1' : '#3
 const gridColor = computed(() =>
   themeMode.value === 'dark' ? 'rgba(148, 163, 184, 0.12)' : 'rgba(51, 65, 85, 0.12)',
 )
+const monthCategories = ['Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul']
 
 const baseChartOptions = computed<ApexOptions>(() => ({
   chart: { toolbar: { show: false }, background: 'transparent', foreColor: axisColor.value },
@@ -49,6 +50,46 @@ const statusOptions = computed<ApexOptions>(() => ({
 const deliveryOptions = computed<ApexOptions>(() => ({
   ...baseChartOptions.value,
   colors: ['#5cf0c6', '#ff8f8f'],
+}))
+
+const budgetPlanRealizationOptions = computed<ApexOptions>(() => ({
+  ...baseChartOptions.value,
+  colors: ['#38bdf8', '#5cf0c6'],
+  xaxis: {
+    categories: monthCategories,
+    labels: { style: { colors: axisColor.value } },
+  },
+  yaxis: {
+    labels: {
+      style: { colors: axisColor.value },
+      formatter: (value) => `Rp${Math.round(Number(value))} jt`,
+    },
+  },
+  tooltip: {
+    y: {
+      formatter: (value) => `Rp${Math.round(Number(value))} juta`,
+    },
+  },
+}))
+
+const fundingGovernmentOptions = computed<ApexOptions>(() => ({
+  ...baseChartOptions.value,
+  colors: ['#f59e0b', '#22c55e'],
+  xaxis: {
+    categories: monthCategories,
+    labels: { style: { colors: axisColor.value } },
+  },
+  yaxis: {
+    labels: {
+      style: { colors: axisColor.value },
+      formatter: (value) => `Rp${Math.round(Number(value))} jt`,
+    },
+  },
+  tooltip: {
+    y: {
+      formatter: (value) => `Rp${Math.round(Number(value))} juta`,
+    },
+  },
 }))
 
 const scheduleChartsRender = () => {
@@ -85,8 +126,8 @@ watch(
   <div class="space-y-6">
     <PageHeader
       title="Dashboard Command Center"
-      subtitle="Ringkasan tenant, dapur, distribusi, dan finance dalam satu layar keputusan yang cepat."
-      :badges="['Tenant Dashboard', 'SPPG Dashboard', 'Finance Dashboard']"
+      subtitle="Ringkasan yayasan, dapur, distribusi, dan finance dalam satu layar keputusan yang cepat."
+      :badges="['Dashboard Yayasan', 'SPPG Dashboard', 'Finance Dashboard']"
     />
 
     <div v-if="loading" class="loading-panel">Memuat dashboard MBG...</div>
@@ -114,12 +155,23 @@ watch(
           :options="deliveryOptions"
           :series="data.deliveryPerformance"
         />
+        <ChartPanel
+          title="Budget Plan vs Realisasi"
+          subtitle="Perbandingan rencana anggaran dan realisasi bulanan lintas yayasan aktif."
+          type="line"
+          :options="budgetPlanRealizationOptions"
+          :series="data.budgetPlanRealization"
+        />
+        <ChartPanel
+          title="Modal Tersalurkan vs Anggaran Pemerintah Turun"
+          subtitle="Dua garis monitoring modal tersalurkan dan anggaran pemerintah yang sudah turun."
+          type="line"
+          :options="fundingGovernmentOptions"
+          :series="data.fundingGovernmentTrend"
+        />
       </section>
       <section v-else class="grid gap-4 xl:grid-cols-2">
-        <article class="glass-panel p-5">
-          <div class="h-[320px] animate-pulse rounded-3xl border border-[var(--app-panel-border)] bg-white/5" />
-        </article>
-        <article class="glass-panel p-5">
+        <article v-for="index in 4" :key="index" class="glass-panel p-5">
           <div class="h-[320px] animate-pulse rounded-3xl border border-[var(--app-panel-border)] bg-white/5" />
         </article>
       </section>

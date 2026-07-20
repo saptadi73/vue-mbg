@@ -52,7 +52,7 @@ const submit = async () => {
 
 <template>
   <div class="space-y-6">
-    <PageHeader title="Products" subtitle="Master data bahan dan produk tenant untuk meal plan, procurement, dan inventory." :badges="['Products', tenantId, 'Master Data']" />
+    <PageHeader title="Products" subtitle="Master data bahan dan produk yayasan untuk meal plan, procurement, dan inventory." :badges="['Products', tenantId, 'Master Data']" />
     <section class="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
       <div class="space-y-4">
         <section class="glass-panel p-5">

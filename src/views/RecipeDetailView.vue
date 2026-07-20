@@ -70,7 +70,7 @@ const submitLine = async () => {
           <div class="mt-6 grid gap-4 md:grid-cols-4">
             <div class="surface-subtle rounded-3xl p-4"><p class="text-xs uppercase tracking-[0.2em] text-app-muted">Code</p><p class="mt-2 text-sm font-semibold text-app-heading">{{ recipe.code }}</p></div>
             <div class="surface-subtle rounded-3xl p-4"><p class="text-xs uppercase tracking-[0.2em] text-app-muted">Yield</p><p class="mt-2 text-sm font-semibold text-app-heading">{{ formatNumber(recipe.yield_portions) }} porsi</p></div>
-            <div class="surface-subtle rounded-3xl p-4"><p class="text-xs uppercase tracking-[0.2em] text-app-muted">Tenant</p><p class="mt-2 text-sm font-semibold text-app-heading">{{ tenantName }}</p></div>
+            <div class="surface-subtle rounded-3xl p-4"><p class="text-xs uppercase tracking-[0.2em] text-app-muted">Yayasan</p><p class="mt-2 text-sm font-semibold text-app-heading">{{ tenantName }}</p></div>
             <div class="surface-subtle rounded-3xl p-4"><p class="text-xs uppercase tracking-[0.2em] text-app-muted">Created</p><p class="mt-2 text-sm font-semibold text-app-heading">{{ recipe.created_at ? formatDateTime(recipe.created_at) : '-' }}</p></div>
           </div>
         </article>

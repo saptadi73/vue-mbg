@@ -34,11 +34,11 @@ const submit = async () => {
       is_active: form.is_active,
     })
 
-    successMessage.value = 'Tenant baru berhasil didaftarkan.'
+    successMessage.value = 'Yayasan baru berhasil didaftarkan.'
     resetForm()
   } catch (error) {
     errorMessage.value =
-      error instanceof Error ? error.message : 'Pendaftaran tenant gagal. Periksa payload atau akses backend.'
+      error instanceof Error ? error.message : 'Pendaftaran yayasan gagal. Periksa payload atau akses backend.'
   } finally {
     loading.value = false
   }
@@ -48,28 +48,28 @@ const submit = async () => {
 <template>
   <div class="space-y-6">
     <PageHeader
-      title="Pendaftaran Tenant"
-      subtitle="Form onboarding tenant baru mengikuti payload backend untuk master data tenant MBG."
+      title="Pendaftaran Yayasan"
+      subtitle="Form onboarding yayasan baru mengikuti payload backend untuk master data yayasan MBG."
       :badges="['POST /tenants', 'Onboarding', 'Master Data']"
     />
 
     <section class="glass-panel p-6">
       <form class="grid gap-5 lg:grid-cols-2" @submit.prevent="submit">
         <label class="form-field lg:col-span-2">
-          <span>Nama Tenant</span>
+          <span>Nama Yayasan</span>
           <input v-model="form.name" class="toolbar-input" placeholder="Yayasan MBG Jawa Barat" required />
         </label>
 
         <label class="form-field">
-          <span>Code Tenant</span>
+          <span>Code Yayasan</span>
           <input v-model="form.code" class="toolbar-input" placeholder="MBG-JABAR" required />
         </label>
 
         <label class="form-field">
-          <span>Status Tenant</span>
+          <span>Status Yayasan</span>
           <label class="surface-subtle inline-flex w-full items-center gap-3 rounded-2xl px-4 py-3">
             <input v-model="form.is_active" type="checkbox" />
-            <span class="text-sm text-app-heading">Aktifkan tenant setelah pendaftaran</span>
+            <span class="text-sm text-app-heading">Aktifkan yayasan setelah pendaftaran</span>
           </label>
         </label>
 
@@ -78,16 +78,16 @@ const submit = async () => {
           <textarea
             v-model="form.description"
             class="toolbar-input min-h-32"
-            placeholder="Tenant operasional wilayah Jawa Barat"
+            placeholder="Yayasan operasional wilayah Jawa Barat"
             required
           />
         </label>
 
         <div class="lg:col-span-2 flex flex-wrap items-center gap-3">
           <button class="primary-button" :disabled="loading" type="submit">
-            {{ loading ? 'Mendaftarkan...' : 'Daftarkan Tenant' }}
+            {{ loading ? 'Mendaftarkan...' : 'Daftarkan Yayasan' }}
           </button>
-          <RouterLink class="secondary-button" to="/tenants">Kembali ke Tenants</RouterLink>
+          <RouterLink class="secondary-button" to="/tenants">Kembali ke Yayasan</RouterLink>
         </div>
 
         <p

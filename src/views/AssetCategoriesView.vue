@@ -88,7 +88,7 @@ const categorySearchText = (item: unknown) => {
   <div class="space-y-6">
     <PageHeader
       title="Asset Categories"
-      subtitle="Master kategori asset menjadi fondasi register asset, akun depresiasi default, dan umur manfaat yang konsisten lintas tenant."
+      subtitle="Master kategori asset menjadi fondasi register asset, akun depresiasi default, dan umur manfaat yang konsisten lintas yayasan."
       :badges="['Asset Module', 'Category Master', 'Depreciation Setup']"
     />
 

@@ -23,7 +23,7 @@ const { canManageSppg } = useAccess()
   <div class="space-y-6">
     <PageHeader
       title="SPPG Detail"
-      subtitle="Profil dapur, lokasi spasial, coverage layanan, dan shortcut ke master data operasional tenant."
+      subtitle="Profil dapur, lokasi spasial, coverage layanan, dan shortcut ke master data operasional yayasan."
       :badges="[sppgId || 'sppg', 'Kitchen Profile', 'Operational Setup']"
     />
 
@@ -90,7 +90,7 @@ const { canManageSppg } = useAccess()
         </article>
 
         <article class="glass-panel p-5">
-          <h3 class="font-display text-xl text-app-heading">Tenant Products</h3>
+          <h3 class="font-display text-xl text-app-heading">Produk Yayasan</h3>
           <div class="mt-4 space-y-3">
             <div v-for="product in (productState.data.value?.items || []).slice(0, 4)" :key="product.id" class="surface-subtle rounded-2xl p-4">
               <p class="text-sm font-semibold text-app-heading">{{ product.name }}</p>
@@ -100,7 +100,7 @@ const { canManageSppg } = useAccess()
         </article>
 
         <article class="glass-panel p-5">
-          <h3 class="font-display text-xl text-app-heading">Tenant Recipes</h3>
+          <h3 class="font-display text-xl text-app-heading">Resep Yayasan</h3>
           <div class="mt-4 space-y-3">
             <div v-for="recipe in (recipeState.data.value?.items || []).slice(0, 4)" :key="recipe.id" class="surface-subtle rounded-2xl p-4">
               <p class="text-sm font-semibold text-app-heading">{{ recipe.name }}</p>

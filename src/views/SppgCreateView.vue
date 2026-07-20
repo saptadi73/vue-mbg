@@ -64,13 +64,13 @@ const submit = async () => {
     <PageHeader
       title="Pendaftaran SPPG"
       subtitle="Form onboarding dapur/SPPG baru dengan identitas lokasi, radius layanan, dan geo tagging dasar."
-      :badges="['POST /sppg', form.tenant_id || 'Tenant Required', 'Geo Setup']"
+      :badges="['POST /sppg', form.tenant_id || 'Yayasan Required', 'Geo Setup']"
     />
 
     <section class="glass-panel p-6">
       <form class="grid gap-5 lg:grid-cols-2" @submit.prevent="submit">
         <label class="form-field lg:col-span-2">
-          <span>Tenant</span>
+          <span>Yayasan</span>
           <select v-model="form.tenant_id" class="toolbar-input" required>
             <option v-for="tenant in tenantOptions" :key="tenant.id" :value="tenant.id">{{ tenant.name }}</option>
           </select>

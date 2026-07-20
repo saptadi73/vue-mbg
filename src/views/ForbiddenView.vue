@@ -13,7 +13,7 @@ import PageHeader from '@/components/common/PageHeader.vue'
     <section class="glass-panel p-8">
       <div class="max-w-2xl">
         <p class="text-sm leading-7 text-app-body">
-          Kalau ini seharusnya bisa diakses, cek lagi role user aktif, tenant context, dan scope SPPG dari akun yang sedang login.
+          Kalau ini seharusnya bisa diakses, cek lagi role user aktif, context yayasan, dan scope SPPG dari akun yang sedang login.
         </p>
         <div class="mt-6 flex flex-wrap gap-3">
           <RouterLink class="primary-button" to="/">Kembali ke Dashboard</RouterLink>

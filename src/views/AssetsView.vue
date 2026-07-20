@@ -129,7 +129,7 @@ const depreciationSearchText = (item: unknown) => {
       <article class="glass-panel p-5">
         <p class="text-sm text-app-muted">Total assets</p>
         <p class="mt-3 font-display text-3xl text-app-heading">{{ formatNumber(assetCount) }}</p>
-        <p class="mt-2 text-sm text-app-body">Jumlah asset yang sudah masuk ke register tenant.</p>
+        <p class="mt-2 text-sm text-app-body">Jumlah asset yang sudah masuk ke register yayasan.</p>
       </article>
       <article class="glass-panel p-5">
         <p class="text-sm text-app-muted">Active assets</p>

@@ -43,7 +43,7 @@ const employeeSearchText = (item: unknown) => {
   <div class="space-y-6">
     <PageHeader
       title="Workforce Employees"
-      subtitle="Kelola tenaga kerja aktif per tenant dan SPPG, termasuk status kerja, posisi, dan penempatan operasional."
+      subtitle="Kelola tenaga kerja aktif per yayasan dan SPPG, termasuk status kerja, posisi, dan penempatan operasional."
       :badges="['Workforce', 'Employee List', 'Assignment Ready']"
     />
 

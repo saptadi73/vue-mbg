@@ -57,7 +57,7 @@ const accountSearchText = (item: unknown) => {
       <article class="glass-panel p-5">
         <p class="text-sm text-app-muted">Accounts</p>
         <p class="mt-3 font-display text-3xl text-app-heading">{{ accountsState.data.value?.total || 0 }}</p>
-        <p class="mt-2 text-sm text-app-body">Total account aktif di chart of accounts tenant.</p>
+        <p class="mt-2 text-sm text-app-body">Total account aktif di chart of accounts yayasan.</p>
       </article>
       <article class="glass-panel p-5">
         <p class="text-sm text-app-muted">Posting allowed</p>

@@ -36,8 +36,8 @@ const sppgSearchText = (item: unknown) => {
   <div class="space-y-6">
     <PageHeader
       title="SPPG"
-      subtitle="Daftar dapur operasional per tenant untuk mendukung coverage, distribusi, dan workflow dapur harian."
-      :badges="['SPPG Registry', tenantId || 'All Tenants', 'PostGIS Ready']"
+      subtitle="Daftar dapur operasional per yayasan untuk mendukung coverage, distribusi, dan workflow dapur harian."
+      :badges="['SPPG Registry', tenantId || 'Semua Yayasan', 'PostGIS Ready']"
     />
 
     <section class="glass-panel p-5">

@@ -71,15 +71,15 @@ Todo lanjutan:
 - tambahkan edit program bila endpoint update tersedia di dokumentasi backend
 - tambahkan filter tenant/SPPG context langsung dari header state agar program list lebih presisi
 
-### 3.3 `T1` Beneficiary Module
+### 3.3 `T1` Penerima Manfaat Module
 
 Status: `DASAR SUDAH TERPASANG`
 
 Screen yang sudah tersedia:
 
-- `Beneficiary List`
-- `Beneficiary Detail`
-- `Create Beneficiary`
+- `Penerima Manfaat List`
+- `Penerima Manfaat Detail`
+- `Create Penerima Manfaat`
 
 Todo lanjutan:
 
@@ -126,27 +126,22 @@ Todo lanjutan:
 
 ### 3.6 `T1` Integration & Platform Ops
 
-Status: `BELUM ADA`
+Status: `TERPASANG DASAR`
 
 Screen yang belum tersedia:
 
-- `External System List`
 - `External System Detail`
-- `Sync Job List`
 - `Sync Job Detail`
-- `Inbound Message List`
-- `Outbound Message List`
-- `Sync Log List`
+- `Inbound Message Detail`
+- `Outbound Message Detail`
 - `Sync Log Detail`
-- `Background Job List`
-- `Outbox Event List`
-- `Read Model Monitor`
 
 Todo implementasi:
 
-- buat screen admin-only
-- siapkan drawer JSON viewer
-- siapkan filter status, idempotency key, processed time
+- pecah workspace menjadi detail route saat data backend sudah stabil
+- tambahkan create form untuk external system, webhook, mapping, sync job, dan sync log manual
+- tambah filter lanjutan status, idempotency key, processed time per endpoint backend
+- tambah drawer JSON viewer dengan copy/search jika kebutuhan inspeksi makin intensif
 
 ### 3.7 `T1` AI & Analytics
 
@@ -191,16 +186,13 @@ Todo implementasi:
 
 ### 4.2 `T2` Identity & Access Completion
 
-Status: `PARSIAL`
+Status: `TERPASANG DASAR`
 
 Sudah ada:
 
 - `Login`
 - `User List`
 - `Create User`
-
-Belum ada:
-
 - `Notification Inbox`
 - `My Profile`
 - `User Detail`
@@ -209,9 +201,9 @@ Belum ada:
 
 Todo implementasi:
 
-- buat detail user
-- buat editor akses SPPG
-- buat inbox notifikasi di header atau drawer
+- tambah notification preference editor bila prioritas UX berikutnya membutuhkan channel/quiet hours
+- tambahkan detail notification bila endpoint `/notifications/{notification_id}` perlu diekspos
+- sinkronkan unread count header dari `GET /notifications/inbox` bila backend sudah stabil untuk polling/realtime
 
 ### 4.3 `T2` Meal Plan & Production Completion
 
@@ -364,7 +356,7 @@ Todo berikutnya:
 4. `Workflow Engine Admin`
 5. `Asset`
 6. `Program`
-7. `Beneficiary`
+7. `Penerima Manfaat`
 8. `Integration & Platform Ops`
 9. `AI & Analytics`
 

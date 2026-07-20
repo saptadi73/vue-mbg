@@ -456,7 +456,7 @@ const saveServiceArea = async () => {
       <article class="glass-panel p-5">
         <p class="text-sm text-app-muted">Kitchen nodes</p>
         <p class="mt-3 font-display text-3xl text-app-heading">{{ data?.kitchens.length || 0 }}</p>
-        <p class="mt-2 text-sm text-app-body">Node SPPG aktif pada peta tenant saat ini.</p>
+        <p class="mt-2 text-sm text-app-body">Node SPPG aktif pada peta yayasan saat ini.</p>
       </article>
       <article class="glass-panel p-5">
         <p class="text-sm text-app-muted">School points</p>

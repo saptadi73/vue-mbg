@@ -2,6 +2,7 @@
 import {
   Archive,
   BarChart3,
+  Bell,
   BookOpen,
   Boxes,
   BriefcaseBusiness,
@@ -9,6 +10,7 @@ import {
   Calculator,
   CalendarDays,
   ChevronDown,
+  CircleUserRound,
   ClipboardCheck,
   ClipboardList,
   Database,
@@ -19,6 +21,7 @@ import {
   Map,
   Menu,
   MessageSquare,
+  Network,
   PackageCheck,
   PackageSearch,
   PanelLeftOpen,
@@ -98,7 +101,7 @@ const inventoryAttentionCount = computed(
 const sections: NavSection[] = [
   {
     id: 'command-center',
-    title: 'Command Center',
+    title: 'Dashboard',
     icon: LayoutDashboard,
     items: [
       { label: 'Overview', to: '/', icon: LayoutDashboard, matchPrefixes: ['/'] },
@@ -110,10 +113,10 @@ const sections: NavSection[] = [
   },
   {
     id: 'operations',
-    title: 'Operations',
+    title: 'Operasional',
     icon: ClipboardList,
     items: [
-      { label: 'Meal Plans', to: '/meal-plans', icon: Utensils },
+      { label: 'Paket Makan', to: '/meal-plans', icon: Utensils },
       { label: 'Inventory', to: '/inventory', icon: Boxes, badge: 'inventoryAttention' },
       { label: 'Fleet', to: '/fleet', icon: Truck, roles: ['super_admin', 'tenant_admin', 'operations_manager'], matchPrefixes: ['/fleet'] },
       { label: 'Delivery', to: '/delivery', icon: PackageCheck, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer', 'quality_officer'], matchPrefixes: ['/delivery'] },
@@ -126,13 +129,14 @@ const sections: NavSection[] = [
   },
   {
     id: 'governance',
-    title: 'Governance',
+    title: 'Tata Kelola',
     icon: ShieldCheck,
     items: [
       { label: 'Budget Planning', to: '/budgets', icon: WalletCards, roles: ['super_admin', 'tenant_admin', 'finance_manager'] },
       { label: 'Workflow Approval', to: '/workflow-approvals', icon: Workflow, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'], badge: 'workflowPending' },
       { label: 'Documents', to: '/documents', icon: FileText, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'quality_officer', 'finance_manager'], matchPrefixes: ['/documents'] },
       { label: 'Audit Events', to: '/audit/events', icon: ScrollText, roles: ['super_admin', 'tenant_admin'], matchPrefixes: ['/audit'] },
+      { label: 'Integration Ops', to: '/integration-platform', icon: Network, roles: ['super_admin', 'tenant_admin'], matchPrefixes: ['/integration-platform'] },
       { label: 'Government Claims', to: '/government-claims', icon: Landmark, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'], matchPrefixes: ['/government-claims'] },
       { label: 'Funding', to: '/funding', icon: Landmark, roles: ['super_admin', 'tenant_admin', 'finance_manager'], matchPrefixes: ['/funding'] },
       { label: 'Chart of Accounts', to: '/accounting/accounts', icon: BookOpen, roles: ['super_admin', 'tenant_admin', 'finance_manager'], matchPrefixes: ['/accounting/accounts'] },
@@ -141,7 +145,7 @@ const sections: NavSection[] = [
   },
   {
     id: 'workforce',
-    title: 'Workforce',
+    title: 'Pegawai',
     icon: Users,
     items: [
       { label: 'Positions', to: '/workforce/positions', icon: BriefcaseBusiness, roles: ['super_admin', 'tenant_admin', 'operations_manager'], matchPrefixes: ['/workforce/positions'] },
@@ -161,18 +165,27 @@ const sections: NavSection[] = [
     ],
   },
   {
+    id: 'identity-access',
+    title: 'Identitas & Akses',
+    icon: UserCog,
+    items: [
+      { label: 'My Profile', to: '/profile', icon: CircleUserRound, matchPrefixes: ['/profile'] },
+      { label: 'Notifications', to: '/notifications/inbox', icon: Bell, matchPrefixes: ['/notifications'] },
+      { label: 'Users', to: '/users', icon: UserCog, roles: ['super_admin', 'tenant_admin'], matchPrefixes: ['/users'] },
+    ],
+  },
+  {
     id: 'master-data',
     title: 'Master Data',
     icon: Database,
     items: [
       { label: 'Programs', to: '/programs', icon: SquareKanban, roles: ['super_admin', 'tenant_admin'], matchPrefixes: ['/programs'] },
-      { label: 'Beneficiaries', to: '/beneficiaries', icon: UserRoundCheck, roles: ['super_admin', 'tenant_admin', 'operations_manager'], matchPrefixes: ['/beneficiaries'] },
-      { label: 'Tenants', to: '/tenants', icon: Building2, roles: ['super_admin'], matchPrefixes: ['/tenants'] },
+      { label: 'Penerima Manfaat', to: '/beneficiaries', icon: UserRoundCheck, roles: ['super_admin', 'tenant_admin', 'operations_manager'], matchPrefixes: ['/beneficiaries'] },
+      { label: 'Yayasan', to: '/tenants', icon: Building2, roles: ['super_admin'], matchPrefixes: ['/tenants'] },
       { label: 'SPPG', to: '/sppg', icon: Soup, matchPrefixes: ['/sppg'] },
       { label: 'Schools', to: '/schools', icon: GraduationCap, matchPrefixes: ['/schools'] },
       { label: 'Products', to: '/products', icon: PackageSearch, matchPrefixes: ['/products'] },
       { label: 'Recipes', to: '/recipes', icon: BookOpen, matchPrefixes: ['/recipes'] },
-      { label: 'Users', to: '/users', icon: UserCog, roles: ['super_admin', 'tenant_admin'], matchPrefixes: ['/users'] },
       { label: 'Onboarding Wizard', to: '/onboarding/wizard', icon: Warehouse, roles: ['super_admin', 'tenant_admin'], matchPrefixes: ['/onboarding'] },
     ],
   },
@@ -344,7 +357,7 @@ const resolveItemTitle = (item: NavItem) => {
         </div>
         <div v-if="!desktopCollapsed">
           <p class="eyebrow-text tracking-[0.34em]">ERP MBG</p>
-          <h1 v-if="!props.mobile" class="font-display text-xl text-app-heading">Control Grid</h1>
+          <h1 v-if="!props.mobile" class="font-display text-xl text-app-heading">Menu Utama</h1>
         </div>
       </div>
 

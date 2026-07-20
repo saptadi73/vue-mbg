@@ -325,7 +325,7 @@ const selectBudget = (budgetId: string) => {
                 <DocumentActionCard
                   v-if="selectedBudget.status === 'DRAFT'"
                   action-label="Submit Budget"
-                  :description="`Kirim ${selectedBudget.name} ke approval queue agar governance dan tenant admin bisa menilai readiness budget.`"
+                  :description="`Kirim ${selectedBudget.name} ke approval queue agar governance dan admin yayasan bisa menilai readiness budget.`"
                   :loading="actionLoadingId === selectedBudget.id"
                   helper-text="Status draft akan berubah menjadi submitted dan approval request dibuat otomatis."
                   title="Submit ke Workflow"

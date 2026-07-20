@@ -21,7 +21,7 @@ const sppgName = computed(() => mockSppgs.find((item) => item.id === school.valu
     <PageHeader
       title="School Detail"
       subtitle="Profil sekolah penerima manfaat, relasi tenant-SPPG, dan informasi lokasi untuk distribusi serta coverage."
-      :badges="[schoolId || 'school', 'Detail', 'Beneficiary Point']"
+      :badges="[schoolId || 'school', 'Detail', 'Penerima Manfaat']"
     />
 
     <div v-if="loading" class="loading-panel">Memuat detail school...</div>
@@ -50,7 +50,7 @@ const sppgName = computed(() => mockSppgs.find((item) => item.id === school.valu
         <article class="glass-panel p-5">
           <p class="eyebrow-text">Linked Context</p>
           <div class="mt-4 space-y-3">
-            <div class="surface-subtle rounded-2xl p-4"><p class="text-xs uppercase tracking-[0.2em] text-app-muted">Tenant</p><p class="mt-2 text-sm font-semibold text-app-heading">{{ tenantName }}</p></div>
+            <div class="surface-subtle rounded-2xl p-4"><p class="text-xs uppercase tracking-[0.2em] text-app-muted">Yayasan</p><p class="mt-2 text-sm font-semibold text-app-heading">{{ tenantName }}</p></div>
             <div class="surface-subtle rounded-2xl p-4"><p class="text-xs uppercase tracking-[0.2em] text-app-muted">SPPG</p><p class="mt-2 text-sm font-semibold text-app-heading">{{ sppgName }}</p></div>
             <div class="surface-subtle rounded-2xl p-4"><p class="text-xs uppercase tracking-[0.2em] text-app-muted">Created</p><p class="mt-2 text-sm font-semibold text-app-heading">{{ school.created_at ? formatDateTime(school.created_at) : '-' }}</p></div>
           </div>

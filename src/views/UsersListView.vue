@@ -29,8 +29,8 @@ const userSearchText = (item: unknown) => {
   <div class="space-y-6">
     <PageHeader
       title="Users"
-      subtitle="Kelola user tenant, role, dan scope akses SPPG sesuai pola admin di referensi backend MBG."
-      :badges="['Identity', 'Tenant Admin', 'SPPG Access']"
+      subtitle="Kelola user yayasan, role, dan scope akses SPPG sesuai pola admin di referensi backend MBG."
+      :badges="['Identity', 'Admin Yayasan', 'SPPG Access']"
     />
 
     <section class="glass-panel p-5">
@@ -48,7 +48,7 @@ const userSearchText = (item: unknown) => {
       </p>
     </section>
 
-    <div v-if="loading" class="loading-panel">Memuat user tenant...</div>
+    <div v-if="loading" class="loading-panel">Memuat user yayasan...</div>
     <div v-else-if="error" class="error-panel">
       <p>{{ error }}</p>
       <button class="primary-button mt-3" @click="execute">Muat ulang</button>
@@ -71,6 +71,7 @@ const userSearchText = (item: unknown) => {
               <th>SPPG Aktif</th>
               <th>Akses SPPG</th>
               <th>Dibuat</th>
+              <th>Aksi</th>
             </tr>
           </thead>
           <tbody>
@@ -82,6 +83,12 @@ const userSearchText = (item: unknown) => {
               <td>{{ (user as UserRecord).active_sppg_id || '-' }}</td>
               <td>{{ (user as UserRecord).accessible_sppg_ids?.join(', ') || '-' }}</td>
               <td>{{ (user as UserRecord).created_at ? formatDateTime((user as UserRecord).created_at!) : '-' }}</td>
+              <td>
+                <div class="flex flex-wrap gap-2">
+                  <RouterLink class="secondary-button" :to="`/users/${(user as UserRecord).id}`">Detail</RouterLink>
+                  <RouterLink v-if="canManageUsers" class="secondary-button" :to="`/users/${(user as UserRecord).id}/edit`">Edit</RouterLink>
+                </div>
+              </td>
             </tr>
           </tbody>
         </table>

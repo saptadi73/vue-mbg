@@ -98,11 +98,11 @@ const panelSubtitle = computed(() => {
     case 'distribution':
       return 'Hotspot distribusi per sekolah berdasarkan distribution count dari backend.'
     case 'serviceAreas':
-      return 'Polygon area layanan yang sudah tersimpan untuk tenant atau SPPG aktif.'
+      return 'Polygon area layanan yang sudah tersimpan untuk yayasan atau SPPG aktif.'
     case 'routes':
       return 'Visualisasi garis rute delivery dari SPPG ke sekolah berdasarkan delivery order.'
     case 'fleet':
-      return 'Posisi terbaru armada, status pergerakan, dan titik dispatch terkini pada scope tenant/SPPG aktif.'
+      return 'Posisi terbaru armada, status pergerakan, dan titik dispatch terkini pada scope yayasan/SPPG aktif.'
     default:
       return 'Layer dapur, sekolah, coverage, gap layanan, dan analisa distribusi dari endpoint GIS backend.'
   }

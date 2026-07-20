@@ -21,12 +21,12 @@ const { canManageSppg, canManageTenants, canManageUsers, canUseOnboardingWizard 
 <template>
   <div class="space-y-6">
     <PageHeader
-      title="Tenant Detail"
-      subtitle="Ringkasan profil tenant, status aktivasi, dan langkah onboarding berikutnya untuk mempercepat setup operasional."
-      :badges="[tenantId || 'tenant', 'Detail View', 'Onboarding']"
+      title="Detail Yayasan"
+      subtitle="Ringkasan profil yayasan, status aktivasi, dan langkah onboarding berikutnya untuk mempercepat setup operasional."
+      :badges="[tenantId || 'yayasan', 'Detail View', 'Onboarding']"
     />
 
-    <div v-if="loading" class="loading-panel">Memuat detail tenant...</div>
+    <div v-if="loading" class="loading-panel">Memuat detail yayasan...</div>
     <div v-else-if="error" class="error-panel">
       <p>{{ error }}</p>
       <button class="primary-button mt-3" @click="execute">Muat ulang</button>
@@ -36,9 +36,9 @@ const { canManageSppg, canManageTenants, canManageUsers, canUseOnboardingWizard 
         <article class="glass-panel p-5 xl:col-span-2">
           <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <p class="eyebrow-text">Tenant Profile</p>
+              <p class="eyebrow-text">Profil Yayasan</p>
               <h2 class="mt-2 font-display text-3xl text-app-heading">{{ tenant.name }}</h2>
-              <p class="mt-2 text-sm text-app-body">{{ tenant.description || 'Belum ada deskripsi tenant.' }}</p>
+              <p class="mt-2 text-sm text-app-body">{{ tenant.description || 'Belum ada deskripsi yayasan.' }}</p>
             </div>
             <StatusBadge :status="tenant.is_active ? 'APPROVED' : 'REJECTED'" />
           </div>
@@ -66,15 +66,15 @@ const { canManageSppg, canManageTenants, canManageUsers, canUseOnboardingWizard 
         <article class="glass-panel p-5">
           <p class="eyebrow-text">Quick Actions</p>
           <div class="mt-4 grid gap-3">
-            <RouterLink v-if="canManageUsers" class="primary-button" to="/users/create">Tambah Admin Tenant</RouterLink>
+            <RouterLink v-if="canManageUsers" class="primary-button" to="/users/create">Tambah Admin Yayasan</RouterLink>
             <RouterLink v-if="canManageSppg" class="secondary-button" :to="`/sppg/create?tenantId=${tenantId}`">Daftarkan SPPG</RouterLink>
-            <RouterLink class="secondary-button" :to="`/sppg?tenantId=${tenantId}`">Lihat SPPG Tenant</RouterLink>
+            <RouterLink class="secondary-button" :to="`/sppg?tenantId=${tenantId}`">Lihat SPPG Yayasan</RouterLink>
             <RouterLink v-if="canUseOnboardingWizard" class="secondary-button" to="/onboarding/wizard">Wizard Onboarding</RouterLink>
-            <RouterLink v-if="canManageTenants" class="secondary-button" to="/tenants/create">Daftarkan Tenant Baru</RouterLink>
+            <RouterLink v-if="canManageTenants" class="secondary-button" to="/tenants/create">Daftarkan Yayasan Baru</RouterLink>
             <RouterLink v-if="canManageUsers" class="secondary-button" to="/users">Lihat Users</RouterLink>
           </div>
           <p class="mt-4 text-sm leading-6 text-app-body">
-            Endpoint update tenant belum terdokumentasi di referensi backend saat ini, jadi halaman ini fokus pada detail dan alur onboarding lanjutannya.
+            Endpoint update yayasan belum terdokumentasi di referensi backend saat ini, jadi halaman ini fokus pada detail dan alur onboarding lanjutannya.
           </p>
         </article>
       </section>
@@ -84,12 +84,12 @@ const { canManageSppg, canManageTenants, canManageUsers, canUseOnboardingWizard 
           <h3 class="font-display text-xl text-app-heading">Onboarding Checklist</h3>
           <div class="mt-4 space-y-3">
             <div class="surface-subtle rounded-2xl p-4">
-              <p class="text-sm font-semibold text-app-heading">1. Verifikasi profil tenant</p>
-              <p class="mt-1 text-sm text-app-body">Pastikan nama, code, dan deskripsi tenant sudah sesuai organisasi operasional.</p>
+              <p class="text-sm font-semibold text-app-heading">1. Verifikasi profil yayasan</p>
+              <p class="mt-1 text-sm text-app-body">Pastikan nama, code, dan deskripsi yayasan sudah sesuai organisasi operasional.</p>
             </div>
             <div class="surface-subtle rounded-2xl p-4">
-              <p class="text-sm font-semibold text-app-heading">2. Buat admin tenant pertama</p>
-              <p class="mt-1 text-sm text-app-body">Lanjut ke registrasi user tenant admin agar akses governance dan workflow bisa dibuka.</p>
+              <p class="text-sm font-semibold text-app-heading">2. Buat admin yayasan pertama</p>
+              <p class="mt-1 text-sm text-app-body">Lanjut ke registrasi user admin yayasan agar akses governance dan workflow bisa dibuka.</p>
             </div>
             <div class="surface-subtle rounded-2xl p-4">
               <p class="text-sm font-semibold text-app-heading">3. Lanjutkan setup SPPG dan master data</p>
@@ -99,8 +99,8 @@ const { canManageSppg, canManageTenants, canManageUsers, canUseOnboardingWizard 
         </article>
 
         <article class="glass-panel p-5">
-          <h3 class="font-display text-xl text-app-heading">SPPG Tenant</h3>
-          <div v-if="sppgState.loading.value" class="mt-4 text-sm text-app-muted">Memuat daftar SPPG tenant...</div>
+          <h3 class="font-display text-xl text-app-heading">SPPG Yayasan</h3>
+          <div v-if="sppgState.loading.value" class="mt-4 text-sm text-app-muted">Memuat daftar SPPG yayasan...</div>
           <div v-else class="mt-4 space-y-3">
             <div
               v-for="item in sppgState.data.value?.items || []"
@@ -117,7 +117,7 @@ const { canManageSppg, canManageTenants, canManageUsers, canUseOnboardingWizard 
               </div>
             </div>
             <p v-if="!(sppgState.data.value?.items || []).length" class="text-sm text-app-muted">
-              Belum ada SPPG terdaftar untuk tenant ini.
+              Belum ada SPPG terdaftar untuk yayasan ini.
             </p>
           </div>
         </article>
@@ -130,11 +130,11 @@ const { canManageSppg, canManageTenants, canManageUsers, canUseOnboardingWizard 
               frontend akan fallback ke mock data pengembangan.
             </p>
             <p>
-              Karena referensi API saat ini hanya mendokumentasikan `GET` dan `POST` tenant, tombol edit persisten belum saya aktifkan agar kita
+              Karena referensi API saat ini hanya mendokumentasikan `GET` dan `POST` yayasan, tombol edit persisten belum saya aktifkan agar kita
               tidak mengandalkan endpoint yang belum pasti.
             </p>
             <p>
-              Begitu endpoint update tenant tersedia, kita bisa tambah halaman edit dengan pola form yang sama seperti registrasi user dan tenant.
+              Begitu endpoint update yayasan tersedia, kita bisa tambah halaman edit dengan pola form yang sama seperti registrasi user dan yayasan.
             </p>
           </div>
         </article>

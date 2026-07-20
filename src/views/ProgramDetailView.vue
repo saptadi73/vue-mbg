@@ -157,12 +157,12 @@ const handleAssignTenant = async () => {
     }
     showMessage(
       response.fallback
-        ? 'Tenant assignment disimpan sebagai fallback mock karena backend assignment tenant belum merespons.'
-        : 'Tenant berhasil diassign ke program.',
+        ? 'Assignment yayasan disimpan sebagai fallback mock karena backend assignment yayasan belum merespons.'
+        : 'Yayasan berhasil diassign ke program.',
       'success',
     )
   } catch (err) {
-    showMessage(err instanceof Error ? err.message : 'Gagal assign tenant ke program.', 'error')
+    showMessage(err instanceof Error ? err.message : 'Gagal assign yayasan ke program.', 'error')
   } finally {
     saving.value = false
   }
@@ -202,7 +202,7 @@ const handleAssignSppg = async () => {
     <template v-else-if="detail">
       <PageHeader
         :title="detail.program.name"
-        subtitle="Detail program memusatkan period, assignment tenant, dan assignment SPPG agar pengelolaan program tetap rapi dalam satu flow."
+        subtitle="Detail program memusatkan period, assignment yayasan, dan assignment SPPG agar pengelolaan program tetap rapi dalam satu flow."
         :badges="['Program Detail', detail.program.code, detail.program.program_type]"
       />
 
@@ -227,7 +227,7 @@ const handleAssignSppg = async () => {
               <p class="mt-2 text-lg text-app-heading">{{ detail.program.funding_source_name || '-' }}</p>
             </div>
             <div class="surface-subtle rounded-3xl p-4">
-              <p class="eyebrow-text">Tenant Assigned</p>
+              <p class="eyebrow-text">Yayasan Assigned</p>
               <p class="mt-2 text-lg text-app-heading">{{ detail.tenant_assignments.length }}</p>
             </div>
             <div class="surface-subtle rounded-3xl p-4">
@@ -260,12 +260,12 @@ const handleAssignSppg = async () => {
           <p class="eyebrow-text">Quick Actions</p>
           <div class="mt-4 grid gap-3">
             <button class="secondary-button" type="button" @click="activeTab = 'periods'">Tambah Period</button>
-            <button class="secondary-button" type="button" @click="activeTab = 'tenants'">Assign Tenant</button>
+            <button class="secondary-button" type="button" @click="activeTab = 'tenants'">Assign Yayasan</button>
             <button class="secondary-button" type="button" @click="activeTab = 'sppg'">Assign SPPG</button>
             <RouterLink class="secondary-button" to="/programs">Kembali ke Programs</RouterLink>
           </div>
           <p class="mt-4 text-sm text-app-body">
-            Urutan kerja paling aman adalah buat program, tambah period, assign tenant, lalu assign SPPG sesuai dokumentasi backend.
+            Urutan kerja paling aman adalah buat program, tambah period, assign yayasan, lalu assign SPPG sesuai dokumentasi backend.
           </p>
         </article>
       </section>
@@ -294,7 +294,7 @@ const handleAssignSppg = async () => {
             type="button"
             @click="activeTab = 'tenants'"
           >
-            Tenant Assignments
+            Yayasan Assignments
           </button>
           <button
             class="rounded-full border px-4 py-2 text-sm transition"
@@ -315,8 +315,8 @@ const handleAssignSppg = async () => {
             <p class="mt-2 text-sm text-app-body">Pastikan semua periode yang dibuat berada di dalam rentang tanggal program.</p>
           </div>
           <div class="surface-subtle rounded-3xl p-4">
-            <p class="text-sm font-semibold text-app-heading">2. Assign tenant dulu</p>
-            <p class="mt-2 text-sm text-app-body">Backend mensyaratkan tenant sudah terhubung sebelum SPPG diassign ke program.</p>
+            <p class="text-sm font-semibold text-app-heading">2. Assign yayasan dulu</p>
+            <p class="mt-2 text-sm text-app-body">Backend mensyaratkan yayasan sudah terhubung sebelum SPPG diassign ke program.</p>
           </div>
           <div class="surface-subtle rounded-3xl p-4">
             <p class="text-sm font-semibold text-app-heading">3. Review cakupan SPPG</p>
@@ -385,14 +385,14 @@ const handleAssignSppg = async () => {
         <DataTableCard
           :items="detail.tenant_assignments"
           :search-text-resolver="tenantSearchText"
-          search-placeholder="Cari tenant, tanggal, atau catatan assignment..."
-          title="Tenant Assignments"
+          search-placeholder="Cari yayasan, tanggal, atau catatan assignment..."
+          title="Yayasan Assignments"
         >
           <template #table="{ items }">
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Tenant</th>
+                  <th>Yayasan</th>
                   <th>Mulai</th>
                   <th>Selesai</th>
                   <th>Status</th>
@@ -421,7 +421,7 @@ const handleAssignSppg = async () => {
         </DataTableCard>
 
         <article class="glass-panel p-6">
-          <p class="eyebrow-text">Assign Tenant</p>
+          <p class="eyebrow-text">Assign Yayasan</p>
           <form class="mt-5 grid gap-4" @submit.prevent="handleAssignTenant">
             <select v-model="tenantForm.tenant_id" class="toolbar-input" required>
               <option value="" disabled>Pilih tenant</option>
@@ -437,9 +437,9 @@ const handleAssignSppg = async () => {
               <input v-model="tenantForm.is_active" type="checkbox" />
               <span class="text-sm text-app-heading">Aktifkan assignment tenant</span>
             </label>
-            <textarea v-model="tenantForm.notes" class="toolbar-input min-h-24" placeholder="Catatan assignment tenant." />
+            <textarea v-model="tenantForm.notes" class="toolbar-input min-h-24" placeholder="Catatan assignment yayasan." />
             <button class="primary-button" :disabled="saving" type="submit">
-              {{ saving ? 'Menyimpan...' : 'Assign Tenant' }}
+              {{ saving ? 'Menyimpan...' : 'Assign Yayasan' }}
             </button>
           </form>
         </article>
@@ -449,14 +449,14 @@ const handleAssignSppg = async () => {
         <DataTableCard
           :items="detail.sppg_assignments"
           :search-text-resolver="sppgSearchText"
-          search-placeholder="Cari tenant, SPPG, tanggal, atau catatan assignment..."
+          search-placeholder="Cari yayasan, SPPG, tanggal, atau catatan assignment..."
           title="SPPG Assignments"
         >
           <template #table="{ items }">
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Tenant</th>
+                  <th>Yayasan</th>
                   <th>SPPG</th>
                   <th>Mulai</th>
                   <th>Selesai</th>
@@ -488,7 +488,7 @@ const handleAssignSppg = async () => {
           <p class="eyebrow-text">Assign SPPG</p>
           <form class="mt-5 grid gap-4" @submit.prevent="handleAssignSppg">
             <select v-model="sppgForm.tenant_id" class="toolbar-input" required>
-              <option value="" disabled>Pilih tenant pemilik SPPG</option>
+              <option value="" disabled>Pilih yayasan pemilik SPPG</option>
               <option v-for="tenant in tenantsState?.items || []" :key="tenant.id" :value="tenant.id">
                 {{ tenant.name }}
               </option>

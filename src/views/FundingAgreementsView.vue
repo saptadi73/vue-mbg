@@ -97,7 +97,7 @@ const repaymentSearchText = (item: unknown) => {
   <div class="space-y-6">
     <PageHeader
       title="Funding Agreements"
-      subtitle="Modul funding mengelola sumber dana, agreement pendanaan, pencairan principal, dan repayment principal atau margin agar posisi investor serta likuiditas tenant tetap terpantau."
+      subtitle="Modul funding mengelola sumber dana, agreement pendanaan, pencairan principal, dan repayment principal atau margin agar posisi investor serta likuiditas yayasan tetap terpantau."
       :badges="['Funding Source', 'Agreement', 'Disbursement & Repayment']"
     />
 
@@ -105,7 +105,7 @@ const repaymentSearchText = (item: unknown) => {
       <article class="glass-panel p-5">
         <p class="text-sm text-app-muted">Funding sources</p>
         <p class="mt-3 font-display text-3xl text-app-heading">{{ sourcesState.data.value?.total || 0 }}</p>
-        <p class="mt-2 text-sm text-app-body">Sumber dana pemerintah dan investor yang siap dipakai tenant.</p>
+        <p class="mt-2 text-sm text-app-body">Sumber dana pemerintah dan investor yang siap dipakai yayasan.</p>
       </article>
       <article class="glass-panel p-5">
         <p class="text-sm text-app-muted">Active agreements</p>

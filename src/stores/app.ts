@@ -25,7 +25,7 @@ const resolveInitialTheme = (): ThemeMode => {
 export const useAppStore = defineStore('app', () => {
   const existingSession = readStoredSession()
   const tenants = ref<ContextOption[]>([
-    { id: env.devTenantId, label: 'Tenant MBG Nasional', subtitle: '24 SPPG aktif' },
+    { id: env.devTenantId, label: 'Yayasan MBG Nasional', subtitle: '24 SPPG aktif' },
   ])
   const sppgOptions = ref<ContextOption[]>([
     { id: env.devSppgId, label: 'SPPG Jakarta Pusat 01', subtitle: 'Cluster pusat distribusi utama' },
@@ -45,7 +45,7 @@ export const useAppStore = defineStore('app', () => {
   const profile = ref<UserProfile>({
     name: existingSession?.userName || 'Raka Mahendra',
     role: existingSession?.roles?.[0] || 'Operations Manager',
-    tenantName: 'Tenant MBG Nasional',
+    tenantName: 'Yayasan MBG Nasional',
     avatar: (existingSession?.userName || 'Raka Mahendra')
       .split(' ')
       .map((part) => part[0])

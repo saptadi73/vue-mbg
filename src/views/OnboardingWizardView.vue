@@ -9,7 +9,7 @@ const step = ref(1)
 const loading = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
-const wizardLabels = ['Tenant', 'Admin User', 'SPPG'] as const
+const wizardLabels = ['Yayasan', 'Admin User', 'SPPG'] as const
 
 const form = reactive({
   tenant: {
@@ -69,7 +69,7 @@ const submit = async () => {
     })
 
     successMessage.value =
-      'Onboarding selesai: tenant, admin user, dan SPPG berhasil dibentuk dalam satu flow.'
+      'Onboarding selesai: yayasan, admin user, dan SPPG berhasil dibentuk dalam satu flow.'
     step.value = 1
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'Onboarding wizard gagal dijalankan.'
@@ -83,7 +83,7 @@ const submit = async () => {
   <div class="space-y-6">
     <PageHeader
       title="Onboarding Wizard"
-      subtitle="Flow terpadu untuk membangun Tenant, Admin User, dan SPPG tanpa loncat-loncat halaman."
+      subtitle="Flow terpadu untuk membangun Yayasan, Admin User, dan SPPG tanpa loncat-loncat halaman."
       :badges="['Wizard', `${step}/3`, stepLabel]"
     />
 
@@ -98,18 +98,18 @@ const submit = async () => {
       <form class="grid gap-5 lg:grid-cols-2" @submit.prevent="submit">
         <template v-if="step === 1">
           <label class="form-field lg:col-span-2">
-            <span>Nama Tenant</span>
+            <span>Nama Yayasan</span>
             <input v-model="form.tenant.name" class="toolbar-input" required />
           </label>
           <label class="form-field">
-            <span>Code Tenant</span>
+            <span>Code Yayasan</span>
             <input v-model="form.tenant.code" class="toolbar-input" required />
           </label>
           <label class="form-field">
-            <span>Status Tenant</span>
+            <span>Status Yayasan</span>
             <label class="surface-subtle inline-flex w-full items-center gap-3 rounded-2xl px-4 py-3">
               <input v-model="form.tenant.is_active" type="checkbox" />
-              <span class="text-sm text-app-heading">Aktifkan tenant</span>
+              <span class="text-sm text-app-heading">Aktifkan yayasan</span>
             </label>
           </label>
           <label class="form-field lg:col-span-2">

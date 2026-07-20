@@ -87,14 +87,14 @@ const submit = async () => {
     }
 
     successMessage.value = response.fallback
-      ? `Beneficiary ${response.item.full_name} tersimpan sebagai fallback mock karena backend beneficiary belum merespons.`
-      : `Beneficiary ${response.item.full_name} berhasil dibuat di backend.`
+      ? `Penerima manfaat ${response.item.full_name} tersimpan sebagai fallback mock karena backend belum merespons.`
+      : `Penerima manfaat ${response.item.full_name} berhasil dibuat di backend.`
 
     form.full_name = ''
     form.classroom_name = ''
   } catch (error) {
     errorMessage.value =
-      error instanceof Error ? error.message : 'Pendaftaran beneficiary gagal. Periksa payload atau koneksi backend.'
+      error instanceof Error ? error.message : 'Pendaftaran penerima manfaat gagal. Periksa payload atau koneksi backend.'
   } finally {
     saving.value = false
   }
@@ -104,9 +104,9 @@ const submit = async () => {
 <template>
   <div class="space-y-6">
     <PageHeader
-      title="Beneficiaries"
-      subtitle="Daftar penerima manfaat per tenant, sekolah, dan SPPG agar cakupan beneficiary bisa ditautkan rapi ke operasi layanan."
-      :badges="['Beneficiary Module', 'List & Create', activeSppgId || activeTenantId]"
+      title="Penerima Manfaat"
+      subtitle="Daftar penerima manfaat per yayasan, sekolah, dan SPPG agar cakupan layanan bisa ditautkan rapi ke operasi."
+      :badges="['Penerima Manfaat', 'List & Create', activeSppgId || activeTenantId]"
     />
 
     <section class="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
@@ -126,7 +126,7 @@ const submit = async () => {
             <div class="toolbar-input flex items-center text-app-muted">Pencarian tersedia di dalam tabel</div>
           </div>
           <p v-if="beneficiariesState.data.value?.fallback" class="mt-3 text-sm text-app-muted">
-            Beneficiary list sedang memakai fallback mock karena backend belum mengembalikan daftar siap pakai untuk frontend.
+            Daftar penerima manfaat sedang memakai fallback mock karena backend belum mengembalikan daftar siap pakai untuk frontend.
           </p>
         </section>
 
@@ -134,7 +134,7 @@ const submit = async () => {
           :items="filteredBeneficiaries"
           :search-text-resolver="beneficiarySearchText"
           search-placeholder="Cari nama, sekolah, SPPG, kelas, atau external reference..."
-          title="Daftar Beneficiary"
+          title="Daftar Penerima Manfaat"
         >
           <template #table="{ items }">
             <table class="data-table">
@@ -171,7 +171,7 @@ const submit = async () => {
       <section class="glass-panel p-6">
         <div class="flex items-center justify-between gap-3">
           <div>
-            <p class="eyebrow-text">Create Beneficiary</p>
+            <p class="eyebrow-text">Tambah Penerima Manfaat</p>
             <h2 class="mt-2 font-display text-2xl text-app-heading">Tambah penerima manfaat</h2>
           </div>
           <span class="status-pill">POST /beneficiaries</span>
@@ -193,7 +193,7 @@ const submit = async () => {
           </label>
           <div class="grid gap-4 md:grid-cols-2">
             <label class="form-field">
-              <span>Tipe Beneficiary</span>
+              <span>Tipe Penerima Manfaat</span>
               <select v-model="form.beneficiary_type" class="toolbar-input" required>
                 <option value="STUDENT">STUDENT</option>
               </select>
@@ -218,10 +218,10 @@ const submit = async () => {
           </div>
           <label class="surface-subtle inline-flex items-center gap-3 rounded-2xl px-4 py-3">
             <input v-model="form.is_active" type="checkbox" />
-            <span class="text-sm text-app-heading">Aktifkan beneficiary</span>
+            <span class="text-sm text-app-heading">Aktifkan penerima manfaat</span>
           </label>
           <button class="primary-button" :disabled="saving" type="submit">
-            {{ saving ? 'Menyimpan...' : 'Simpan Beneficiary' }}
+            {{ saving ? 'Menyimpan...' : 'Simpan Penerima Manfaat' }}
           </button>
           <p v-if="successMessage" class="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700">
             {{ successMessage }}

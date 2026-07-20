@@ -106,7 +106,7 @@ const syncLineAccount = (index: number, nextCode: string) => {
       <article class="glass-panel p-5">
         <p class="text-sm text-app-muted">Journal entries</p>
         <p class="mt-3 font-display text-3xl text-app-heading">{{ journalState.data.value?.total || 0 }}</p>
-        <p class="mt-2 text-sm text-app-body">Total header jurnal yang tersimpan di tenant aktif.</p>
+        <p class="mt-2 text-sm text-app-body">Total header jurnal yang tersimpan di yayasan aktif.</p>
       </article>
       <article class="glass-panel p-5">
         <p class="text-sm text-app-muted">Draft debit</p>

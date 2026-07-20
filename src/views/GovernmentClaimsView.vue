@@ -74,7 +74,7 @@ const submitClaimDraft = async () => {
       <article class="glass-panel p-5">
         <p class="text-sm text-app-muted">Total claims</p>
         <p class="mt-3 font-display text-3xl text-app-heading">{{ claimState.data.value?.total || 0 }}</p>
-        <p class="mt-2 text-sm text-app-body">Jumlah claim yang sedang dikelola tenant.</p>
+        <p class="mt-2 text-sm text-app-body">Jumlah claim yang sedang dikelola yayasan.</p>
       </article>
       <article class="glass-panel p-5">
         <p class="text-sm text-app-muted">Outstanding receivable</p>

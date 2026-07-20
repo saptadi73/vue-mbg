@@ -45,6 +45,195 @@ export interface CreateUserPayload {
   active_sppg_id: string
 }
 
+export interface UpdateUserPayload {
+  full_name: string
+  role_names: string[]
+  is_active: boolean
+  password?: string | null
+  accessible_sppg_ids: string[]
+  active_sppg_id: string
+}
+
+export interface UserSppgAccessRecord {
+  user_id: string
+  tenant_id: string
+  active_sppg_id: string
+  accessible_sppg_ids: string[]
+}
+
+export interface NotificationRecord {
+  id: string
+  title: string
+  message: string
+  priority: string
+  source_module?: string | null
+  source_entity_type?: string | null
+  source_entity_id?: string | null
+  created_at?: string
+}
+
+export interface NotificationRecipientRecord {
+  id: string
+  notification_id: string
+  user_id?: string | null
+  channel: string
+  read_at?: string | null
+  delivery_status?: string | null
+}
+
+export interface NotificationInboxRecord {
+  id: string
+  recipient: NotificationRecipientRecord
+  notification: NotificationRecord
+}
+
+export interface PlatformHealthRecord {
+  id: string
+  label: string
+  endpoint: string
+  status: string
+  message: string
+  checked_at: string
+}
+
+export interface ExternalSystemRecord {
+  id: string
+  tenant_id?: string
+  code: string
+  name: string
+  system_type: string
+  base_url?: string | null
+  is_active: boolean
+  notes?: string | null
+}
+
+export interface IntegrationCredentialRecord {
+  id: string
+  external_system_id: string
+  credential_name: string
+  credential_type: string
+  secret_masked: string
+  config_json?: Record<string, unknown> | null
+  is_active: boolean
+}
+
+export interface WebhookSubscriptionRecord {
+  id: string
+  external_system_id: string
+  subscription_name: string
+  event_type: string
+  endpoint_path: string
+  signing_secret_masked?: string | null
+  headers_json?: Record<string, unknown> | null
+  is_active: boolean
+  notes?: string | null
+}
+
+export interface DataMappingRecord {
+  id: string
+  external_system_id: string
+  mapping_name: string
+  source_entity: string
+  target_entity: string
+  direction: 'INBOUND' | 'OUTBOUND'
+  mapping_config_json?: Record<string, unknown> | null
+  is_active: boolean
+  notes?: string | null
+}
+
+export interface SyncJobRecord {
+  id: string
+  external_system_id: string
+  external_system_name?: string | null
+  job_name: string
+  direction: 'INBOUND' | 'OUTBOUND'
+  trigger_mode: string
+  entity_type: string
+  status: string
+  schedule_expression?: string | null
+  filter_json?: Record<string, unknown> | null
+  last_run_at?: string | null
+  notes?: string | null
+}
+
+export interface IntegrationMessageRecord {
+  id: string
+  external_system_id?: string | null
+  external_system_name?: string | null
+  sync_job_id?: string | null
+  message_type: string
+  external_reference?: string | null
+  idempotency_key: string
+  status: string
+  payload_json?: Record<string, unknown> | null
+  response_json?: Record<string, unknown> | null
+  received_at?: string | null
+  queued_at?: string | null
+  processed_at?: string | null
+  destination_url?: string | null
+  notes?: string | null
+}
+
+export interface SyncLogRecord {
+  id: string
+  external_system_id: string
+  external_system_name?: string | null
+  direction: 'INBOUND' | 'OUTBOUND'
+  message_type: string
+  entity_type?: string | null
+  entity_id?: string | null
+  external_reference?: string | null
+  idempotency_key: string
+  status: string
+  payload_json?: Record<string, unknown> | null
+  response_json?: Record<string, unknown> | null
+  processed_at?: string | null
+  notes?: string | null
+}
+
+export interface ExternalSystemDetailRecord {
+  external_system: ExternalSystemRecord
+  credentials: IntegrationCredentialRecord[]
+  webhook_subscriptions: WebhookSubscriptionRecord[]
+  data_mappings: DataMappingRecord[]
+  sync_jobs: SyncJobRecord[]
+}
+
+export interface BackgroundJobRecord {
+  id: string
+  tenant_id?: string
+  job_name: string
+  job_type: string
+  status: string
+  payload_json?: Record<string, unknown> | null
+  result_json?: Record<string, unknown> | null
+  started_at?: string | null
+  finished_at?: string | null
+  notes?: string | null
+}
+
+export interface OutboxEventRecord {
+  id: string
+  tenant_id?: string
+  event_name: string
+  aggregate_type: string
+  aggregate_id?: string | null
+  status: string
+  payload_json?: Record<string, unknown> | null
+  available_at?: string | null
+  dispatched_at?: string | null
+}
+
+export interface ReadModelRecord {
+  id: string
+  model_name: string
+  source: string
+  status: string
+  row_count: number
+  refreshed_at?: string | null
+  notes?: string | null
+}
+
 export interface TenantRecord {
   id: string
   name: string
@@ -193,6 +382,8 @@ export interface DashboardPayload {
   financeKpis: KpiCard[]
   mealPlanStatus: ChartSeries[]
   deliveryPerformance: ChartSeries[]
+  budgetPlanRealization: ChartSeries[]
+  fundingGovernmentTrend: ChartSeries[]
   budgetUtilization: number[]
   receivableBuckets: number[]
   alerts: TimelineItem[]

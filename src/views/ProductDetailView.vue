@@ -20,7 +20,7 @@ const tenantName = computed(() => mockTenants.find((tenant) => tenant.id === pro
   <div class="space-y-6">
     <PageHeader
       title="Product Detail"
-      subtitle="Detail bahan atau produk tenant yang dipakai di inventory, procurement, dan recipe composition."
+      subtitle="Detail bahan atau produk yayasan yang dipakai di inventory, procurement, dan recipe composition."
       :badges="[productId || 'product', 'Detail', 'Master Product']"
     />
     <div v-if="loading" class="loading-panel">Memuat detail product...</div>
@@ -39,7 +39,7 @@ const tenantName = computed(() => mockTenants.find((tenant) => tenant.id === pro
           <div class="mt-6 grid gap-4 md:grid-cols-4">
             <div class="surface-subtle rounded-3xl p-4"><p class="text-xs uppercase tracking-[0.2em] text-app-muted">Product Type</p><p class="mt-2 text-sm font-semibold text-app-heading">{{ product.product_type }}</p></div>
             <div class="surface-subtle rounded-3xl p-4"><p class="text-xs uppercase tracking-[0.2em] text-app-muted">UoM</p><p class="mt-2 text-sm font-semibold text-app-heading">{{ product.uom_id }}</p></div>
-            <div class="surface-subtle rounded-3xl p-4"><p class="text-xs uppercase tracking-[0.2em] text-app-muted">Tenant</p><p class="mt-2 text-sm font-semibold text-app-heading">{{ tenantName }}</p></div>
+            <div class="surface-subtle rounded-3xl p-4"><p class="text-xs uppercase tracking-[0.2em] text-app-muted">Yayasan</p><p class="mt-2 text-sm font-semibold text-app-heading">{{ tenantName }}</p></div>
             <div class="surface-subtle rounded-3xl p-4"><p class="text-xs uppercase tracking-[0.2em] text-app-muted">Created</p><p class="mt-2 text-sm font-semibold text-app-heading">{{ product.created_at ? formatDateTime(product.created_at) : '-' }}</p></div>
           </div>
         </article>

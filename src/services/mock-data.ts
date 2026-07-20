@@ -13,6 +13,8 @@ import type {
   ComplaintRecord,
   CostPolicyRecord,
   DashboardPayload,
+  BackgroundJobRecord,
+  DataMappingRecord,
   DeliveryIncidentRecord,
   DeliveryOrderDetailRecord,
   DeliveryOrderRecord,
@@ -23,6 +25,8 @@ import type {
   DocumentLinkRecord,
   DocumentRecord,
   DocumentVersionRecord,
+  ExternalSystemDetailRecord,
+  ExternalSystemRecord,
   FefoPreviewResult,
   FeedbackDetailRecord,
   FeedbackItemRecord,
@@ -38,6 +42,8 @@ import type {
   GovernmentClaimDetailRecord,
   GovernmentClaimRecord,
   GovernmentReceivableAgingRecord,
+  IntegrationCredentialRecord,
+  IntegrationMessageRecord,
   InventoryBatchRecord,
   InventoryBalance,
   AccountRecord,
@@ -49,6 +55,10 @@ import type {
   MapDataset,
   MealPlan,
   MonthlyBudgetRealizationRecord,
+  NotificationInboxRecord,
+  OutboxEventRecord,
+  PlatformHealthRecord,
+  ReadModelRecord,
   FleetAssignmentRecord,
   FleetDriverRecord,
   FleetMaintenanceRecord,
@@ -87,6 +97,9 @@ import type {
   SppgRecord,
   TenantRecord,
   UserRecord,
+  SyncJobRecord,
+  SyncLogRecord,
+  WebhookSubscriptionRecord,
   WorkflowDefinitionRecord,
   WorkflowDocumentRecord,
   WorkforceAttendanceRecord,
@@ -123,6 +136,14 @@ export const mockDashboard: DashboardPayload = {
   deliveryPerformance: [
     { name: 'On Time', data: [91, 94, 92, 96, 95, 97, 96] },
     { name: 'Issue', data: [5, 4, 7, 3, 5, 2, 4] },
+  ],
+  budgetPlanRealization: [
+    { name: 'Budget Plan', data: [620, 710, 680, 760, 820, 900] },
+    { name: 'Realisasi', data: [410, 536, 590, 648, 735, 812] },
+  ],
+  fundingGovernmentTrend: [
+    { name: 'Modal Tersalurkan', data: [380, 470, 560, 690, 780, 910] },
+    { name: 'Anggaran Pemerintah Turun', data: [520, 610, 700, 780, 860, 980] },
   ],
   budgetUtilization: [74, 68, 81, 63, 88],
   receivableBuckets: [420, 330, 210, 140, 90],
@@ -3005,6 +3026,353 @@ export const mockUsers: UserRecord[] = [
     active_sppg_id: 'sppg-tanah-abang-02',
     accessible_sppg_ids: ['sppg-tanah-abang-02'],
     created_at: '2026-07-15T06:45:00Z',
+  },
+]
+
+export const mockNotificationInbox: NotificationInboxRecord[] = [
+  {
+    id: 'inbox-1',
+    recipient: {
+      id: 'recipient-1',
+      notification_id: 'notif-1',
+      user_id: 'usr-1',
+      channel: 'IN_APP',
+      read_at: null,
+      delivery_status: 'DELIVERED',
+    },
+    notification: {
+      id: 'notif-1',
+      title: 'Meal Plan Butuh Persetujuan',
+      message: 'Meal plan SPPG Jakarta Pusat untuk besok pagi menunggu approval.',
+      priority: 'HIGH',
+      source_module: 'meal_plan',
+      source_entity_type: 'meal_plan',
+      source_entity_id: 'meal-plan-001',
+      created_at: '2026-07-20T08:30:00Z',
+    },
+  },
+  {
+    id: 'inbox-2',
+    recipient: {
+      id: 'recipient-2',
+      notification_id: 'notif-2',
+      user_id: 'usr-1',
+      channel: 'IN_APP',
+      read_at: '2026-07-20T09:10:00Z',
+      delivery_status: 'READ',
+    },
+    notification: {
+      id: 'notif-2',
+      title: 'Supplier Invoice Posted',
+      message: 'Invoice supplier pangan sudah diposting dan menunggu payment.',
+      priority: 'MEDIUM',
+      source_module: 'procurement',
+      source_entity_type: 'supplier_invoice',
+      source_entity_id: 'inv-20260720-001',
+      created_at: '2026-07-20T07:45:00Z',
+    },
+  },
+  {
+    id: 'inbox-3',
+    recipient: {
+      id: 'recipient-3',
+      notification_id: 'notif-3',
+      user_id: 'usr-1',
+      channel: 'IN_APP',
+      read_at: null,
+      delivery_status: 'DELIVERED',
+    },
+    notification: {
+      id: 'notif-3',
+      title: 'Fleet Route Delay',
+      message: 'Satu kendaraan distribusi melewati SLA rute pagi. Cek GIS Fleet.',
+      priority: 'HIGH',
+      source_module: 'fleet',
+      source_entity_type: 'vehicle_location',
+      source_entity_id: 'vehicle-001',
+      created_at: '2026-07-20T06:55:00Z',
+    },
+  },
+]
+
+export const mockPlatformHealth: PlatformHealthRecord[] = [
+  {
+    id: 'health-live',
+    label: 'Live',
+    endpoint: '/health/live',
+    status: 'HEALTHY',
+    message: 'Aplikasi backend merespons live check.',
+    checked_at: '2026-07-20T09:00:00Z',
+  },
+  {
+    id: 'health-ready',
+    label: 'Ready',
+    endpoint: '/health/ready',
+    status: 'READY',
+    message: 'Dependency utama siap menerima traffic.',
+    checked_at: '2026-07-20T09:00:00Z',
+  },
+  {
+    id: 'health-db',
+    label: 'Database',
+    endpoint: '/health/database',
+    status: 'CONNECTED',
+    message: 'PostgreSQL/PostGIS reachable.',
+    checked_at: '2026-07-20T09:00:00Z',
+  },
+]
+
+export const mockExternalSystems: ExternalSystemRecord[] = [
+  {
+    id: 'ext-partner-erp',
+    tenant_id: 'tenant-1',
+    code: 'EXT-PARTNER-ERP',
+    name: 'Partner ERP Demo',
+    system_type: 'ERP',
+    base_url: 'https://partner.example.com/api',
+    is_active: true,
+    notes: 'Partner demo untuk export meal plan dan status sekolah.',
+  },
+  {
+    id: 'ext-logistics-hub',
+    tenant_id: 'tenant-1',
+    code: 'EXT-LOGISTICS',
+    name: 'Logistics Hub',
+    system_type: 'LOGISTICS',
+    base_url: 'https://logistics.example.com',
+    is_active: true,
+    notes: 'Integrasi posisi fleet dan route status.',
+  },
+]
+
+export const mockIntegrationCredentials: IntegrationCredentialRecord[] = [
+  {
+    id: 'cred-erp-primary',
+    external_system_id: 'ext-partner-erp',
+    credential_name: 'primary-api-key',
+    credential_type: 'API_KEY',
+    secret_masked: '****demo',
+    config_json: { header_name: 'X-API-Key' },
+    is_active: true,
+  },
+]
+
+export const mockWebhookSubscriptions: WebhookSubscriptionRecord[] = [
+  {
+    id: 'wh-school-status',
+    external_system_id: 'ext-partner-erp',
+    subscription_name: 'school-status-webhook',
+    event_type: 'school.status.updated',
+    endpoint_path: '/webhooks/school/status',
+    signing_secret_masked: '****sign',
+    headers_json: { 'X-Signature': 'sha256=demo' },
+    is_active: true,
+    notes: 'Webhook status sekolah dari partner.',
+  },
+]
+
+export const mockDataMappings: DataMappingRecord[] = [
+  {
+    id: 'map-meal-plan-export',
+    external_system_id: 'ext-partner-erp',
+    mapping_name: 'meal-plan-export',
+    source_entity: 'meal_plan',
+    target_entity: 'partner_menu_plan',
+    direction: 'OUTBOUND',
+    mapping_config_json: { fields: { plan_date: 'date', planned_portions: 'qty' } },
+    is_active: true,
+    notes: 'Mapping export meal plan harian.',
+  },
+]
+
+export const mockSyncJobs: SyncJobRecord[] = [
+  {
+    id: 'sync-meal-plan-export',
+    external_system_id: 'ext-partner-erp',
+    external_system_name: 'Partner ERP Demo',
+    job_name: 'meal-plan-daily-export',
+    direction: 'OUTBOUND',
+    trigger_mode: 'MANUAL',
+    entity_type: 'meal_plan',
+    status: 'READY',
+    schedule_expression: '0 6 * * *',
+    filter_json: { status: 'APPROVED' },
+    last_run_at: '2026-07-20T06:00:00Z',
+    notes: 'Export meal plan approved ke partner ERP.',
+  },
+  {
+    id: 'sync-fleet-location-import',
+    external_system_id: 'ext-logistics-hub',
+    external_system_name: 'Logistics Hub',
+    job_name: 'fleet-location-import',
+    direction: 'INBOUND',
+    trigger_mode: 'SCHEDULED',
+    entity_type: 'fleet_vehicle_location',
+    status: 'FAILED',
+    schedule_expression: '*/15 * * * *',
+    filter_json: { source: 'GPS' },
+    last_run_at: '2026-07-20T08:45:00Z',
+    notes: 'Import lokasi fleet terbaru.',
+  },
+]
+
+export const mockInboundMessages: IntegrationMessageRecord[] = [
+  {
+    id: 'inbound-school-status-001',
+    external_system_id: 'ext-partner-erp',
+    external_system_name: 'Partner ERP Demo',
+    message_type: 'school.status.updated',
+    external_reference: 'WH-ERP-001',
+    idempotency_key: 'wh-erp-001',
+    status: 'SUCCESS',
+    payload_json: { school_code: 'SCH-01', status: 'ACTIVE' },
+    response_json: { accepted: true },
+    received_at: '2026-07-20T08:10:00Z',
+    processed_at: '2026-07-20T08:10:02Z',
+    notes: 'Webhook dari partner.',
+  },
+]
+
+export const mockOutboundMessages: IntegrationMessageRecord[] = [
+  {
+    id: 'outbound-meal-plan-001',
+    external_system_id: 'ext-partner-erp',
+    external_system_name: 'Partner ERP Demo',
+    sync_job_id: 'sync-meal-plan-export',
+    message_type: 'meal_plan.export',
+    external_reference: 'JOB-ERP-001',
+    idempotency_key: 'job-erp-001',
+    status: 'QUEUED',
+    destination_url: 'https://partner.example.com/api/meal-plans',
+    payload_json: { plan_date: '2026-07-20', planned_portions: 4200 },
+    response_json: { queued: true },
+    queued_at: '2026-07-20T06:00:05Z',
+    notes: 'Run sync job manual.',
+  },
+]
+
+export const mockSyncLogs: SyncLogRecord[] = [
+  {
+    id: 'sync-log-001',
+    external_system_id: 'ext-partner-erp',
+    external_system_name: 'Partner ERP Demo',
+    direction: 'OUTBOUND',
+    message_type: 'meal_plan.export',
+    entity_type: 'meal_plan',
+    entity_id: 'meal-plan-001',
+    external_reference: 'JOB-ERP-001',
+    idempotency_key: 'job-erp-001',
+    status: 'PENDING',
+    payload_json: { plan_date: '2026-07-20', planned_portions: 4200 },
+    response_json: { queued: true },
+    processed_at: null,
+    notes: 'Menunggu dispatcher outbound.',
+  },
+  {
+    id: 'sync-log-002',
+    external_system_id: 'ext-logistics-hub',
+    external_system_name: 'Logistics Hub',
+    direction: 'INBOUND',
+    message_type: 'fleet.location.import',
+    entity_type: 'fleet_vehicle_location',
+    entity_id: 'vehicle-001',
+    external_reference: 'GPS-001',
+    idempotency_key: 'gps-001-202607200845',
+    status: 'FAILED',
+    payload_json: { vehicle_code: 'VH-001', lat: -6.18, lng: 106.82 },
+    response_json: { error: 'GPS timestamp is stale' },
+    processed_at: '2026-07-20T08:45:15Z',
+    notes: 'Perlu inspeksi payload dari provider GPS.',
+  },
+]
+
+export const mockExternalSystemDetails: ExternalSystemDetailRecord[] = mockExternalSystems.map((externalSystem) => ({
+  external_system: externalSystem,
+  credentials: mockIntegrationCredentials.filter((item) => item.external_system_id === externalSystem.id),
+  webhook_subscriptions: mockWebhookSubscriptions.filter((item) => item.external_system_id === externalSystem.id),
+  data_mappings: mockDataMappings.filter((item) => item.external_system_id === externalSystem.id),
+  sync_jobs: mockSyncJobs.filter((item) => item.external_system_id === externalSystem.id),
+}))
+
+export const mockBackgroundJobs: BackgroundJobRecord[] = [
+  {
+    id: 'bg-daily-summary',
+    tenant_id: 'tenant-1',
+    job_name: 'daily-summary-20260720',
+    job_type: 'REFRESH_DAILY_KITCHEN_OPERATION_SUMMARY',
+    status: 'READY',
+    payload_json: { summary_date: '2026-07-20' },
+    result_json: { rows_refreshed: 24 },
+    started_at: '2026-07-20T05:00:00Z',
+    finished_at: '2026-07-20T05:00:08Z',
+    notes: 'Refresh summary harian dapur.',
+  },
+  {
+    id: 'bg-dispatch-outbox',
+    tenant_id: 'tenant-1',
+    job_name: 'dispatch-outbox',
+    job_type: 'DISPATCH_OUTBOX',
+    status: 'PENDING',
+    payload_json: { batch_size: 100 },
+    result_json: null,
+    started_at: null,
+    finished_at: null,
+    notes: 'Dispatcher event pending.',
+  },
+]
+
+export const mockOutboxEvents: OutboxEventRecord[] = [
+  {
+    id: 'outbox-001',
+    tenant_id: 'tenant-1',
+    event_name: 'reporting.summary.refresh.requested',
+    aggregate_type: 'reporting_summary',
+    aggregate_id: null,
+    status: 'PENDING',
+    payload_json: { summary_date: '2026-07-20' },
+    available_at: '2026-07-20T08:00:00Z',
+    dispatched_at: null,
+  },
+  {
+    id: 'outbox-002',
+    tenant_id: 'tenant-1',
+    event_name: 'meal_plan.approved',
+    aggregate_type: 'meal_plan',
+    aggregate_id: 'meal-plan-001',
+    status: 'DISPATCHED',
+    payload_json: { meal_plan_id: 'meal-plan-001' },
+    available_at: '2026-07-20T06:30:00Z',
+    dispatched_at: '2026-07-20T06:30:05Z',
+  },
+]
+
+export const mockReadModels: ReadModelRecord[] = [
+  {
+    id: 'rm-daily-kitchen',
+    model_name: 'Daily Kitchen Operations',
+    source: '/api/v1/platform/read-models/daily-kitchen-operations',
+    status: 'FRESH',
+    row_count: 24,
+    refreshed_at: '2026-07-20T05:00:08Z',
+    notes: 'Summary operasional harian per SPPG.',
+  },
+  {
+    id: 'rm-monthly-budget',
+    model_name: 'Monthly Budget Realizations',
+    source: '/api/v1/platform/read-models/monthly-budget-realizations',
+    status: 'FRESH',
+    row_count: 128,
+    refreshed_at: '2026-07-20T05:05:00Z',
+    notes: 'Agregasi budget bulanan per tenant.',
+  },
+  {
+    id: 'mv-delivery-performance',
+    model_name: 'Delivery Performance MV',
+    source: '/api/v1/platform/materialized-views/delivery-performance',
+    status: 'STALE',
+    row_count: 512,
+    refreshed_at: '2026-07-20T04:30:00Z',
+    notes: 'Materialized view performa delivery.',
   },
 ]
 

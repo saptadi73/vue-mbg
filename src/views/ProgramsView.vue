@@ -33,7 +33,7 @@ const programSearchText = (item: unknown) => {
   <div class="space-y-6">
     <PageHeader
       title="Programs"
-      subtitle="Kelola program lintas tenant dan SPPG sebagai payung operasional untuk periode, assignment, dan sumber pendanaan."
+      subtitle="Kelola program lintas yayasan dan SPPG sebagai payung operasional untuk periode, assignment, dan sumber pendanaan."
       :badges="['Program Module', 'List & Detail', 'Assignment Flow']"
     />
 

@@ -34,12 +34,12 @@ const handleLogout = () => {
         <span class="text-sm font-medium text-app-heading">Menu Navigasi</span>
       </div>
       <p class="eyebrow-text">Realtime orchestration</p>
-      <h2 class="font-display text-2xl text-app-heading">Modern MBG Operations Cockpit</h2>
+      <h2 class="font-display text-2xl text-app-heading">Pusat Pengelolaan Dapur MBG</h2>
     </div>
 
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
       <label class="context-field">
-        <span>Tenant</span>
+        <span>Yayasan</span>
         <select v-model="activeTenantId" @change="appStore.switchContext({ tenantId: activeTenantId })">
           <option v-for="tenant in tenants" :key="tenant.id" :value="tenant.id">{{ tenant.label }}</option>
         </select>
@@ -63,19 +63,19 @@ const handleLogout = () => {
         <Moon v-else :size="20" stroke-width="2" />
       </button>
 
-      <button
+      <RouterLink
         class="theme-toggle theme-toggle-square relative"
-        type="button"
+        to="/notifications/inbox"
         :aria-label="`${unreadNotifications} notifikasi inbox`"
         :title="`${unreadNotifications} notifikasi inbox`"
       >
         <Bell :size="20" stroke-width="2" />
         <span v-if="unreadNotifications" class="header-icon-badge">{{ unreadNotifications }}</span>
-      </button>
+      </RouterLink>
 
-      <div class="grid h-[52px] w-[52px] place-items-center rounded-2xl bg-teal-300 text-sm font-semibold text-slate-950" :title="profile.name">
+      <RouterLink class="grid h-[52px] w-[52px] place-items-center rounded-2xl bg-teal-300 text-sm font-semibold text-slate-950 transition hover:scale-[1.01]" to="/profile" :title="profile.name">
         {{ profile.avatar }}
-      </div>
+      </RouterLink>
 
       <button class="theme-toggle theme-toggle-square" type="button" aria-label="Logout" title="Logout" @click="handleLogout">
         <LogOut :size="20" stroke-width="2" />

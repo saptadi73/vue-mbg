@@ -119,7 +119,7 @@ const cashFlowSearchText = (item: unknown) => {
         :items="agingState.data.value?.items || []"
         :search-text-resolver="agingSearchText"
         empty-message="Belum ada data aging piutang."
-        search-placeholder="Cari claim, tenant, SPPG, atau bucket..."
+        search-placeholder="Cari claim, yayasan, SPPG, atau bucket..."
         title="Government Receivable Aging"
       >
         <template #table="{ items }">

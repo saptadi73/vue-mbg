@@ -190,7 +190,7 @@ const submitIncident = async () => {
       <article class="glass-panel p-5">
         <p class="text-sm text-app-muted">Delivery orders</p>
         <p class="mt-3 font-display text-3xl text-app-heading">{{ orders.length }}</p>
-        <p class="mt-2 text-sm text-app-body">Order distribusi aktif di tenant ini.</p>
+        <p class="mt-2 text-sm text-app-body">Order distribusi aktif di yayasan ini.</p>
       </article>
       <article class="glass-panel p-5">
         <p class="text-sm text-app-muted">Planned routes</p>
