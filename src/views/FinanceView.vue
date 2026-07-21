@@ -1,17 +1,114 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import type { ApexOptions } from 'apexcharts'
+import ChartPanel from '@/components/charts/ChartPanel.vue'
 import DataTableCard from '@/components/common/DataTableCard.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { useAsyncState } from '@/composables/useAsyncState'
+import { getFundingAgreements } from '@/services/erp-ops'
 import { getBudgets } from '@/services/operations'
-import type { BudgetSummary } from '@/types/domain'
+import type { BudgetSummary, FundingAgreementRecord } from '@/types/domain'
 import { formatCurrency, formatDate } from '@/utils/format'
 
-const { data, loading, error, execute } = useAsyncState(getBudgets)
+const budgetState = useAsyncState(getBudgets)
+const fundingAgreementState = useAsyncState(getFundingAgreements)
+
+const totalBudgetEffective = computed(() =>
+  (budgetState.data.value?.items || []).reduce((sum, item) => sum + item.effective_budget, 0),
+)
+const totalBudgetAvailable = computed(() =>
+  (budgetState.data.value?.items || []).reduce((sum, item) => sum + item.available_budget, 0),
+)
+const totalBudgetUtilized = computed(() => Math.max(totalBudgetEffective.value - totalBudgetAvailable.value, 0))
+
+const budgetStatusChartSeries = computed(() => {
+  const items = budgetState.data.value?.items || []
+  const statusCount = new Map<string, number>()
+
+  for (const item of items) {
+    statusCount.set(item.status, (statusCount.get(item.status) || 0) + 1)
+  }
+
+  return Array.from(statusCount.values())
+})
+
+const budgetStatusChartOptions = computed<ApexOptions>(() => ({
+  chart: { type: 'donut', toolbar: { show: false }, background: 'transparent' },
+  labels: Array.from(new Set((budgetState.data.value?.items || []).map((item) => item.status))),
+  colors: ['#14b8a6', '#f59e0b', '#f97316', '#fb7185'],
+  legend: { position: 'bottom' },
+  dataLabels: { enabled: true },
+  stroke: { width: 0 },
+  plotOptions: {
+    pie: {
+      donut: {
+        size: '62%',
+        labels: {
+          show: true,
+          total: {
+            show: true,
+            label: 'Budgets',
+            formatter: () => String(budgetState.data.value?.items.length || 0),
+          },
+        },
+      },
+    },
+  },
+}))
+
+const fundingCompositionRows = computed(() => {
+  const map = new Map<string, number>()
+
+  for (const item of fundingAgreementState.data.value?.items || []) {
+    const key = item.funding_source_name || 'Unmapped Source'
+    map.set(key, (map.get(key) || 0) + item.principal_amount)
+  }
+
+  return Array.from(map.entries()).map(([label, amount]) => ({ label, amount }))
+})
+
+const fundingCompositionChartSeries = computed(() => fundingCompositionRows.value.map((item) => item.amount))
+const fundingCompositionChartOptions = computed<ApexOptions>(() => ({
+  chart: { type: 'donut', toolbar: { show: false }, background: 'transparent' },
+  labels: fundingCompositionRows.value.map((item) => item.label),
+  colors: ['#38bdf8', '#34d399', '#f59e0b', '#a78bfa', '#fb7185'],
+  legend: { position: 'bottom' },
+  dataLabels: {
+    enabled: true,
+    formatter: (value: number) => `${value.toFixed(1)}%`,
+  },
+  stroke: { width: 0 },
+  tooltip: {
+    y: {
+      formatter: (value: number) => formatCurrency(value),
+    },
+  },
+  plotOptions: {
+    pie: {
+      donut: {
+        size: '62%',
+        labels: {
+          show: true,
+          total: {
+            show: true,
+            label: 'Principal',
+            formatter: () => formatCurrency(fundingCompositionChartSeries.value.reduce((sum, item) => sum + item, 0)),
+          },
+        },
+      },
+    },
+  },
+}))
 
 const budgetSearchText = (item: unknown) => {
   const row = item as BudgetSummary
   return [row.name, row.status, row.date_start, row.date_end].filter(Boolean).join(' ')
+}
+
+const fundingSearchText = (item: unknown) => {
+  const row = item as FundingAgreementRecord
+  return [row.agreement_number, row.funding_source_name, row.agreement_type, row.status].filter(Boolean).join(' ')
 }
 </script>
 
@@ -39,6 +136,25 @@ const budgetSearchText = (item: unknown) => {
         <p class="mt-3 font-display text-3xl text-app-heading">+Rp1,2 M</p>
         <p class="mt-2 text-sm text-app-body">Posisi likuiditas masih aman untuk 2 siklus produksi ke depan.</p>
       </article>
+    </section>
+
+    <section class="grid gap-6 xl:grid-cols-2">
+      <ChartPanel
+        title="Komposisi Status Budget"
+        subtitle="Membaca proporsi draft, submitted, dan approved untuk melihat antrian kontrol anggaran."
+        type="donut"
+        :options="budgetStatusChartOptions"
+        :series="budgetStatusChartSeries"
+        :height="320"
+      />
+      <ChartPanel
+        title="Komposisi Funding"
+        subtitle="Melihat sebaran principal pendanaan berdasarkan sumber dana yang aktif di yayasan."
+        type="donut"
+        :options="fundingCompositionChartOptions"
+        :series="fundingCompositionChartSeries"
+        :height="320"
+      />
     </section>
 
     <section class="grid gap-4 xl:grid-cols-8">
@@ -89,14 +205,27 @@ const budgetSearchText = (item: unknown) => {
       </RouterLink>
     </section>
 
-    <div v-if="loading" class="loading-panel">Memuat budget summary...</div>
-    <div v-else-if="error" class="error-panel">
-      <p>{{ error }}</p>
-      <button class="primary-button mt-3" @click="execute">Muat ulang</button>
+    <section class="grid gap-6 xl:grid-cols-2">
+      <article class="glass-panel p-5">
+        <p class="text-sm text-app-muted">Budget utilization</p>
+        <p class="mt-3 font-display text-3xl text-app-heading">{{ formatCurrency(totalBudgetUtilized) }}</p>
+        <p class="mt-2 text-sm text-app-body">Selisih antara effective budget dan available budget pada seluruh budget aktif.</p>
+      </article>
+      <article class="glass-panel p-5">
+        <p class="text-sm text-app-muted">Available budget</p>
+        <p class="mt-3 font-display text-3xl text-app-heading">{{ formatCurrency(totalBudgetAvailable) }}</p>
+        <p class="mt-2 text-sm text-app-body">Saldo ketersediaan anggaran yang masih bisa dipakai untuk operasi berikutnya.</p>
+      </article>
+    </section>
+
+    <div v-if="budgetState.loading.value" class="loading-panel">Memuat budget summary...</div>
+    <div v-else-if="budgetState.error.value" class="error-panel">
+      <p>{{ budgetState.error.value }}</p>
+      <button class="primary-button mt-3" @click="budgetState.execute">Muat ulang</button>
     </div>
     <DataTableCard
-      v-else-if="data"
-      :items="data.items"
+      v-else-if="budgetState.data.value"
+      :items="budgetState.data.value.items"
       :search-text-resolver="budgetSearchText"
       search-placeholder="Cari budget, periode, atau status..."
       title="Budget Summary"
@@ -119,6 +248,37 @@ const budgetSearchText = (item: unknown) => {
               <td><StatusBadge :status="(item as BudgetSummary).status" /></td>
               <td>{{ formatCurrency((item as BudgetSummary).effective_budget) }}</td>
               <td>{{ formatCurrency((item as BudgetSummary).available_budget) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </template>
+    </DataTableCard>
+
+    <DataTableCard
+      v-if="fundingAgreementState.data.value?.items?.length"
+      :items="fundingAgreementState.data.value.items"
+      :search-text-resolver="fundingSearchText"
+      search-placeholder="Cari agreement, source, type, atau status..."
+      title="Funding Agreement Snapshot"
+    >
+      <template #table="{ items }">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Agreement</th>
+              <th>Source</th>
+              <th>Type</th>
+              <th>Principal</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in items" :key="(item as FundingAgreementRecord).id">
+              <td>{{ (item as FundingAgreementRecord).agreement_number }}</td>
+              <td>{{ (item as FundingAgreementRecord).funding_source_name }}</td>
+              <td>{{ (item as FundingAgreementRecord).agreement_type }}</td>
+              <td>{{ formatCurrency((item as FundingAgreementRecord).principal_amount) }}</td>
+              <td><StatusBadge :status="(item as FundingAgreementRecord).status" /></td>
             </tr>
           </tbody>
         </table>

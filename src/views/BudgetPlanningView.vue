@@ -174,7 +174,7 @@ const selectBudget = (budgetId: string) => {
       </article>
     </section>
 
-    <section class="grid gap-6 xl:grid-cols-[1fr_1.04fr]">
+    <section class="grid gap-6">
       <article class="glass-panel p-6">
         <div class="flex items-center justify-between gap-3">
           <div>

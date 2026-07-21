@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue'
-import type { ApexOptions } from 'apexcharts'
+import type { ApexAxisChartSeries, ApexNonAxisChartSeries, ApexOptions } from 'apexcharts'
 
 const VueApexCharts = defineAsyncComponent(() => import('vue3-apexcharts'))
 
 defineProps<{
   title: string
   subtitle: string
-  type: 'bar' | 'line' | 'radar'
+  type: 'bar' | 'line' | 'radar' | 'donut'
   options: ApexOptions
-  series: { name: string; data: number[] }[]
+  series: ApexAxisChartSeries | ApexNonAxisChartSeries
   height?: number
 }>()
 </script>

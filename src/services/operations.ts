@@ -17,7 +17,9 @@ import {
   mockSppgs,
 } from '@/services/mock-data'
 import type {
+  BalanceSheetReport,
   BudgetSummary,
+  CashFlowReport,
   CashFlowRecord,
   DeliveryPerformanceReportRecord,
   FefoPreviewResult,
@@ -25,11 +27,15 @@ import type {
   GovernmentClaimDetailRecord,
   GovernmentClaimPaymentRecord,
   GovernmentClaimRecord,
+  GovernmentReceivableAgingReport,
   GovernmentReceivableAgingRecord,
   InventoryBalance,
   InventoryBatchRecord,
+  InvestorFundingPositionReport,
   InvestorFundingPositionRecord,
   MealPlan,
+  ProfitLossReport,
+  RoiBySppgReport,
   RoiBySppgRecord,
 } from '@/types/domain'
 
@@ -341,39 +347,181 @@ export const addGovernmentClaimPayment = async (
   }
 }
 
-export const getCashFlowReport = async () => {
+const buildMockCashFlowReport = (): CashFlowReport => ({
+  period: {
+    start_date: '2026-07-01',
+    end_date: '2026-07-31',
+  },
+  totals: {
+    cash_in: mockCashFlow.reduce((sum, item) => sum + item.cash_in, 0),
+    cash_out: mockCashFlow.reduce((sum, item) => sum + item.cash_out, 0),
+    net_cash_flow: mockCashFlow.reduce((sum, item) => sum + item.net_cash_flow, 0),
+  },
+  breakdown: mockCashFlow,
+})
+
+const buildMockGovernmentReceivableAgingReport = (): GovernmentReceivableAgingReport => ({
+  as_of_date: '2026-07-20',
+  totals: {
+    open_claims: mockGovernmentReceivableAging.length,
+    outstanding_amount: mockGovernmentReceivableAging.reduce((sum, item) => sum + item.outstanding_amount, 0),
+    overdue_amount: mockGovernmentReceivableAging
+      .filter((item) => item.days_outstanding > 30)
+      .reduce((sum, item) => sum + item.outstanding_amount, 0),
+  },
+  buckets: mockGovernmentReceivableAging.reduce<Record<string, number>>((result, item) => {
+    result[item.aging_bucket] = (result[item.aging_bucket] || 0) + item.outstanding_amount
+    return result
+  }, {}),
+  items: mockGovernmentReceivableAging,
+})
+
+const buildMockInvestorFundingPositionReport = (): InvestorFundingPositionReport => ({
+  as_of_date: '2026-07-20',
+  totals: {
+    agreements: mockInvestorFundingPositions.length,
+    outstanding_principal: mockInvestorFundingPositions.reduce((sum, item) => sum + item.outstanding_principal, 0),
+    realized_margin: mockInvestorFundingPositions.reduce((sum, item) => sum + item.realized_margin, 0),
+  },
+  items: mockInvestorFundingPositions,
+})
+
+const buildMockProfitLossReport = (): ProfitLossReport => ({
+  period: {
+    start_date: '2026-07-01',
+    end_date: '2026-07-31',
+  },
+  scope: {
+    tenant_id: 'tenant-demo-mbg',
+    sppg_id: null,
+  },
+  revenue: {
+    government_revenue: 42200000,
+    government_cash_received: 17100000,
+  },
+  expenses: {
+    direct_service_cost: 35200000,
+    operating_expense: 820000,
+    financing_expense: 440000,
+    total_expense: 36460000,
+    categories: [
+      { category_code: 'MATERIAL_COST', category_name: 'Biaya Bahan Produksi', amount: 30100000 },
+      { category_code: 'LABOR_COST', category_name: 'Biaya Tenaga Kerja', amount: 5100000 },
+      { category_code: 'DEPRECIATION_EXPENSE', category_name: 'Beban Depresiasi', amount: 820000 },
+      { category_code: 'FINANCING_COST', category_name: 'Biaya Pendanaan', amount: 440000 },
+    ],
+  },
+  totals: {
+    gross_surplus: 7000000,
+    net_surplus: 5740000,
+  },
+})
+
+const buildMockBalanceSheetReport = (): BalanceSheetReport => ({
+  as_of_date: '2026-07-20',
+  scope: {
+    tenant_id: 'tenant-demo-mbg',
+    sppg_id: null,
+  },
+  assets: {
+    items: [
+      { account_code: '110000', account_name: 'Kas dan Bank', category: 'ASSET', amount: 12500000 },
+      { account_code: '130200', account_name: 'Piutang Government Claim', category: 'ASSET', amount: 10250000 },
+    ],
+    total_assets: 22750000,
+  },
+  liabilities: {
+    items: [
+      { account_code: '210000', account_name: 'Hutang Supplier', category: 'LIABILITY', amount: 0 },
+      { account_code: '230500', account_name: 'Utang Pendanaan Investor', category: 'LIABILITY', amount: 9000000 },
+    ],
+    total_liabilities: 9000000,
+  },
+  equity: {
+    items: [
+      { account_code: 'RETAINED_EARNINGS', account_name: 'Surplus Ditahan', category: 'EQUITY', amount: 13750000 },
+    ],
+    total_equity: 13750000,
+    calculated_surplus: 12000000,
+  },
+  totals: {
+    total_assets: 22750000,
+    total_liabilities: 9000000,
+    total_equity: 13750000,
+    total_liabilities_and_equity: 22750000,
+    is_balanced: true,
+  },
+})
+
+const buildMockRoiBySppgReport = (): RoiBySppgReport => ({
+  period: {
+    start_date: '2026-07-01',
+    end_date: '2026-07-31',
+  },
+  totals: {
+    sppg_count: mockRoiBySppg.length,
+    recognized_revenue: mockRoiBySppg.reduce((sum, item) => sum + item.recognized_revenue, 0),
+    total_cost: mockRoiBySppg.reduce((sum, item) => sum + item.total_cost, 0),
+    gross_surplus: mockRoiBySppg.reduce((sum, item) => sum + item.gross_surplus, 0),
+    average_roi_percent:
+      mockRoiBySppg.length > 0
+        ? mockRoiBySppg.reduce((sum, item) => sum + item.roi_percent, 0) / mockRoiBySppg.length
+        : 0,
+  },
+  items: mockRoiBySppg,
+})
+
+export const getCashFlowReport = async (query?: { period_start?: string; period_end?: string }) => {
   try {
-    const payload = await apiRequest<CashFlowRecord[]>('/api/v1/reporting/finance/cash-flow')
-    return { items: payload.data || [], total: totalFromEnvelope(payload, payload.data?.length || 0) }
+    const payload = await apiRequest<CashFlowReport>('/api/v1/reporting/finance/cash-flow', { query })
+    return payload.data || buildMockCashFlowReport()
   } catch {
-    return { items: mockCashFlow, total: mockCashFlow.length }
+    return buildMockCashFlowReport()
   }
 }
 
-export const getGovernmentReceivableAgingReport = async () => {
+export const getProfitLossReport = async (query?: { period_start?: string; period_end?: string }) => {
   try {
-    const payload = await apiRequest<GovernmentReceivableAgingRecord[]>('/api/v1/reporting/finance/government-receivable-aging')
-    return { items: payload.data || [], total: totalFromEnvelope(payload, payload.data?.length || 0) }
+    const payload = await apiRequest<ProfitLossReport>('/api/v1/reporting/finance/profit-loss', { query })
+    return payload.data || buildMockProfitLossReport()
   } catch {
-    return { items: mockGovernmentReceivableAging, total: mockGovernmentReceivableAging.length }
+    return buildMockProfitLossReport()
   }
 }
 
-export const getInvestorFundingPositionReport = async () => {
+export const getBalanceSheetReport = async (query?: { as_of_date?: string }) => {
   try {
-    const payload = await apiRequest<InvestorFundingPositionRecord[]>('/api/v1/reporting/finance/investor-funding-position')
-    return { items: payload.data || [], total: totalFromEnvelope(payload, payload.data?.length || 0) }
+    const payload = await apiRequest<BalanceSheetReport>('/api/v1/reporting/finance/balance-sheet', { query })
+    return payload.data || buildMockBalanceSheetReport()
   } catch {
-    return { items: mockInvestorFundingPositions, total: mockInvestorFundingPositions.length }
+    return buildMockBalanceSheetReport()
   }
 }
 
-export const getRoiBySppgReport = async () => {
+export const getGovernmentReceivableAgingReport = async (query?: { as_of_date?: string }) => {
   try {
-    const payload = await apiRequest<RoiBySppgRecord[]>('/api/v1/reporting/finance/roi-by-sppg')
-    return { items: payload.data || [], total: totalFromEnvelope(payload, payload.data?.length || 0) }
+    const payload = await apiRequest<GovernmentReceivableAgingReport>('/api/v1/reporting/finance/government-receivable-aging', { query })
+    return payload.data || buildMockGovernmentReceivableAgingReport()
   } catch {
-    return { items: mockRoiBySppg, total: mockRoiBySppg.length }
+    return buildMockGovernmentReceivableAgingReport()
+  }
+}
+
+export const getInvestorFundingPositionReport = async (query?: { as_of_date?: string }) => {
+  try {
+    const payload = await apiRequest<InvestorFundingPositionReport>('/api/v1/reporting/finance/investor-funding-position', { query })
+    return payload.data || buildMockInvestorFundingPositionReport()
+  } catch {
+    return buildMockInvestorFundingPositionReport()
+  }
+}
+
+export const getRoiBySppgReport = async (query?: { period_start?: string; period_end?: string }) => {
+  try {
+    const payload = await apiRequest<RoiBySppgReport>('/api/v1/reporting/finance/roi-by-sppg', { query })
+    return payload.data || buildMockRoiBySppgReport()
+  } catch {
+    return buildMockRoiBySppgReport()
   }
 }
 

@@ -1551,13 +1551,11 @@ export interface GovernmentClaimDetailRecord {
 }
 
 export interface CashFlowRecord {
-  id: string
-  flow_date: string
-  category: string
-  description: string
-  inflow_amount: number
-  outflow_amount: number
-  net_amount: number
+  source_module: string
+  source_document_type: string
+  cash_in: number
+  cash_out: number
+  net_cash_flow: number
 }
 
 export interface GovernmentReceivableAgingRecord {
@@ -1585,14 +1583,135 @@ export interface InvestorFundingPositionRecord {
 }
 
 export interface RoiBySppgRecord {
-  id: string
+  sppg_id: string
+  sppg_code: string
   sppg_name: string
+  accepted_portions: number
+  received_portions: number
+  delivery_orders: number
   recognized_revenue: number
+  cash_collected: number
+  production_cost: number
   total_cost: number
   financing_cost: number
-  roi_percentage: number
-  period_start: string
-  period_end: string
+  gross_surplus: number
+  roi_percent: number
+}
+
+export interface CashFlowReport {
+  period: {
+    start_date?: string | null
+    end_date?: string | null
+  }
+  totals: {
+    cash_in: number
+    cash_out: number
+    net_cash_flow: number
+  }
+  breakdown: CashFlowRecord[]
+}
+
+export interface ProfitLossExpenseCategoryRecord {
+  category_code: string
+  category_name: string
+  amount: number
+}
+
+export interface ProfitLossReport {
+  period: {
+    start_date?: string | null
+    end_date?: string | null
+  }
+  scope: {
+    tenant_id?: string | null
+    sppg_id?: string | null
+  }
+  revenue: {
+    government_revenue: number
+    government_cash_received: number
+  }
+  expenses: {
+    direct_service_cost: number
+    operating_expense: number
+    financing_expense: number
+    total_expense: number
+    categories: ProfitLossExpenseCategoryRecord[]
+  }
+  totals: {
+    gross_surplus: number
+    net_surplus: number
+  }
+}
+
+export interface BalanceSheetLineRecord {
+  account_code: string
+  account_name: string
+  category: string
+  amount: number
+}
+
+export interface BalanceSheetReport {
+  as_of_date: string
+  scope: {
+    tenant_id?: string | null
+    sppg_id?: string | null
+  }
+  assets: {
+    items: BalanceSheetLineRecord[]
+    total_assets: number
+  }
+  liabilities: {
+    items: BalanceSheetLineRecord[]
+    total_liabilities: number
+  }
+  equity: {
+    items: BalanceSheetLineRecord[]
+    total_equity: number
+    calculated_surplus?: number
+  }
+  totals: {
+    total_assets: number
+    total_liabilities: number
+    total_equity: number
+    total_liabilities_and_equity: number
+    is_balanced: boolean
+  }
+}
+
+export interface GovernmentReceivableAgingReport {
+  as_of_date: string
+  totals: {
+    open_claims: number
+    outstanding_amount: number
+    overdue_amount: number
+  }
+  buckets: Record<string, number>
+  items: GovernmentReceivableAgingRecord[]
+}
+
+export interface InvestorFundingPositionReport {
+  as_of_date: string
+  totals: {
+    agreements: number
+    outstanding_principal: number
+    realized_margin: number
+  }
+  items: InvestorFundingPositionRecord[]
+}
+
+export interface RoiBySppgReport {
+  period: {
+    start_date?: string | null
+    end_date?: string | null
+  }
+  totals: {
+    sppg_count: number
+    recognized_revenue: number
+    total_cost: number
+    gross_surplus: number
+    average_roi_percent: number
+  }
+  items: RoiBySppgRecord[]
 }
 
 export interface DeliveryPerformanceReportRecord {
