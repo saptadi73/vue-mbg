@@ -471,6 +471,18 @@ body {
   @apply inline-flex h-11 w-11 flex-col items-center justify-center gap-1.5 rounded-2xl;
 }
 
+.header-quick-actions {
+  @apply flex items-center gap-2.5;
+}
+
+.header-action-icon {
+  @apply shrink-0;
+}
+
+.header-avatar-chip {
+  @apply grid h-[52px] w-[52px] place-items-center rounded-2xl bg-teal-300 text-sm font-semibold text-slate-950 transition hover:scale-[1.01];
+}
+
 .mobile-menu-lines {
   background: var(--app-heading);
   @apply block h-0.5 w-5 rounded-full;
@@ -505,4 +517,27 @@ body {
 .form-field span:first-child {
   color: var(--app-muted);
   @apply text-xs uppercase tracking-[0.2em];
+}
+
+@media (max-width: 640px) {
+  .context-field-mobile-compact {
+    @apply min-w-0 gap-1.5 rounded-xl px-3 py-2;
+  }
+
+  .context-field-mobile-compact span {
+    @apply text-[10px] tracking-[0.16em];
+  }
+
+  .context-field-mobile-compact select {
+    @apply text-xs;
+  }
+
+  .mobile-menu-button {
+    @apply h-10 w-10 rounded-xl;
+  }
+
+  .theme-toggle-square.header-action-icon,
+  .header-avatar-chip {
+    @apply h-11 w-11 rounded-xl;
+  }
 }
