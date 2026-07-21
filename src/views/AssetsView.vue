@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import DataTableCard from '@/components/common/DataTableCard.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { env } from '@/config/env'
 import { useAsyncState } from '@/composables/useAsyncState'
+import { useRoute, useRouter } from 'vue-router'
 import { createAsset, getAssetAssignments, getAssetCategories, getAssetDepreciations, getAssets } from '@/services/assets'
 import { getSppgs } from '@/services/sppg'
 import type { AssetAssignmentRecord, AssetDepreciationRecord, AssetRecord } from '@/types/domain'
@@ -18,6 +19,35 @@ const sppgState = useAsyncState(getSppgs)
 const saving = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
+const route = useRoute()
+const router = useRouter()
+
+const resolveAssetTab = (tab: unknown): 'assignments' | 'depreciations' => {
+  const value = Array.isArray(tab) ? tab[0] : tab
+  return value === 'depreciations' ? 'depreciations' : 'assignments'
+}
+
+const activeTab = ref<'assignments' | 'depreciations'>(resolveAssetTab(route.query.tab))
+
+watch(
+  () => route.query.tab,
+  (tab) => {
+    const nextTab = resolveAssetTab(tab)
+    if (nextTab !== activeTab.value) {
+      activeTab.value = nextTab
+    }
+  },
+)
+
+watch(activeTab, (tab) => {
+  if (route.query.tab === tab) return
+  void router.replace({
+    query: {
+      ...route.query,
+      tab,
+    },
+  })
+})
 
 const form = reactive({
   sppg_id: 'sppg-jakarta-pusat-01',
@@ -125,25 +155,25 @@ const depreciationSearchText = (item: unknown) => {
       :badges="['Asset Module', 'Register', 'Assignment & Depreciation']"
     />
 
-    <section class="grid gap-4 xl:grid-cols-3">
-      <article class="glass-panel p-5">
+    <section class="asset-kpi-grid">
+      <article class="asset-kpi-card asset-kpi-highlight">
         <p class="text-sm text-app-muted">Total assets</p>
         <p class="mt-3 font-display text-3xl text-app-heading">{{ formatNumber(assetCount) }}</p>
         <p class="mt-2 text-sm text-app-body">Jumlah asset yang sudah masuk ke register yayasan.</p>
       </article>
-      <article class="glass-panel p-5">
+      <article class="asset-kpi-card">
         <p class="text-sm text-app-muted">Active assets</p>
         <p class="mt-3 font-display text-3xl text-app-heading">{{ formatNumber(activeAssets) }}</p>
         <p class="mt-2 text-sm text-app-body">Asset aktif yang masih dipakai di operasi dapur dan distribusi.</p>
       </article>
-      <article class="glass-panel p-5">
+      <article class="asset-kpi-card">
         <p class="text-sm text-app-muted">Acquisition value</p>
         <p class="mt-3 font-display text-3xl text-app-heading">{{ formatCurrency(totalAcquisitionCost) }}</p>
         <p class="mt-2 text-sm text-app-body">Nilai akuisisi total untuk register asset saat ini.</p>
       </article>
     </section>
 
-    <section class="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+    <section>
       <article class="glass-panel p-6">
         <div class="flex items-center justify-between gap-3">
           <div>
@@ -241,7 +271,9 @@ const depreciationSearchText = (item: unknown) => {
           </p>
         </form>
       </article>
+    </section>
 
+    <section>
       <DataTableCard
         :items="assetsState.data.value?.items || []"
         :search-text-resolver="assetSearchText"
@@ -249,7 +281,7 @@ const depreciationSearchText = (item: unknown) => {
         title="Daftar Asset"
       >
         <template #table="{ items }">
-          <table class="data-table">
+          <table class="data-table assets-table">
             <thead>
               <tr>
                 <th>Asset</th>
@@ -280,15 +312,41 @@ const depreciationSearchText = (item: unknown) => {
       </DataTableCard>
     </section>
 
-    <section class="grid gap-6 xl:grid-cols-2">
+    <section class="glass-panel p-6">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p class="eyebrow-text">Asset Insight</p>
+          <h2 class="mt-2 font-display text-2xl text-app-heading">Assignment & depresiasi</h2>
+        </div>
+        <div class="asset-tab-menu">
+          <button
+            class="asset-tab-button"
+            :class="{ 'asset-tab-button-active': activeTab === 'assignments' }"
+            type="button"
+            @click="activeTab = 'assignments'"
+          >
+            Assignments
+          </button>
+          <button
+            class="asset-tab-button"
+            :class="{ 'asset-tab-button-active': activeTab === 'depreciations' }"
+            type="button"
+            @click="activeTab = 'depreciations'"
+          >
+            Depreciations
+          </button>
+        </div>
+      </div>
+
       <DataTableCard
+        v-if="activeTab === 'assignments'"
         :items="assignmentsState.data.value?.items || []"
         :search-text-resolver="assignmentSearchText"
         search-placeholder="Cari asset, SPPG, PIC, role, atau status..."
         title="Asset Assignments"
       >
         <template #table="{ items }">
-          <table class="data-table">
+          <table class="data-table asset-detail-table">
             <thead>
               <tr>
                 <th>Asset</th>
@@ -314,13 +372,14 @@ const depreciationSearchText = (item: unknown) => {
       </DataTableCard>
 
       <DataTableCard
+        v-else
         :items="depreciationsState.data.value?.items || []"
         :search-text-resolver="depreciationSearchText"
         search-placeholder="Cari asset, account, atau status depresiasi..."
         title="Asset Depreciations"
       >
         <template #table="{ items }">
-          <table class="data-table">
+          <table class="data-table asset-detail-table">
             <thead>
               <tr>
                 <th>Asset</th>
@@ -347,3 +406,125 @@ const depreciationSearchText = (item: unknown) => {
     </section>
   </div>
 </template>
+
+<style scoped>
+.asset-kpi-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.asset-kpi-card {
+  border: 1px solid color-mix(in srgb, var(--app-panel-border) 82%, #67e8f9 18%);
+  background:
+    radial-gradient(circle at 12% 10%, color-mix(in srgb, #67e8f9 14%, transparent) 0%, transparent 46%),
+    var(--app-panel-bg);
+  box-shadow: var(--app-shadow);
+  border-radius: 1.6rem;
+  padding: 1.25rem;
+  transition: transform 0.24s ease, border-color 0.24s ease;
+}
+
+.asset-kpi-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, #5eead4 42%, var(--app-panel-border) 58%);
+}
+
+.asset-kpi-highlight {
+  background:
+    radial-gradient(circle at 14% 14%, color-mix(in srgb, #2dd4bf 22%, transparent) 0%, transparent 50%),
+    radial-gradient(circle at 88% 88%, color-mix(in srgb, #22d3ee 12%, transparent) 0%, transparent 42%),
+    var(--app-panel-bg);
+}
+
+.assets-table {
+  min-width: 980px;
+  --asset-col-main: 250px;
+  --asset-col-category: 180px;
+}
+
+.assets-table th,
+.assets-table td {
+  white-space: nowrap;
+}
+
+.assets-table th:nth-child(1),
+.assets-table td:nth-child(1) {
+  min-width: var(--asset-col-main);
+}
+
+.assets-table th:nth-child(2),
+.assets-table td:nth-child(2) {
+  min-width: var(--asset-col-category);
+}
+
+.assets-table th:nth-child(1),
+.assets-table td:nth-child(1),
+.assets-table th:nth-child(2),
+.assets-table td:nth-child(2) {
+  position: sticky;
+  z-index: 1;
+  background: color-mix(in srgb, var(--app-panel-bg) 88%, var(--app-subtle-bg) 12%);
+  backdrop-filter: blur(6px);
+}
+
+.assets-table th:nth-child(1),
+.assets-table td:nth-child(1) {
+  left: 0;
+}
+
+.assets-table th:nth-child(2),
+.assets-table td:nth-child(2) {
+  left: var(--asset-col-main);
+}
+
+.assets-table th:nth-child(1),
+.assets-table th:nth-child(2) {
+  z-index: 3;
+}
+
+.assets-table td:nth-child(2),
+.assets-table th:nth-child(2) {
+  border-right: 1px solid color-mix(in srgb, var(--app-panel-border) 84%, transparent);
+}
+
+.asset-detail-table {
+  min-width: 880px;
+}
+
+.asset-tab-menu {
+  display: inline-flex;
+  border-radius: 999px;
+  border: 1px solid var(--app-panel-border);
+  padding: 0.25rem;
+  background: color-mix(in srgb, var(--app-subtle-bg) 68%, transparent);
+}
+
+.asset-tab-button {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.48rem 0.95rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--app-muted);
+  cursor: pointer;
+  background: transparent;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.asset-tab-button:hover {
+  color: var(--app-heading);
+}
+
+.asset-tab-button-active {
+  color: #0f172a;
+  background: #5eead4;
+}
+
+[data-theme='light'] .asset-tab-button-active {
+  color: #0f172a;
+  background: #2dd4bf;
+}
+</style>
