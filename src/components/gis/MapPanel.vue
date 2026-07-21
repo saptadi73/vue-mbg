@@ -113,18 +113,50 @@ const clearLayers = () => {
   layers = []
 }
 
-const makePointMarker = (point: GeoPointRecord, color: string, size: number, label: string) =>
+const escapeHtml = (value: string) =>
+  value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+
+const vehicleIconSvg = (color: string, size: number, kind: 'car' | 'truck' = 'car') => {
+  const iconSize = size + 18
+  const bodyPath =
+    kind === 'truck'
+      ? '<path d="M8 20v-5.3c0-.9.7-1.7 1.7-1.7h8.7c.5 0 1 .2 1.3.6l2 2.3h2.1c1 0 1.7.7 1.7 1.7V20h-1.7a2.8 2.8 0 0 0-5.6 0h-5.4a2.8 2.8 0 0 0-5.6 0H8Zm2.8-4.8h8.5v-1.1h-8.5v1.1Zm9.9 0h2.2l-1.4-1.6h-.8v1.6Z" />'
+      : '<path d="M7.5 18.8V16c0-.6.3-1.1.9-1.4l1.7-.9 1.7-3c.4-.7 1.1-1.1 1.9-1.1h4.5c.8 0 1.5.4 1.9 1.1l1.7 3 1.6.9c.6.3 1 .8 1 1.5v2.7h-1.7a2.8 2.8 0 0 0-5.6 0h-5.3a2.8 2.8 0 0 0-5.6 0H7.5Zm5.5-5.2h7l-1.1-2c-.1-.2-.4-.4-.7-.4h-4.5c-.3 0-.6.2-.7.4l-1.1 2Z" />'
+
+  return `
+    <span class="mbg-map-vehicle" style="--marker-color:${color};--marker-size:${iconSize}px;">
+      <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+        <path class="mbg-map-vehicle-pin" d="M16 2.5C10 2.5 5.1 7.2 5.1 13.1c0 7 8.3 14.2 10.1 15.7a1.3 1.3 0 0 0 1.6 0c1.8-1.5 10.1-8.7 10.1-15.7C26.9 7.2 22 2.5 16 2.5Z" />
+        <circle class="mbg-map-vehicle-badge" cx="16" cy="13.1" r="7.2" />
+        <g class="mbg-map-vehicle-glyph">${bodyPath}<circle cx="12.4" cy="20.1" r="1.9" /><circle cx="20.1" cy="20.1" r="1.9" /></g>
+      </svg>
+    </span>
+  `
+}
+
+const makePointMarker = (
+  point: GeoPointRecord,
+  color: string,
+  size: number,
+  label: string,
+  markerHtml?: string,
+) =>
   L.marker([point.latitude, point.longitude], {
     icon: L.divIcon({
       className: 'mbg-map-marker-shell',
-      html: `<span class="mbg-map-marker" style="--marker-color:${color};--marker-size:${size}px;"></span>`,
-      iconSize: [size + 12, size + 12],
-      iconAnchor: [(size + 12) / 2, (size + 12) / 2],
+      html: markerHtml || `<span class="mbg-map-marker" style="--marker-color:${color};--marker-size:${size}px;"></span>`,
+      iconSize: markerHtml ? [size + 24, size + 28] : [size + 12, size + 12],
+      iconAnchor: markerHtml ? [(size + 24) / 2, size + 26] : [(size + 12) / 2, (size + 12) / 2],
     }),
   }).bindPopup(
-    `<strong>${point.name}</strong><br/>${label}${
-      point.code ? `<br/>Code: ${point.code}` : ''
-    }${point.city ? `<br/>City: ${point.city}` : ''}${
+    `<strong>${escapeHtml(point.name)}</strong><br/>${label}${
+      point.code ? `<br/>Code: ${escapeHtml(point.code)}` : ''
+    }${point.city ? `<br/>City: ${escapeHtml(point.city)}` : ''}${
       typeof point.metric_value === 'number' ? `<br/>Metric: ${formatNumber(point.metric_value)}` : ''
     }`,
   )
@@ -334,6 +366,7 @@ const renderLayers = () => {
           }${vehicle.sppg_name ? `<br/>SPPG: ${vehicle.sppg_name}` : ''}${
             vehicle.location_recorded_at ? `<br/>Updated: ${vehicle.location_recorded_at}` : ''
           }`,
+          vehicleIconSvg(fleetStatusColor(vehicle.status), 13, 'car'),
         ),
       )
       hasClusterMarkers = true
@@ -530,6 +563,32 @@ watch(themeMode, applyBaseMap)
   background: var(--marker-color);
   border: 3px solid rgba(255, 255, 255, 0.92);
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25);
+}
+
+:deep(.mbg-map-vehicle) {
+  display: block;
+  width: var(--marker-size);
+  height: calc(var(--marker-size) + 10px);
+}
+
+:deep(.mbg-map-vehicle svg) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 10px 20px rgba(15, 23, 42, 0.28));
+}
+
+:deep(.mbg-map-vehicle-pin) {
+  fill: var(--marker-color);
+}
+
+:deep(.mbg-map-vehicle-badge) {
+  fill: rgba(255, 255, 255, 0.96);
+}
+
+:deep(.mbg-map-vehicle-glyph) {
+  fill: var(--marker-color);
 }
 
 :deep(.mbg-map-cluster-shell) {

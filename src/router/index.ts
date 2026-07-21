@@ -35,6 +35,7 @@ const DeliveryView = () => import('@/views/DeliveryView.vue')
 const DeliveryReportsView = () => import('@/views/DeliveryReportsView.vue')
 const FleetView = () => import('@/views/FleetView.vue')
 const FleetVehicleDetailView = () => import('@/views/FleetVehicleDetailView.vue')
+const FleetDriverTrackerView = () => import('@/views/FleetDriverTrackerView.vue')
 const FeedbackView = () => import('@/views/FeedbackView.vue')
 const QualityInspectionsView = () => import('@/views/QualityInspectionsView.vue')
 const GisView = () => import('@/views/GisView.vue')
@@ -118,6 +119,7 @@ const router = createRouter({
     { path: '/production-orders/:productionOrderId/cost-sheet', name: 'production-order-cost-sheet', component: ProductionCostSheetDetailView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] } },
     { path: '/fleet', name: 'fleet', component: FleetView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager'] } },
     { path: '/fleet/vehicles/:vehicleId', name: 'fleet-vehicle-detail', component: FleetVehicleDetailView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager'] } },
+    { path: '/fleet/driver-tracker', name: 'fleet-driver-tracker', component: FleetDriverTrackerView, meta: { bareLayout: true } },
     { path: '/delivery', name: 'delivery', component: DeliveryView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer', 'quality_officer'] } },
     { path: '/delivery/reports', name: 'delivery-reports', component: DeliveryReportsView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer', 'quality_officer'] } },
     { path: '/feedback', name: 'feedback', component: FeedbackView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer', 'quality_officer'] } },

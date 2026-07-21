@@ -13,6 +13,8 @@ import type {
   FleetDriverRecord,
   FleetMaintenanceRecord,
   FleetVehicleDetailRecord,
+  FleetVehicleLocationPingPayload,
+  FleetVehicleLocationPingRecord,
   FleetVehicleRecord,
   VehicleTypeRecord,
 } from '@/types/domain'
@@ -24,6 +26,8 @@ const ensureRecord = <T>(value: T | undefined, message: string): T => {
   if (!value) throw new Error(message)
   return value
 }
+
+const mockVehicleLocationPings: FleetVehicleLocationPingRecord[] = []
 
 const syncVehicleDetail = (vehicleId: string) => {
   const vehicle = mockFleetVehicles.find((item) => item.id === vehicleId)
@@ -197,6 +201,51 @@ export const createFleetMaintenance = async (
     }
     mockFleetMaintenances.unshift(record)
     syncVehicleDetail(vehicleId)
+    return record
+  }
+}
+
+export const createFleetVehicleLocationPing = async (
+  vehicleId: string,
+  input: FleetVehicleLocationPingPayload,
+  options?: {
+    tenantId?: string | null
+    sppgId?: string | null
+  },
+) => {
+  try {
+    const payload = await apiRequest<FleetVehicleLocationPingRecord>(`/api/v1/fleet/vehicles/${vehicleId}/locations`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+      headers: {
+        ...(options?.tenantId ? { 'X-Tenant-ID': options.tenantId } : {}),
+        ...(options?.sppgId ? { 'X-SPPG-ID': options.sppgId } : {}),
+      },
+    })
+    return payload.data
+  } catch {
+    const vehicle = mockFleetVehicles.find((item) => item.id === vehicleId)
+    const record: FleetVehicleLocationPingRecord = {
+      id: `vehicle-location-${Date.now()}`,
+      vehicle_id: vehicleId,
+      vehicle_code: vehicle?.vehicle_code || vehicleId,
+      plate_number: vehicle?.plate_number || null,
+      sppg_id: input.sppg_id || null,
+      assignment_id: input.assignment_id || null,
+      recorded_at: input.recorded_at,
+      latitude: input.latitude,
+      longitude: input.longitude,
+      speed_kph: input.speed_kph ?? null,
+      heading_degree: input.heading_degree ?? null,
+      accuracy_meter: input.accuracy_meter ?? null,
+      engine_on: input.engine_on ?? null,
+      movement_status: input.movement_status,
+      event_type: input.event_type,
+      source: input.source,
+      address_label: input.address_label ?? null,
+      notes: input.notes ?? null,
+    }
+    mockVehicleLocationPings.unshift(record)
     return record
   }
 }

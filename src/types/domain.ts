@@ -1123,6 +1123,9 @@ export interface FleetVehicleRecord {
   manufacture_year?: number | null
   capacity_portions?: number | null
   fuel_type?: string | null
+  driver_id?: string | null
+  driver_name?: string | null
+  assignment_role?: string | null
   status: string
   is_active: boolean
   notes?: string | null
@@ -1197,6 +1200,30 @@ export interface FleetVehicleLocationRecord {
   location_recorded_at?: string | null
   speed_kmh?: number | null
   heading_deg?: number | null
+}
+
+export interface FleetVehicleLocationPingPayload {
+  sppg_id?: string | null
+  assignment_id?: string | null
+  recorded_at: string
+  latitude: number
+  longitude: number
+  speed_kph?: number | null
+  heading_degree?: number | null
+  accuracy_meter?: number | null
+  engine_on?: boolean | null
+  movement_status: string
+  event_type: string
+  source: string
+  address_label?: string | null
+  notes?: string | null
+}
+
+export interface FleetVehicleLocationPingRecord extends FleetVehicleLocationPingPayload {
+  id: string
+  vehicle_id: string
+  vehicle_code: string
+  plate_number?: string | null
 }
 
 export interface FundingSourceRecord {

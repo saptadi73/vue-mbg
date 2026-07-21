@@ -6,6 +6,7 @@ import ChartPanel from '@/components/charts/ChartPanel.vue'
 import DataTableCard from '@/components/common/DataTableCard.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import FleetDriverQrCard from '@/components/fleet/FleetDriverQrCard.vue'
 import { useAsyncState } from '@/composables/useAsyncState'
 import { mockDeliveryOrders, mockDeliveryRoutes } from '@/services/mock-data'
 import {
@@ -46,6 +47,8 @@ type FuelLogRow = {
   note: string
 }
 
+type FleetWorkspaceTab = 'overview' | 'vehicles' | 'operations' | 'costs' | 'drivers'
+
 const appStore = useAppStore()
 const { themeMode } = storeToRefs(appStore)
 const vehicleTypesState = useAsyncState(getVehicleTypes)
@@ -53,8 +56,12 @@ const vehiclesState = useAsyncState(getFleetVehicles)
 const driversState = useAsyncState(getFleetDrivers)
 const assignmentsState = useAsyncState(getFleetAssignments)
 const maintenancesState = useAsyncState(getFleetMaintenances)
-const selectedVehicleId = ref('vehicle-1')
-const detailState = useAsyncState<FleetVehicleDetailRecord>(() => getFleetVehicleById(selectedVehicleId.value))
+const selectedVehicleId = ref('')
+const activeTab = ref<FleetWorkspaceTab>('overview')
+const detailState = useAsyncState<FleetVehicleDetailRecord | null>(async () => {
+  if (!selectedVehicleId.value) return null
+  return getFleetVehicleById(selectedVehicleId.value)
+})
 const saving = ref(false)
 const fuelLogs = ref<FuelLogRow[]>([
   {
@@ -207,6 +214,36 @@ const selectedVehicleRoutes = computed(() =>
 const selectedVehiclePlannedPortions = computed(() =>
   selectedVehicleDeliveries.value.reduce((sum, item) => sum + (item.production_order_id ? 1 : 0), 0),
 )
+const selectedVehicleSummaryLabel = computed(() => (detail.value ? 'Selected Vehicle' : 'Vehicle QR Generator'))
+const activeDriverByVehicleId = computed(() => {
+  const map = new Map<string, string>()
+
+  for (const vehicle of vehicles.value) {
+    if (!vehicle.driver_name) continue
+    map.set(vehicle.id, vehicle.driver_name)
+  }
+
+  for (const assignment of assignments.value) {
+    if (!assignment.driver_name || map.has(assignment.vehicle_id)) continue
+    if (assignment.is_active) {
+      map.set(assignment.vehicle_id, assignment.driver_name)
+    }
+  }
+
+  for (const assignment of assignments.value) {
+    if (!assignment.driver_name || map.has(assignment.vehicle_id)) continue
+    map.set(assignment.vehicle_id, assignment.driver_name)
+  }
+
+  return map
+})
+const workspaceTabs: Array<{ id: FleetWorkspaceTab; label: string; description: string }> = [
+  { id: 'overview', label: 'Overview', description: 'KPI, chart, readiness, dan utilisasi armada.' },
+  { id: 'vehicles', label: 'Armada & QR', description: 'List kendaraan, QR driver, histori, dan master armada.' },
+  { id: 'operations', label: 'Operations', description: 'Assignment, maintenance, dan form operasional.' },
+  { id: 'costs', label: 'Costing', description: 'Biaya armada, fuel log, dan monitoring cost.' },
+  { id: 'drivers', label: 'Drivers', description: 'Beban kerja, masa berlaku SIM, dan master driver.' },
+]
 const driverWorkloadRows = computed(() =>
   drivers.value.map((driver) => {
     const driverAssignments = assignments.value.filter((item) => item.driver_id === driver.id)
@@ -438,7 +475,16 @@ const vehicleTypeSearchText = (item: unknown) => {
 
 const vehicleSearchText = (item: unknown) => {
   const row = item as FleetVehicleRecord
-  return [row.vehicle_code, row.plate_number, row.vehicle_type_name, row.home_sppg_name, row.status].filter(Boolean).join(' ')
+  return [
+    row.vehicle_code,
+    row.plate_number,
+    row.vehicle_type_name,
+    row.home_sppg_name,
+    activeDriverByVehicleId.value.get(row.id),
+    row.status,
+  ]
+    .filter(Boolean)
+    .join(' ')
 }
 
 const driverSearchText = (item: unknown) => {
@@ -604,6 +650,15 @@ const selectVehicle = async (vehicleId: string) => {
   await detailState.execute()
 }
 
+const generateVehicleQr = async (vehicleId: string) => {
+  await selectVehicle(vehicleId)
+  if (typeof window !== 'undefined') {
+    window.requestAnimationFrame(() => {
+      document.getElementById('driver-qr-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
+}
+
 const reloadFleet = async () => {
   await Promise.all([
     vehicleTypesState.execute(),
@@ -611,8 +666,10 @@ const reloadFleet = async () => {
     driversState.execute(),
     assignmentsState.execute(),
     maintenancesState.execute(),
-    detailState.execute(),
   ])
+  if (selectedVehicleId.value) {
+    await detailState.execute()
+  }
 }
 
 const submitVehicleType = async () => {
@@ -748,7 +805,29 @@ const submitFuelLog = async () => {
       :badges="['Vehicle Types', 'Vehicles', 'Assignments & Maintenance']"
     />
 
-    <section class="grid gap-4 xl:grid-cols-4">
+    <section class="glass-panel p-3">
+      <div class="flex flex-wrap gap-2">
+        <button
+          v-for="tab in workspaceTabs"
+          :key="tab.id"
+          class="rounded-full border px-4 py-2 text-sm transition"
+          :class="
+            activeTab === tab.id
+              ? 'border-[var(--color-brand-400)] bg-[var(--color-brand-400)]/15 text-app-heading'
+              : 'border-[var(--app-panel-border)] text-app-body hover:border-[var(--color-brand-300)]'
+          "
+          type="button"
+          @click="activeTab = tab.id"
+        >
+          {{ tab.label }}
+        </button>
+      </div>
+      <p class="mt-3 px-1 text-sm text-app-muted">
+        {{ workspaceTabs.find((tab) => tab.id === activeTab)?.description }}
+      </p>
+    </section>
+
+    <section v-if="activeTab === 'overview'" class="grid gap-4 xl:grid-cols-4">
       <article class="glass-panel p-5">
         <p class="text-sm text-app-muted">Vehicle types</p>
         <p class="mt-3 font-display text-3xl text-app-heading">{{ vehicleTypes.length }}</p>
@@ -813,7 +892,7 @@ const submitFuelLog = async () => {
       </article>
     </section>
 
-    <section class="grid gap-6 xl:grid-cols-3">
+    <section v-if="activeTab === 'overview'" class="grid gap-6 xl:grid-cols-3">
       <ChartPanel
         title="Fleet Status"
         subtitle="Komposisi armada aktif, maintenance, dan non-aktif."
@@ -840,16 +919,16 @@ const submitFuelLog = async () => {
       />
     </section>
 
-    <section class="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
+    <section v-if="activeTab === 'vehicles'" class="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
       <DataTableCard
         :items="vehicles"
         :search-text-resolver="vehicleSearchText"
-        search-placeholder="Cari vehicle code, plate, type, SPPG..."
+        search-placeholder="Cari vehicle code, plate, type, SPPG, driver..."
         title="Fleet Vehicles"
       >
         <template #table="{ items }">
           <table class="data-table">
-            <thead><tr><th>Vehicle</th><th>Type</th><th>Home SPPG</th><th>Capacity</th><th>Status</th><th>Aksi</th></tr></thead>
+            <thead><tr><th>Vehicle</th><th>Type</th><th>Home SPPG</th><th>Driver</th><th>Capacity</th><th>Status</th><th>Aksi</th></tr></thead>
             <tbody>
               <tr v-for="item in items" :key="(item as FleetVehicleRecord).id">
                 <td>
@@ -858,11 +937,17 @@ const submitFuelLog = async () => {
                 </td>
                 <td>{{ (item as FleetVehicleRecord).vehicle_type_name || '-' }}</td>
                 <td>{{ (item as FleetVehicleRecord).home_sppg_name || '-' }}</td>
+                <td>{{ activeDriverByVehicleId.get((item as FleetVehicleRecord).id) || '-' }}</td>
                 <td>{{ formatNumber((item as FleetVehicleRecord).capacity_portions || 0) }} porsi</td>
                 <td><StatusBadge :status="(item as FleetVehicleRecord).status" /></td>
                 <td>
                   <div class="flex flex-wrap gap-2">
-                    <button class="secondary-button" type="button" @click="selectVehicle((item as FleetVehicleRecord).id)">Preview</button>
+                    <button class="secondary-button" type="button" @click="selectVehicle((item as FleetVehicleRecord).id)">
+                      Pilih Armada
+                    </button>
+                    <button class="primary-button" type="button" @click="generateVehicleQr((item as FleetVehicleRecord).id)">
+                      Generate QR
+                    </button>
                     <RouterLink class="secondary-button" :to="`/fleet/vehicles/${(item as FleetVehicleRecord).id}`">Detail</RouterLink>
                   </div>
                 </td>
@@ -873,7 +958,7 @@ const submitFuelLog = async () => {
       </DataTableCard>
 
       <article class="glass-panel p-6">
-        <p class="eyebrow-text">Selected Vehicle</p>
+        <p class="eyebrow-text">{{ selectedVehicleSummaryLabel }}</p>
         <div v-if="detail" class="mt-5 grid gap-4">
           <div class="surface-subtle rounded-3xl p-4">
             <p class="text-sm text-app-muted">Vehicle</p>
@@ -889,10 +974,17 @@ const submitFuelLog = async () => {
             <div class="surface-subtle rounded-3xl p-4"><p class="text-sm text-app-muted">Status</p><div class="mt-2"><StatusBadge :status="detail.vehicle.status" /></div></div>
           </div>
         </div>
+        <div v-else class="mt-5 rounded-3xl border border-dashed border-[var(--app-panel-border)] p-4 text-sm text-app-muted">
+          Klik `Generate QR` pada tabel armada untuk langsung membuka generator QR. Kalau perlu cek ringkasan kendaraan dulu, kamu masih bisa pakai tombol `Pilih Armada`.
+        </div>
       </article>
     </section>
 
-    <section class="grid gap-6 xl:grid-cols-1">
+    <section v-if="activeTab === 'vehicles'" class="grid gap-6 xl:grid-cols-1">
+      <FleetDriverQrCard :detail="detail" />
+    </section>
+
+    <section v-if="activeTab === 'overview'" class="grid gap-6 xl:grid-cols-1">
       <DataTableCard
         :items="utilizationBySppg"
         :search-text-resolver="utilizationBySppgSearchText"
@@ -917,7 +1009,7 @@ const submitFuelLog = async () => {
       </DataTableCard>
     </section>
 
-    <section v-if="detail" class="grid gap-6 xl:grid-cols-2">
+    <section v-if="activeTab === 'vehicles' && detail" class="grid gap-6 xl:grid-cols-2">
       <DataTableCard
         :items="selectedVehicleAssignments"
         :search-text-resolver="selectedVehicleAssignmentSearchText"
@@ -963,7 +1055,7 @@ const submitFuelLog = async () => {
       </DataTableCard>
     </section>
 
-    <section v-if="detail" class="grid gap-6 xl:grid-cols-4">
+    <section v-if="activeTab === 'vehicles' && detail" class="grid gap-6 xl:grid-cols-4">
       <article class="glass-panel p-5">
         <p class="text-sm text-app-muted">Linked deliveries</p>
         <p class="mt-3 font-display text-3xl text-app-heading">{{ formatNumber(selectedVehicleDeliveries.length) }}</p>
@@ -986,7 +1078,7 @@ const submitFuelLog = async () => {
       </article>
     </section>
 
-    <section v-if="detail" class="grid gap-6 xl:grid-cols-2">
+    <section v-if="activeTab === 'vehicles' && detail" class="grid gap-6 xl:grid-cols-2">
       <DataTableCard
         :items="selectedVehicleDeliveries"
         :search-text-resolver="selectedVehicleDeliverySearchText"
@@ -1035,7 +1127,7 @@ const submitFuelLog = async () => {
       </DataTableCard>
     </section>
 
-    <section class="grid gap-6 xl:grid-cols-2">
+    <section v-if="activeTab === 'operations'" class="grid gap-6 xl:grid-cols-2">
       <DataTableCard
         :items="assignments"
         :search-text-resolver="assignmentSearchText"
@@ -1083,7 +1175,7 @@ const submitFuelLog = async () => {
       </DataTableCard>
     </section>
 
-    <section class="grid gap-6 xl:grid-cols-1">
+    <section v-if="activeTab === 'operations'" class="grid gap-6 xl:grid-cols-1">
       <DataTableCard
         :items="dispatchReadinessRows"
         :search-text-resolver="dispatchReadinessSearchText"
@@ -1113,7 +1205,7 @@ const submitFuelLog = async () => {
       </DataTableCard>
     </section>
 
-    <section class="grid gap-6 xl:grid-cols-2">
+    <section v-if="activeTab === 'costs'" class="grid gap-6 xl:grid-cols-2">
       <DataTableCard
         :items="fleetCostRows"
         :search-text-resolver="fleetCostSearchText"
@@ -1162,7 +1254,7 @@ const submitFuelLog = async () => {
       </DataTableCard>
     </section>
 
-    <section class="grid gap-6 xl:grid-cols-2">
+    <section v-if="activeTab === 'costs'" class="grid gap-6 xl:grid-cols-2">
       <DataTableCard
         :items="fuelLogs"
         :search-text-resolver="fuelLogSearchText"
@@ -1204,7 +1296,7 @@ const submitFuelLog = async () => {
       </article>
     </section>
 
-    <section class="grid gap-6 xl:grid-cols-1">
+    <section v-if="activeTab === 'drivers'" class="grid gap-6 xl:grid-cols-1">
       <DataTableCard
         :items="driverWorkloadRows"
         :search-text-resolver="driverWorkloadSearchText"
@@ -1232,7 +1324,7 @@ const submitFuelLog = async () => {
       </DataTableCard>
     </section>
 
-    <section class="grid gap-6 xl:grid-cols-2">
+    <section v-if="activeTab === 'drivers'" class="grid gap-6 xl:grid-cols-2">
       <DataTableCard
         :items="licenseExpiryAlerts"
         :search-text-resolver="licenseExpirySearchText"
@@ -1285,7 +1377,7 @@ const submitFuelLog = async () => {
       </DataTableCard>
     </section>
 
-    <section class="grid gap-6 xl:grid-cols-2">
+    <section v-if="activeTab === 'drivers'" class="grid gap-6 xl:grid-cols-2">
       <DataTableCard
         :items="vehicleTypes"
         :search-text-resolver="vehicleTypeSearchText"
@@ -1336,7 +1428,7 @@ const submitFuelLog = async () => {
       </DataTableCard>
     </section>
 
-    <section class="grid gap-6 xl:grid-cols-3">
+    <section v-if="activeTab === 'vehicles'" class="grid gap-6 xl:grid-cols-3">
       <article class="glass-panel p-6">
         <div class="flex items-center justify-between gap-3">
           <div><p class="eyebrow-text">Vehicle Type</p><h2 class="mt-2 font-display text-2xl text-app-heading">Buat tipe armada</h2></div>
@@ -1386,7 +1478,7 @@ const submitFuelLog = async () => {
       </article>
     </section>
 
-    <section class="grid gap-6 xl:grid-cols-2">
+    <section v-if="activeTab === 'operations'" class="grid gap-6 xl:grid-cols-2">
       <article class="glass-panel p-6">
         <div class="flex items-center justify-between gap-3">
           <div><p class="eyebrow-text">Assignment</p><h2 class="mt-2 font-display text-2xl text-app-heading">Assign kendaraan</h2></div>
