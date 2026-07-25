@@ -311,8 +311,21 @@ body {
 }
 
 .context-field select {
+  background-color: transparent;
   color: var(--app-heading);
   @apply bg-transparent text-sm outline-none;
+}
+
+.context-field select option,
+.toolbar-input option {
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+[data-theme='light'] .context-field select option,
+[data-theme='light'] .toolbar-input option {
+  background: #f8fafc;
+  color: #0f172a;
 }
 
 .status-pill {
@@ -393,6 +406,18 @@ body {
   background: var(--app-subtle-bg);
   color: var(--app-heading);
   @apply rounded-2xl border px-4 py-3 text-sm outline-none;
+}
+
+.context-field select,
+.toolbar-input,
+.toolbar-input select {
+  color-scheme: dark;
+}
+
+[data-theme='light'] .context-field select,
+[data-theme='light'] .toolbar-input,
+[data-theme='light'] .toolbar-input select {
+  color-scheme: light;
 }
 
 .toolbar-input::placeholder {
