@@ -312,9 +312,17 @@ const loadNearestKitchens = async () => {
 
 const loadRouteDetail = async (deliveryId: string) => {
   toolLoading.value = true
+  toolError.value = ''
   try {
     selectedRoute.value = await getDeliveryRouteById(deliveryId)
     selectedRouteSource.value = selectedRoute.value ? 'backend' : null
+    if (!selectedRoute.value) {
+      toolError.value = 'Route detail tidak ditemukan untuk ID tersebut.'
+    }
+  } catch (error) {
+    toolError.value = error instanceof Error ? error.message : 'Gagal memuat detail route.'
+    selectedRoute.value = null
+    selectedRouteSource.value = null
   } finally {
     toolLoading.value = false
   }
@@ -333,10 +341,13 @@ const buildRouteCandidateFromSelection = (
 ): DeliveryRouteRecord | null => {
   const kitchen = kitchenOptions.value.find((item) => item.id === kitchenId)
   const school = schoolOptions.value.find((item) => item.id === schoolId)
-  if (!kitchen || !school) return null
+  if (!kitchen) return null
 
   const nearest = nearestRows.value.find((item) => item.kitchen_id === kitchenId)
   const distanceKm = Number((Number(nearest?.distance_m || 0) / 1000).toFixed(2))
+  const toCoordinate = school
+    ? { latitude: school.latitude, longitude: school.longitude }
+    : { latitude: 0, longitude: 0 }
 
   return {
     id: `candidate-${kitchenId}-${schoolId}`,
@@ -349,16 +360,16 @@ const buildRouteCandidateFromSelection = (
       latitude: kitchen.latitude,
       longitude: kitchen.longitude,
     },
-    to_coordinate: {
-      latitude: school.latitude,
-      longitude: school.longitude,
-    },
+    to_coordinate: toCoordinate,
     line: {
       type: 'LineString',
-      coordinates: [
-        [kitchen.longitude, kitchen.latitude],
-        [school.longitude, school.latitude],
-      ],
+      coordinates:
+        school?.longitude !== undefined && school?.latitude !== undefined
+          ? [
+              [kitchen.longitude, kitchen.latitude],
+              [school.longitude, school.latitude],
+            ]
+          : [[kitchen.longitude, kitchen.latitude]],
     },
   }
 }
@@ -371,7 +382,7 @@ const useNearestKitchen = async (kitchenId: string) => {
   )
 
   if (!routeCandidate) {
-    selectedRoute.value = buildRouteCandidateFromSelection(kitchenId, validationForm.school_id)
+    selectedRoute.value = buildRouteCandidateFromSelection(kitchenId, validationForm.school_id) ?? null
     selectedRouteSource.value = selectedRoute.value ? 'fallback' : null
     return
   }

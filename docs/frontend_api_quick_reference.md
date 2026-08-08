@@ -138,6 +138,7 @@ Detail payload, response, QR lineage, alert, recall, package loading, dan Google
 | `GET` | `/health/database` | No | - | Check database |
 | `POST` | `/api/v1/traceability/entities` | Yes | Ops/QA | Buat identity QR opaque |
 | `GET` | `/api/v1/traceability/{trace_code}` | No | - | Resolve hasil scan QR |
+| `GET` | `/api/v1/traceability/entities/{trace_code}/label` | Yes | Ops/QA | Ambil payload label/QR siap cetak |
 | `POST` | `/api/v1/traceability/{trace_code}/events` | Yes | Ops/QA | Catat event trace |
 | `POST` | `/api/v1/traceability/relations` | Yes | Ops/QA | Hubungkan parent-child lineage |
 | `GET` | `/api/v1/traceability/{trace_code}/backward` | No | - | Telusuri sumber bahan |
@@ -153,10 +154,12 @@ Detail payload, response, QR lineage, alert, recall, package loading, dan Google
 | `POST` | `/api/v1/food-safety/recalls` | Yes | Ops/QA | Recall melalui forward trace |
 | `POST` | `/api/v1/temperature/readings` | Yes | Ops/QA | Catat suhu manual/IoT |
 | `GET` | `/api/v1/temperature/entities/{entity_id}/history` | No | - | Riwayat suhu objek |
-| `GET` | `/api/v1/deliveries/packages` | No | - | Timeline produk kemasan sejak selesai dimasak sampai delivery/receiving |
-| `POST` | `/api/v1/deliveries/{route_id}/packages/load` | Yes | Ops/QA | Scan package ke armada/stop |
-| `POST` | `/api/v1/deliveries/{route_id}/route-snapshot` | Yes | Ops/QA | Simpan distance/duration/ETA |
-| `POST` | `/api/v1/deliveries/{route_id}/packages/{package_id}/receive` | Yes | Ops/QA | Catat receiving dan suhu |
+| `GET` | `/api/v1/food-safety/deliveries/packages` | No | - | Timeline produk kemasan sejak selesai dimasak sampai delivery/receiving |
+| `POST` | `/api/v1/food-safety/deliveries/{route_id}/packages/load` | Yes | Ops/QA | Scan package ke armada/stop |
+| `POST` | `/api/v1/food-safety/deliveries/{route_id}/route-snapshot` | Yes | Ops/QA | Simpan distance/duration/ETA |
+| `POST` | `/api/v1/food-safety/deliveries/{route_id}/vehicle-temperature` | Yes | Ops/QA | Simpan snapshot suhu armada untuk trip |
+| `POST` | `/api/v1/food-safety/deliveries/{route_id}/packages/{package_id}/receive` | Yes | Ops/QA | Catat receiving dan suhu |
+| `POST` | `/api/v1/food-safety/vehicles/{vehicle_id}/temperature` | Yes | Ops/QA | Catat suhu armada (format baku) |
 | `POST` | `/api/v1/identity/login` | No | - | Login JWT |
 | `GET` | `/api/v1/identity/me` | Yes | Any | Profil user aktif |
 | `POST` | `/api/v1/identity/switch-active-sppg` | Yes | Any | Pindah context SPPG aktif |
@@ -395,6 +398,8 @@ Detail payload, response, QR lineage, alert, recall, package loading, dan Google
 | `GET` | `/api/v1/delivery-orders/` | No | - | List delivery order |
 | `GET` | `/api/v1/delivery-orders/routes` | No | - | List route planning delivery |
 | `GET` | `/api/v1/delivery-orders/routes/{route_id}` | No | - | Detail route, stop, dan incident delivery |
+| `PATCH` | `/api/v1/delivery-orders/routes/{route_id}/vehicle` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `delivery_officer` | Assign/update armada untuk route |
+| `POST` | `/api/v1/delivery-orders/routes/{route_id}/vehicle-location` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `delivery_officer` | Update posisi sementara armada pada route |
 | `POST` | `/api/v1/delivery-orders/routes` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `delivery_officer` | Buat route planning delivery |
 | `POST` | `/api/v1/delivery-orders/from-production-order/{production_order_id}` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `delivery_officer` | Buat delivery order |
 | `POST` | `/api/v1/delivery-orders/{delivery_order_id}/incidents` | Yes | `super_admin`, `tenant_admin`, `operations_manager`, `delivery_officer` | Catat incident distribution |
@@ -490,6 +495,343 @@ Detail payload, response, QR lineage, alert, recall, package loading, dan Google
 | `INVALID_LABOR_COST_VALUE` | Nilai labor cost tidak valid |
 | `SUPPLIER_INVOICE_ALREADY_EXISTS_FOR_RECEIPT` | Disable tombol create invoice jika GR sudah punya invoice |
 | `SUPPLIER_PAYMENT_ALREADY_EXISTS_FOR_INVOICE` | Disable tombol bayar jika invoice sudah punya payment |
+
+## Backend Readiness Check (14 Poin)
+
+### Status Eksekusi Operasional (Ops-First)
+
+| No | Poin | Status | Pemilik |
+| --- | --- | --- | --- |
+| 1 | Raw Material purchase -> Inventory | OK (BE) | FE + FE: bind `trace_code` saat print label |
+| 2 | Update suhu penyimpanan Raw Material | OK (BE) + FE | FE + BE: validasi UI untuk profile/entity |
+| 3 | Meal plan CRUD + reserve | OK | FE |
+| 4 | Issue material + stock out + QR trace | OK (BE) + FE | FE |
+| 5 | Pencatatan biaya pembelian | OK | FE |
+| 6 | Produksi + relabel produk jadi | OK (BE) + FE | FE |
+| 7 | Cooking temp + hold timer | OK (BE) + FE | FE |
+| 8 | Pengiriman + armada + destinasi | OK | FE |
+| 9 | Pencatatan suhu armada | OK (BE) + FE | FE |
+| 10 | Jarak/waktu + warning SLA | OK (BE) + FE | FE |
+| 11 | Update lokasi armada | OK | FE |
+| 12 | Penerimaan paket makanan | OK | FE |
+| 13 | Pembuatan klaim pemerintah | OK | FE |
+| 14 | Biaya-biaya + laporan | OK (core) + FE | FE |
+
+1. Raw Material purchase -> Inventory (`PR/PO/GR`) : **OK sebagian**  
+   GR terhubung ke stock movement dan otomatis membuat trace code lot (bisa di-override via `trace_code` pada batch detail); label pakai `GET /api/v1/traceability/entities/{trace_code}/label` (print label tetap di frontend).
+
+2. Update suhu penyimpanan : **OK sebagian**  
+   Ada safety profile, readings, alerts, holds.
+
+3. Meal plan CRUD : **OK**  
+   CRUD + reserve-materials sudah ada.
+
+4. Issue raw material ke produksi + pengurangan stock : **OK**
+   `ISSUE_TO_PRODUCTION` jalan, stok berkurang; kode QR bisa dipasang saat completion production via `issue_trace_codes`.
+
+5. Biaya pembelian : **OK**  
+   Jurnal debit/kredit otomatis dari GR, invoice, payment.
+
+6. Produksi + trace produk jadi : **OK**
+   Traceability tersedia, endpoint label sudah ada (`/api/v1/traceability/entities/{trace_code}/label`), print-label tetap di frontend.
+
+7. Cooking temperature + hold timer : **OK**
+   safety check tersedia dengan `predicted_recipient_at`.
+
+8. Pengiriman + armada + destinasi : **OK**  
+   Route, stop, proof siap dipakai.
+
+9. Suhu armada : **OK**
+Endpoint standar (`/api/v1/food-safety/vehicles/{vehicle_id}/temperature`) dan endpoint per-trip (`/api/v1/food-safety/deliveries/{route_id}/vehicle-temperature`) sudah tersedia, sinkronisasi payload dan warning_reason sudah distandarisasi.
+
+10. Distance/time + SLA warning : **OK**
+Sudah ada distance/duration/ETA dari frontend dan auto-rule warning (late + durasi) dari `route-snapshot` sudah aktif.
+
+11. Update lokasi armada : **OK**  
+   Endpoint lokasi kendaraan sudah ada.
+
+12. Penerimaan paket/meal : **OK**  
+   Proof dan receive sudah ada.
+
+13. Government claims : **OK**  
+   End-to-end klaim pemerintah ada.
+
+14. Laporan biaya/operasional/keuangan/inventory : **OK**  
+    Reporting + costing + traceability sudah ada, beberapa metrik distribusi biaya masih bisa diperdalam.
+
+## Mapping Frontend-Backend untuk 14 Poin Operasional
+
+1. Raw Material purchase -> Inventory
+   - Endpoint: `POST /api/v1/procurement/purchase-requests/purchase-orders/from-purchase-request/{purchase_request_id}`
+   - Input kunci: `tenant_id`, `sppg_id`, `supplier_id`, `request_lines`
+   - Output: `goods_receipt_id`, `inventory_movement_type`
+   - Output tambahan: untuk barcode/QR gunakan trace label endpoint pada entitas material (`GET /api/v1/traceability/entities/{trace_code}/label`).
+
+2. Update suhu penyimpanan Raw Material
+   - Endpoint: `POST /api/v1/food-safety/checks`, `POST /api/v1/temperature/readings`, `POST /api/v1/food-safety/alerts/{alert_id}/acknowledge`
+   - Input kunci: `temperature_c`, `profile_id`, `measured_at`, `entity_id`, `entity_type`
+   - Output: `result`, `status`, `requires_follow_up`, `alert_id`.
+
+3. Meal Plan
+   - Endpoint: `POST /api/v1/meal-plans/`, `POST /api/v1/meal-plans/{meal_plan_id}/reserve-materials`
+   - Input kunci: `tenant_id`, `sppg_id`, `plan_date`, `details`
+   - Output: `meal_plan_id`, `planned_portions`, `reserved_amount`.
+
+4. Issue raw material + stock + QR trace
+   - Endpoint: `POST /api/v1/production-orders/{production_order_id}/complete`
+   - Input kunci saat ini: `actual_portions`, `accepted_portions`, `rejected_portions`, `issue_trace_codes` (opsional)
+   - Output: tiap item di `materials[]` sekarang punya `trace_code` untuk print QR.
+
+5. Pencatatan biaya pembelian
+   - Endpoint: `POST /api/v1/procurement/purchase-requests/supplier-invoices/from-goods-receipt/{goods_receipt_id}`, `POST /api/v1/procurement/purchase-requests/supplier-payments/from-supplier-invoice/{supplier_invoice_id}`
+   - Input kunci: `budget_account_id`, `invoice_date`, `payment_date`, `bank_account_id`
+   - Output: id invoice/payment dan jurnal posting (`journal_entry_id`).
+
+6. Produksi + relabel produk jadi
+   - Endpoint: `POST /api/v1/production-orders/{production_order_id}/complete`, `GET /api/v1/traceability/entities/{trace_code}/label`
+   - Input kunci: `actual_portions`, `accepted_portions`, `rejected_portions`, `issue_trace_codes` (opsional), `output_trace_code` (opsional)
+   - Output: `output_trace_code` untuk print QR produk jadi; tiap item `materials[].trace_code` untuk audit bahan baku.
+
+7. Cooking temperature + hold timer
+   - Endpoint: `POST /api/v1/food-safety/checks`
+   - Input kunci: `temperature_c`, `max_time_to_recipient_minutes`, `cooking_completed_at`
+   - Output: `result`, `status`, `predicted_recipient_at`.
+
+8. Pengiriman + armada + destinasi
+   - Endpoint: `POST /api/v1/delivery-orders/routes`, `POST /api/v1/delivery-orders/from-production-order/{production_order_id}`, `POST /api/v1/delivery-orders/{delivery_order_id}/proof`
+   - Input kunci: `route_name`, `stops[]`, `planned_departure`, `planned_arrival`, `delivery_order_id`
+   - Output: `route_id`, `delivery_order_id`, status delivery.
+
+9. Suhu armada
+   - Endpoint: `POST /api/v1/food-safety/vehicles/{vehicle_id}/temperature`, `POST /api/v1/food-safety/deliveries/{route_id}/vehicle-temperature`, `POST /api/v1/food-safety/deliveries/{route_id}/route-snapshot`
+   - Input kunci: `temperature_c` (vehicle temp), `measured_at`, `profile_id`, `vehicle_id`
+   - Output: `is_warning`, `warning_reason`.
+
+10. Jarak/waktu + warning SLA
+   - Endpoint: `POST /api/v1/food-safety/deliveries/{route_id}/route-snapshot`
+- Input kunci: `distance_meters`, `duration_seconds`, `estimated_arrival_at`, `warning_buffer_minutes`, `distribution_cost_total` (opsional)
+- Output: `is_warning`, `warning_level`, `time_to_deadline_minutes`, `distribution_cost_total`.
+- Output tambahan: `warning_reason`, `duration_variance_minutes`, `expected_duration_minutes`.
+
+11. Update lokasi armada
+   - Endpoint: `POST /api/v1/fleet/vehicles/{vehicle_id}/locations`
+   - Input kunci: `latitude`, `longitude`, `recorded_at`
+   - Output: histori lokasi dan latest status posisi.
+
+12. Penerimaan paket makanan
+   - Endpoint: `POST /api/v1/delivery-orders/{delivery_order_id}/proof`, `POST /api/v1/food-safety/deliveries/{route_id}/packages/{package_id}/receive`
+   - Input kunci: untuk proof paket (`delivery-orders`): `received_at`, `receiver_name`, `received_portions`, `temperature_c`, `route_stop_id` (opsional);
+     untuk food-safety package receive: `received_at`, `temperature_c`, `latitude`, `longitude` (opsional).
+   - Output: status delivery/order berubah menjadi received.
+
+13. Pemeriksaan klaim pemerintah
+   - Endpoint: `POST /api/v1/government-claims`, `POST /api/v1/government-claims/{claim_id}/submit`, `POST /api/v1/government-claims/{claim_id}/verify`
+   - Input kunci: `period_start`, `period_end`, `delivery_order_ids`, `claim_type`
+   - Output: `claim_id`, `status`, jumlah klaim.
+
+14. Biaya-biaya & laporan
+   - Endpoint: `GET /api/v1/reporting/dashboard/finance`, `GET /api/v1/reporting/finance/cash-flow`, `GET /api/v1/reporting/stock-summary`
+   - Input kunci: `period_start`, `period_end`, `X-SPPG-ID` sesuai layar
+   - Output: ringkasan dashboard, cash flow, dan kartu laba rugi/balans.
+
+## Backlog PR Cepat (4 Poin Prioritas)
+
+### PR-01: Binding QR di Issue Material
+- Scope: production, inventory, traceability
+- Target:
+  - `POST /api/v1/procurement/purchase-requests/goods-receipts/from-purchase-order/{purchase_order_id}`
+  - `POST /api/v1/procurement/purchase-requests/goods-receipts/from-purchase-request/{purchase_request_id}`
+- Acceptance:
+  - Menyimpan/mereferensikan `trace_code` saat goods receipt RM masuk.
+  - Metadata trace siap dibaca lewat `GET /api/v1/traceability/entities/{trace_code}/label`.
+
+### PR-02: Delivery SLA Warning Engine
+- Scope: food safety, delivery
+- Target: `POST /api/v1/food-safety/deliveries/{route_id}/route-snapshot`
+- Acceptance:
+  - `warning_buffer_minutes` memicu `warning_level`/`warning_message`.
+  - Nilai `time_to_deadline_minutes` tersedia di response.
+
+### PR-03: Standarisasi Input Suhu Armada
+- Scope: food safety, delivery
+- Target: `POST /api/v1/food-safety/vehicles/{vehicle_id}/temperature`, `POST /api/v1/food-safety/deliveries/{route_id}/vehicle-temperature`
+- Acceptance:
+- Konsistensi payload frontend (`vehicle_id`, `profile_id`, `temperature_c`, `measured_at`, `measurement_method`).
+- Response tetap memberi `alert` bila threshold dilampaui.
+
+### PR-04: Biaya Distribusi ke Costing
+- Scope: delivery, costing, accounting
+- Target: delivery flow + production-costing pipeline
+- Acceptance:
+  - Cost distribusi trip masuk perhitungan biaya production/finance.
+  - Laporan finance menampilkan biaya distribusi sebagai komponen yang valid.
+
+## Rencana Penutupan 14 Poin (Ops-First) - Quick Action
+
+## Acceptance Test Ops-First (Ringkas)
+
+1. Raw Material purchase -> Inventory  
+   - Buat PR+PO, jalankan GR, cek status GR success dan stok RM bertambah pada warehouse yang tepat.
+   - Scan satu lot dari `trace_code` lalu generate label dari `GET /api/v1/traceability/entities/{trace_code}/label`.
+
+2. Update suhu penyimpanan RM  
+   - Kirim temperatur lewat `POST /api/v1/food-safety/checks` dan/atau `POST /api/v1/temperature/readings`.
+   - Jika out-of-range, wajib ada `alert`/`requires_follow_up` dan status warning sesuai profil.
+
+3. Meal plan CRUD  
+   - Buat, detail, update, list meal plan; jalan `reserve-materials` dan memastikan reserved quantity berubah.
+
+4. Issue material + stock + QR trace  
+   - Jalankan `POST /api/v1/production-orders/{production_order_id}/complete` dengan `issue_trace_codes`.
+   - Verifikasi saldo stock berkurang dan ada `trace_code` per material line untuk print.
+
+5. Pencatatan biaya pembelian  
+   - Buat supplier invoice dari GR, lalu payment.  
+   - Verifikasi jurnal entry otomatis dan status invoice berubah sesuai flow.
+
+6. Produksi + relabel produk jadi  
+   - Jalankan completion production dengan `output_trace_code` (opsional).  
+   - Verifikasi output lot tersedia di traceability dan label endpoint mengembalikan QR.
+
+7. Cooking temp + hold timer  
+   - Kirim safety check saat end cook (`temperature_c`, `cooking_completed_at`).  
+   - Pastikan `predicted_recipient_at` terhitung dan warning muncul jika hold dilanggar.
+
+8. Pengiriman + armada + destinasi  
+   - Buat route + delivery order dari production order.  
+   - Buat proof delivery dan cek status delivery berubah sesuai expected.
+
+9. Suhu armada  
+   - Rekam suhu kendaraan (`vehicle_id` + `route_id`) melalui endpoint food safety.  
+   - Pastikan `is_warning` dan `warning_reason` konsisten bila melewati ambang.
+
+10. Jarak/waktu + warning SLA  
+   - POST `route-snapshot` dengan `distance_meters`, `duration_seconds`, `estimated_arrival_at`.
+   - Verifikasi `warning_level` dan `time_to_recipient_minutes` masuk ekspektasi.
+
+11. Update lokasi armada  
+   - Kirim beberapa titik lokasi.  
+   - Ambil route detail/vehicle status, terakhir posisi harus sesuai titik terbaru.
+
+12. Penerimaan paket makanan  
+   - Jalankan proof + food-safety receive package.
+   - Verifikasi status paket menjadi received dan suhu tercatat.
+
+13. Pemeriksaan klaim pemerintah  
+   - Buat claim -> submit -> verify.
+   - Status dan jumlah klaim tampil di dashboard claim summary.
+
+14. Biaya-biaya & laporan  
+   - Generate finance dashboard/cash flow/stock summary untuk periode.  
+   - Pastikan transaksi procurement, production, delivery, payment terlihat konsisten antar modul.
+
+## Critical Flow Playbook (3 skenario)
+
+### A. Goods Receipt + Trace + Inventory
+1. `POST /api/v1/procurement/purchase-requests/purchase-orders/from-purchase-request/{purchase_request_id}`
+2. Simpan/ambil `goods_receipt_id` dari response.
+3. `GET /api/v1/traceability/entities/{trace_code}/label` untuk print label lot yang dipakai.
+4. Verifikasi stock movement `inventory_movement_type = GOODS_RECEIPT`.
+
+### B. Production Complete + Trace Output
+1. `POST /api/v1/production-orders/{production_order_id}/complete`
+2. Kirim `issue_trace_codes` untuk bahan baku + `output_trace_code` opsional.
+3. Ambil hasil trace code material dan output untuk cetak label.
+4. Sinkronkan UI: status production selesai + jumlah diterima/ditolak.
+
+### C. Delivery End-to-End
+1. `POST /api/v1/delivery-orders/routes`
+2. `POST /api/v1/delivery-orders/from-production-order/{production_order_id}`
+3. `POST /api/v1/food-safety/deliveries/{route_id}/route-snapshot` (distance/time/SLA)
+4. `POST /api/v1/delivery-orders/{delivery_order_id}/proof` lalu `POST /api/v1/food-safety/deliveries/{route_id}/packages/{package_id}/receive`
+5. Verifikasi status order/package menjadi `received` dan catatan suhu tersimpan.
+
+## Risiko & Dependency per Poin
+
+1. Raw Material purchase -> Inventory  
+   - Dependency: supplier, warehouse aktif, safety profile opsional.  
+   - Risiko: GR gagal karena mismatch item/unit conversion atau purchase order belum `APPROVED`.
+
+2. Update suhu penyimpanan RM  
+   - Dependency: `profile_id` aktif + `entity_type` valid (RAW_MATERIAL/WAREHOUSE).  
+   - Risiko: warning tidak muncul jika alert threshold belum diaktifkan.
+
+3. Meal plan CRUD  
+   - Dependency: recipe/menu master, bahan, SPPG/tenant valid.  
+   - Risiko: reserved-material gagal jika production stock belum siap atau satuan tidak sinkron.
+
+4. Issue material + stock + QR trace  
+   - Dependency: production order status `IN_PROGRESS` dan material availability cukup.  
+   - Risiko: `issue_trace_codes` tidak wajib; jika perlu strict trace, FE harus kirim validasi input.
+
+5. Pencatatan biaya pembelian  
+   - Dependency: akun budget dan COA yang sesuai tenant.  
+   - Risiko: jurnal belum muncul jika budget/finance config belum terpasang.
+
+6. Produksi + relabel produk jadi  
+   - Dependency: bahan sudah di-issue dan output template produk jadi ada.  
+   - Risiko: relabel gagal kalau QR tidak sesuai format atau output lot belum dibuat.
+
+7. Cooking temp + hold timer  
+   - Dependency: safety profile cooking dan recipe duration setting.  
+   - Risiko: hold warning tidak konsisten bila perangkat waktu client berbeda zona waktu.
+
+8. Pengiriman + armada + destinasi  
+   - Dependency: route planner, titik stop, dan kendaraan tersedia.  
+   - Risiko: proof gagal jika status delivery tidak sesuai transisi.
+
+9. Suhu armada  
+   - Dependency: profile suhu armada + vehicle id valid.  
+   - Risiko: format suhu campur dengan `temperature_celsius` legacy dari FE lama.
+
+10. Jarak/waktu + warning SLA  
+   - Dependency: frontend menghitung jarak/waktu valid + `warning_buffer_minutes` tersedia.  
+   - Risiko: alarm salah bila estimation arrival timezone tidak konsisten.
+
+11. Update lokasi armada  
+   - Dependency: akses lokasi + vehicle active.  
+   - Risiko: lokasi diblokir jika permission route/vehicle tidak memadai.
+
+12. Penerimaan paket makanan  
+   - Dependency: route stop & package record sudah ada.  
+   - Risiko: status paket stuck di IN_TRANSIT jika dual endpoint (proof + receive) dipakai tidak sinkron.
+
+13. Pemeriksaan klaim pemerintah  
+   - Dependency: paket delivery + periode waktu valid + dokumen pendukung.  
+   - Risiko: validasi status claim bisa block kalau data delivery belum lengkap.
+
+14. Biaya-biaya & laporan  
+   - Dependency: periode laporan, COA mapping, distribusi cost trip diposting.  
+   - Risiko: mismatch angka bila posting transaksi di-reverse tanpa jurnal pembalik yang konsisten.
+
+## Rencana Penutupan 14 Poin (Ops-First)
+
+1. Pengikatan QR di issue material
+- Sasaran: tambah relasi `trace_code` pada `ISSUE_TO_PRODUCTION` transaction.
+- Impact: audit trail bahan mentah ke batch matang jadi penuh.
+
+2. Engine warning SLA route
+- Sasaran: evaluasi `distance` + `warning_buffer_minutes` -> auto flag warning pada snapshot.
+- Impact: notifikasi dan escalation lebih otomatis.
+
+3. Standarisasi log suhu armada
+- Sasaran: `vehicle-temperature` dipakai jadi format baku untuk semua sensor/alat.
+- Impact: data suhu armada konsisten antar frontend & dashboard.
+
+4. Biaya distribusi trip
+- Sasaran: alirkan biaya operasional dari delivery route ke costing/journal.
+- Impact: laporan distribusi di financials lebih valid.
+
+## Dashboard Operasional 1 Halaman
+
+- 06:00 cek: PR/PO/GR hari ini, status vendor, dan apakah ada hold suhu.
+- 09:00 cek: meal plan yang di-approve, stock raw material, dan reservasi bahan.
+- 11:00 cek: completion production, trace code output, dan warning hold masak.
+- 13:00 cek: route yang sudah dibuka + status armada + titik lokasi terakhir.
+- 15:00 cek: proof delivery vs receive package (pastikan status sinkron).
+- 16:00 cek: claim pemerintah yang siap submit/verify.
+- Harian: finance summary, cash flow, dan stock variance.
+- Red flag otomatis: warning suhu, delivery late, mismatch stok, claim draft >3 hari.
 
 ## Operational Notes
 
@@ -762,7 +1104,9 @@ Catatan `GET /api/v1/costing/production-costs/{production_order_id}`:
 {
   "actual_portions": 100,
   "accepted_portions": 98,
-  "rejected_portions": 2
+  "rejected_portions": 2,
+  "issue_trace_codes": ["RM-TRK-0001", "RM-TRK-0002"],
+  "output_trace_code": "PRD-20260725-001"
 }
 ```
 
@@ -776,7 +1120,7 @@ Catatan `GET /api/v1/costing/production-costs/{production_order_id}`:
   "route_stop_id": "uuid",
   "received_portions": 98,
   "rejected_portions": 2,
-  "temperature_celsius": 62.5,
+  "temperature_c": 62.5,
   "condition_status": "GOOD",
   "condition_notes": "Diterima dengan sedikit reject",
   "photo_urls": ["https://example.com/proofs/arrival-1.jpg"],
@@ -819,7 +1163,7 @@ Catatan `GET /api/v1/costing/production-costs/{production_order_id}`:
   "description": "Perlu pengecekan box termal",
   "route_stop_id": "uuid",
   "incident_gps": "-6.1702,106.8283",
-  "temperature_celsius": 58.4,
+  "temperature_c": 58.4,
   "media_urls": ["https://example.com/incidents/temp-drop.jpg"],
   "status": "OPEN"
 }
@@ -940,3 +1284,5 @@ Catatan `GET /api/v1/costing/production-costs/{production_order_id}`:
   "notes": "Invoice supplier posted"
 }
 ```
+
+

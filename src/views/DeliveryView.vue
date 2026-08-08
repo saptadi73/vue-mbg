@@ -165,6 +165,7 @@ const submitRoutePlan = async () => {
 const submitProof = async () => {
   saving.value = true
   try {
+    const temperatureValue = Number(proofForm.temperature_celsius)
     await recordDeliveryProof(selectedDeliveryId.value, {
       received_at: `${proofForm.received_at}:00Z`,
       receiver_name: proofForm.receiver_name,
@@ -172,7 +173,8 @@ const submitProof = async () => {
       route_stop_id: proofForm.route_stop_id,
       received_portions: Number(proofForm.received_portions),
       rejected_portions: Number(proofForm.rejected_portions),
-      temperature_celsius: Number(proofForm.temperature_celsius),
+      temperature_celsius: temperatureValue,
+      temperature_c: temperatureValue,
       condition_status: proofForm.condition_status,
       condition_notes: proofForm.condition_notes,
       photo_urls: proofForm.photo_urls ? [proofForm.photo_urls] : [],
@@ -194,6 +196,7 @@ const submitProof = async () => {
 const submitIncident = async () => {
   saving.value = true
   try {
+    const temperatureValue = Number(incidentForm.temperature_celsius)
     await recordDeliveryIncident(selectedDeliveryId.value, {
       incident_time: `${incidentForm.incident_time}:00Z`,
       category: incidentForm.category,
@@ -202,7 +205,8 @@ const submitIncident = async () => {
       description: incidentForm.description,
       route_stop_id: incidentForm.route_stop_id,
       incident_gps: incidentForm.incident_gps,
-      temperature_celsius: Number(incidentForm.temperature_celsius),
+      temperature_celsius: temperatureValue,
+      temperature_c: temperatureValue,
       media_urls: incidentForm.media_urls ? [incidentForm.media_urls] : [],
       status: incidentForm.status,
     })

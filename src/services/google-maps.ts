@@ -77,7 +77,7 @@ export const computeGoogleRoute = async (
 
 export const saveRouteSnapshot = async (snapshot: RouteSnapshotInput) => {
   const { route_id, ...body } = snapshot
-  const payload = await apiRequest<unknown>(`/api/v1/deliveries/${route_id}/route-snapshot`, {
+  const payload = await apiRequest<unknown>(`/api/v1/food-safety/deliveries/${route_id}/route-snapshot`, {
     method: 'POST',
     body: JSON.stringify(body),
     clearSessionOn401: false,

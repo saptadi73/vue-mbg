@@ -6,6 +6,8 @@ import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { useAsyncState } from '@/composables/useAsyncState'
 import { createSupplierInvoiceFromGoodsReceipt, getGoodsReceiptById } from '@/services/erp-ops'
+import { getTraceLabel } from '@/services/food-safety'
+import { isQzReady, printQrLabel } from '@/services/thermal-printer'
 import { formatCurrency, formatDate, formatNumber } from '@/utils/format'
 
 const route = useRoute()
@@ -16,6 +18,58 @@ const detail = computed(() => data.value ?? null)
 const header = computed(() => detail.value?.goods_receipt ?? null)
 const actionLoading = ref(false)
 const actionError = ref('')
+const printLoading = ref(false)
+const printMessage = ref('')
+const printError = ref('')
+
+const browserPrintQr = (qrValue: string, text: string) => {
+  const w = window.open('', '_blank')
+  if (!w) throw new Error('Popup print diblokir. Aktifkan popup browser untuk fallback print.')
+  const encoded = encodeURIComponent(qrValue)
+  w.document.write(`
+    <html>
+      <body style="font-family:Arial,sans-serif;padding:20px;text-align:center;">
+        <h3>QR Label Goods Receipt</h3>
+        <img src="https://chart.googleapis.com/chart?chs=220x220&cht=qr&chl=${encoded}&choe=UTF-8" alt="QR Label" />
+        <p style="margin-top:12px;">${text}</p>
+      </body>
+    </html>
+  `)
+  w.document.close()
+  w.print()
+}
+
+const printGoodsReceiptLabel = async () => {
+  if (!header.value) return
+  printLoading.value = true
+  printError.value = ''
+  printMessage.value = ''
+
+  const baseText = header.value.receipt_number
+  try {
+    let labelText = baseText
+    try {
+      const traceLabel = await getTraceLabel(baseText)
+      if (traceLabel?.label?.content) {
+        labelText = `${baseText} - ${traceLabel.label.content}`
+      }
+    } catch {
+      // Trace label endpoint belum siap untuk semua kasus; fallback ke number receipt.
+    }
+
+    if (await isQzReady()) {
+      await printQrLabel({ value: labelText })
+      printMessage.value = 'Label berhasil dikirim ke printer thermal.'
+    } else {
+      browserPrintQr(labelText, baseText)
+      printMessage.value = 'Fallback browser print dipanggil.'
+    }
+  } catch (err) {
+    printError.value = err instanceof Error ? err.message : 'Gagal mencetak label QR.'
+  } finally {
+    printLoading.value = false
+  }
+}
 
 const handleCreateInvoice = async () => {
   actionLoading.value = true
@@ -78,6 +132,16 @@ const handleCreateInvoice = async () => {
           <article class="glass-panel p-5">
             <p class="eyebrow-text">Notes</p>
             <p class="mt-4 text-sm text-app-body">{{ header.notes }}</p>
+            <button
+              class="primary-button mt-4 w-full"
+              :disabled="printLoading"
+              type="button"
+              @click="printGoodsReceiptLabel"
+            >
+              {{ printLoading ? 'Mencetak...' : 'Cetak QR saat penerimaan' }}
+            </button>
+            <p v-if="printMessage" class="mt-2 text-sm text-emerald-700">{{ printMessage }}</p>
+            <p v-if="printError" class="mt-2 text-sm text-rose-700">{{ printError }}</p>
             <RouterLink class="secondary-button mt-5 w-full" to="/procurement">Kembali ke Procurement</RouterLink>
           </article>
         </div>

@@ -1897,6 +1897,7 @@ export interface DeliveryProofRecord {
   received_portions: number
   rejected_portions: number
   temperature_celsius?: number | null
+  temperature_c?: number | null
   condition_status: string
   condition_notes?: string | null
   photo_urls?: string[]
@@ -1918,6 +1919,7 @@ export interface DeliveryIncidentRecord {
   description?: string | null
   incident_gps?: string | null
   temperature_celsius?: number | null
+  temperature_c?: number | null
   media_urls?: string[]
   status: string
 }

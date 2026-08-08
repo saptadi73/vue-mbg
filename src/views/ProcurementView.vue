@@ -3,11 +3,16 @@ import { computed, reactive, ref } from 'vue'
 import DataTableCard from '@/components/common/DataTableCard.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import ReusableCrudTable, { type CrudColumn } from '@/components/common/ReusableCrudTable.vue'
+import ReusableUpdateModal from '@/components/common/ReusableUpdateModal.vue'
 import { useAsyncState } from '@/composables/useAsyncState'
 import {
   createSupplier,
+  deleteSupplier,
   createSupplierPriceHistory,
   createSupplierProduct,
+  deleteSupplierPriceHistory,
+  deleteSupplierProduct,
   getGoodsReceipts,
   getPurchaseOrders,
   getPurchaseRequests,
@@ -16,6 +21,9 @@ import {
   getSupplierPriceHistories,
   getSupplierProducts,
   getSuppliers,
+  updateSupplier,
+  updateSupplierPriceHistory,
+  updateSupplierProduct,
 } from '@/services/erp-ops'
 import type {
   GoodsReceiptRecord,
@@ -29,6 +37,20 @@ import type {
 } from '@/types/domain'
 import { formatCurrency, formatDate } from '@/utils/format'
 
+type ModalFieldType = 'text' | 'number' | 'date' | 'checkbox'
+type ModalFieldDefinition = {
+  key: string
+  label: string
+  type?: ModalFieldType
+  required?: boolean
+  placeholder?: string
+  options?: Array<{ value: string; label: string }>
+  min?: number
+  max?: number
+  step?: number | string
+  rows?: number
+}
+
 const suppliersState = useAsyncState(getSuppliers)
 const supplierProductsState = useAsyncState(getSupplierProducts)
 const supplierPriceHistoriesState = useAsyncState(getSupplierPriceHistories)
@@ -41,6 +63,12 @@ const paymentState = useAsyncState(getSupplierPayments)
 const saving = ref(false)
 const supplierProductSaving = ref(false)
 const supplierPriceSaving = ref(false)
+const supplierUpdateLoading = ref(false)
+const supplierProductUpdateLoading = ref(false)
+const supplierPriceUpdateLoading = ref(false)
+const supplierLoadingDelete = ref('')
+const supplierProductLoadingDelete = ref('')
+const supplierPriceLoadingDelete = ref('')
 const supplierForm = reactive({
   name: 'Supplier Bahan Segar Baru',
   supplier_type: 'VENDOR',
@@ -66,6 +94,210 @@ const supplierPriceForm = reactive({
   effective_from: '2026-07-20',
   effective_to: '',
 })
+const isSupplierEditOpen = ref(false)
+const isSupplierProductEditOpen = ref(false)
+const isSupplierPriceEditOpen = ref(false)
+const editingSupplier = ref<SupplierRecord | null>(null)
+const editingSupplierProduct = ref<SupplierProductRecord | null>(null)
+const editingSupplierPrice = ref<SupplierPriceHistoryRecord | null>(null)
+
+const supplierEditFields: ModalFieldDefinition[] = [
+  { key: 'name', label: 'Nama supplier', required: true, type: 'text' },
+  { key: 'supplier_type', label: 'Tipe', type: 'text', required: true },
+  { key: 'contact_person', label: 'Contact person' },
+  { key: 'phone', label: 'Telepon' },
+  { key: 'email', label: 'Email', type: 'text' },
+  { key: 'address', label: 'Alamat', rows: 3 },
+  {
+    key: 'status',
+    label: 'Status',
+    options: [
+      { value: 'ACTIVE', label: 'ACTIVE' },
+      { value: 'INACTIVE', label: 'INACTIVE' },
+    ],
+  },
+]
+const supplierColumns: CrudColumn[] = [
+  { key: 'name', label: 'Nama' },
+  { key: 'supplier_type', label: 'Tipe' },
+  { key: 'contact_person', label: 'Kontak' },
+  { key: 'email', label: 'Email' },
+  { key: 'status', label: 'Status', resolve: (item) => (item as Record<string, any>).status || 'ACTIVE' },
+]
+const supplierProductColumns: CrudColumn[] = [
+  { key: 'supplier_name', label: 'Supplier' },
+  {
+    key: 'product_name',
+    label: 'Produk',
+    resolve: (item) => `${(item as Record<string, any>).product_code || ''} - ${(item as Record<string, any>).product_name}`,
+  },
+  { key: 'purchase_uom_id', label: 'UOM' },
+  {
+    key: 'minimum_order_qty',
+    label: 'MOQ',
+    resolve: (item) => (item as Record<string, any>).minimum_order_qty || 0,
+  },
+  {
+    key: 'lead_time_days',
+    label: 'Lead Time',
+    resolve: (item) => `${(item as Record<string, any>).lead_time_days || 0} hari`,
+  },
+  {
+    key: 'is_preferred',
+    label: 'Preferred',
+    resolve: (item) => ((item as Record<string, any>).is_preferred ? 'Ya' : 'Tidak'),
+  },
+  {
+    key: 'is_active',
+    label: 'Status',
+    resolve: (item) => ((item as Record<string, any>).is_active ? 'ACTIVE' : 'INACTIVE'),
+  },
+]
+const supplierPriceColumns: CrudColumn[] = [
+  { key: 'supplier_name', label: 'Supplier' },
+  { key: 'product_name', label: 'Produk' },
+  {
+    key: 'price',
+    label: 'Harga',
+    resolve: (item) => formatCurrency((item as Record<string, any>).price as number),
+  },
+  {
+    key: 'effective_from',
+    label: 'Effective From',
+    resolve: (item) => formatDate((item as Record<string, any>).effective_from as string),
+  },
+  {
+    key: 'effective_to',
+    label: 'Effective To',
+    resolve: (item) => ((item as Record<string, any>).effective_to || '-'),
+  },
+]
+const supplierProductEditFields: ModalFieldDefinition[] = [
+  { key: 'supplier_product_code', label: 'Supplier SKU', type: 'text' },
+  { key: 'purchase_uom_id', label: 'UOM', required: true },
+  { key: 'minimum_order_qty', label: 'Minimum order qty', type: 'number', min: 0 },
+  { key: 'lead_time_days', label: 'Lead time (hari)', type: 'number', min: 0 },
+  { key: 'is_preferred', label: 'Preferred', type: 'checkbox' },
+  { key: 'is_active', label: 'Aktif', type: 'checkbox' },
+]
+const supplierPriceEditFields: ModalFieldDefinition[] = [
+  { key: 'price', label: 'Harga', type: 'number', required: true, step: 100 },
+  { key: 'effective_from', label: 'Effective from', type: 'date', required: true },
+  { key: 'effective_to', label: 'Effective to', type: 'date' },
+]
+
+const confirmDoubleDelete = (label: string) => {
+  if (!window.confirm(`Yakin ingin menghapus ${label}?`)) return false
+  return window.confirm(`Konfirmasi sekali lagi. Data ${label} akan dihapus permanen. Yakin?`)
+}
+
+const replaceInState = <T extends { id: string }>(
+  state: { data: { value: { items: T[]; total: number } | null } },
+  id: string,
+  updated: T,
+) => {
+  if (!state.data.value) return
+  state.data.value = {
+    ...state.data.value,
+    items: state.data.value.items.map((item) => (item.id === id ? updated : item)),
+  }
+}
+
+const removeFromState = <T extends { id: string }>(state: { data: { value: { items: T[]; total: number } | null } }, id: string) => {
+  if (!state.data.value) return
+  state.data.value = {
+    ...state.data.value,
+    items: state.data.value.items.filter((item) => item.id !== id),
+    total: Math.max(state.data.value.total - 1, 0),
+  }
+}
+
+const filterNil = (input: Record<string, unknown>) =>
+  Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined && value !== null))
+
+const openSupplierEdit = (supplier: SupplierRecord) => {
+  editingSupplier.value = supplier
+  isSupplierEditOpen.value = true
+}
+
+const openSupplierProductEdit = (item: SupplierProductRecord) => {
+  editingSupplierProduct.value = item
+  isSupplierProductEditOpen.value = true
+}
+
+const openSupplierPriceEdit = (item: SupplierPriceHistoryRecord) => {
+  editingSupplierPrice.value = item
+  isSupplierPriceEditOpen.value = true
+}
+
+const submitSupplierUpdate = async (values: Record<string, unknown>) => {
+  if (!editingSupplier.value) return
+  supplierUpdateLoading.value = true
+  try {
+    const updated = await updateSupplier(editingSupplier.value.id, filterNil(values))
+    replaceInState(suppliersState, editingSupplier.value.id, updated)
+    isSupplierEditOpen.value = false
+  } finally {
+    supplierUpdateLoading.value = false
+  }
+}
+
+const submitSupplierProductUpdate = async (values: Record<string, unknown>) => {
+  if (!editingSupplierProduct.value) return
+  supplierProductUpdateLoading.value = true
+  try {
+    const updated = await updateSupplierProduct(editingSupplierProduct.value.id, filterNil(values))
+    replaceInState(supplierProductsState, editingSupplierProduct.value.id, updated)
+    isSupplierProductEditOpen.value = false
+  } finally {
+    supplierProductUpdateLoading.value = false
+  }
+}
+
+const submitSupplierPriceUpdate = async (values: Record<string, unknown>) => {
+  if (!editingSupplierPrice.value) return
+  supplierPriceUpdateLoading.value = true
+  try {
+    const updated = await updateSupplierPriceHistory(editingSupplierPrice.value.id, filterNil(values))
+    replaceInState(supplierPriceHistoriesState, editingSupplierPrice.value.id, updated)
+    isSupplierPriceEditOpen.value = false
+  } finally {
+    supplierPriceUpdateLoading.value = false
+  }
+}
+
+const deleteSupplierAction = async (supplier: SupplierRecord) => {
+  if (!confirmDoubleDelete(`supplier ${supplier.name}`)) return
+  supplierLoadingDelete.value = supplier.id
+  try {
+    await deleteSupplier(supplier.id)
+    removeFromState(suppliersState, supplier.id)
+  } finally {
+    supplierLoadingDelete.value = ''
+  }
+}
+
+const deleteSupplierProductAction = async (item: SupplierProductRecord) => {
+  if (!confirmDoubleDelete(`mapping ${item.supplier_name} - ${item.product_name}`)) return
+  supplierProductLoadingDelete.value = item.id
+  try {
+    await deleteSupplierProduct(item.id)
+    removeFromState(supplierProductsState, item.id)
+  } finally {
+    supplierProductLoadingDelete.value = ''
+  }
+}
+
+const deleteSupplierPriceAction = async (item: SupplierPriceHistoryRecord) => {
+  if (!confirmDoubleDelete(`price history ${item.supplier_name} - ${item.product_name}`)) return
+  supplierPriceLoadingDelete.value = item.id
+  try {
+    await deleteSupplierPriceHistory(item.id)
+    removeFromState(supplierPriceHistoriesState, item.id)
+  } finally {
+    supplierPriceLoadingDelete.value = ''
+  }
+}
 
 const totalOpenProcurement = computed(
   () =>
@@ -384,81 +616,85 @@ const supplierPaymentSearchText = (item: unknown) => {
     </section>
 
     <section class="grid gap-6">
-      <DataTableCard
+      <ReusableCrudTable
+        :columns="supplierColumns"
         :items="suppliersState.data.value?.items || []"
         :search-text-resolver="supplierSearchText"
         empty-message="Belum ada supplier."
         search-placeholder="Cari supplier, kontak, email..."
         title="Supplier"
       >
-        <template #table="{ items }">
-          <table class="data-table">
-            <thead><tr><th>Nama</th><th>Tipe</th><th>Kontak</th><th>Email</th><th>Status</th><th>Aksi</th></tr></thead>
-            <tbody>
-              <tr v-for="item in items" :key="(item as SupplierRecord).id">
-                <td>{{ (item as SupplierRecord).name }}</td>
-                <td>{{ (item as SupplierRecord).supplier_type }}</td>
-                <td>{{ (item as SupplierRecord).contact_person }}</td>
-                <td>{{ (item as SupplierRecord).email }}</td>
-                <td><StatusBadge :status="(item as SupplierRecord).status || 'ACTIVE'" /></td>
-                <td><RouterLink class="secondary-button" :to="`/procurement/suppliers/${(item as SupplierRecord).id}`">Detail</RouterLink></td>
-              </tr>
-            </tbody>
-          </table>
+        <template #actions="{ item }">
+          <div class="flex gap-2">
+            <button class="secondary-button" type="button" @click="openSupplierEdit(item as SupplierRecord)">Edit</button>
+            <button class="secondary-button" type="button" :disabled="supplierLoadingDelete === (item as SupplierRecord).id" @click="deleteSupplierAction(item as SupplierRecord)">
+              {{ supplierLoadingDelete === (item as SupplierRecord).id ? 'Menghapus...' : 'Hapus' }}
+            </button>
+            <RouterLink class="secondary-button" :to="`/procurement/suppliers/${(item as SupplierRecord).id}`">Detail</RouterLink>
+          </div>
         </template>
-      </DataTableCard>
+        <template #cell-status="{ item }">
+          <StatusBadge :status="(item as SupplierRecord).status || 'ACTIVE'" />
+        </template>
+      </ReusableCrudTable>
 
       <section class="grid gap-6 xl:grid-cols-2">
-        <DataTableCard
+        <ReusableCrudTable
+          :columns="supplierProductColumns"
           :items="supplierProductsState.data.value?.items || []"
           :search-text-resolver="supplierProductSearchText"
           empty-message="Belum ada mapping supplier-produk."
           search-placeholder="Cari supplier, produk, atau SKU..."
           title="Supplier Products"
         >
-          <template #table="{ items }">
-            <table class="data-table">
-              <thead><tr><th>Supplier</th><th>Produk</th><th>UOM</th><th>MOQ</th><th>Lead Time</th><th>Preferred</th><th>Status</th></tr></thead>
-              <tbody>
-                <tr v-for="item in items" :key="(item as SupplierProductRecord).id">
-                  <td>{{ (item as SupplierProductRecord).supplier_name }}</td>
-                  <td>
-                    {{ (item as SupplierProductRecord).product_code }} - {{ (item as SupplierProductRecord).product_name }}
-                    <p class="mt-1 text-xs text-app-muted">{{ (item as SupplierProductRecord).supplier_product_code || '-' }}</p>
-                  </td>
-                  <td>{{ (item as SupplierProductRecord).purchase_uom_id }}</td>
-                  <td>{{ (item as SupplierProductRecord).minimum_order_qty || 0 }}</td>
-                  <td>{{ (item as SupplierProductRecord).lead_time_days || 0 }} hari</td>
-                  <td>{{ (item as SupplierProductRecord).is_preferred ? 'Ya' : 'Tidak' }}</td>
-                  <td><StatusBadge :status="(item as SupplierProductRecord).is_active ? 'ACTIVE' : 'INACTIVE'" /></td>
-                </tr>
-              </tbody>
-            </table>
+        <template #actions="{ item }">
+            <div class="flex gap-2">
+              <button
+                class="secondary-button"
+                type="button"
+                @click="openSupplierProductEdit(item as SupplierProductRecord)"
+              >
+                Edit
+              </button>
+              <button
+                class="secondary-button"
+                type="button"
+                :disabled="supplierProductLoadingDelete === (item as SupplierProductRecord).id"
+                @click="deleteSupplierProductAction(item as SupplierProductRecord)"
+              >
+                {{ supplierProductLoadingDelete === (item as SupplierProductRecord).id ? 'Menghapus...' : 'Hapus' }}
+              </button>
+            </div>
           </template>
-        </DataTableCard>
+          <template #cell-is_active="{ item }">
+            <StatusBadge :status="(item as SupplierProductRecord).is_active ? 'ACTIVE' : 'INACTIVE'" />
+          </template>
+        </ReusableCrudTable>
 
-        <DataTableCard
+        <ReusableCrudTable
+          :columns="supplierPriceColumns"
           :items="supplierPriceHistoriesState.data.value?.items || []"
           :search-text-resolver="supplierPriceHistorySearchText"
           empty-message="Belum ada histori harga supplier."
           search-placeholder="Cari supplier, produk, atau periode..."
           title="Supplier Price Histories"
         >
-          <template #table="{ items }">
-            <table class="data-table">
-              <thead><tr><th>Supplier</th><th>Produk</th><th>Harga</th><th>Effective From</th><th>Effective To</th></tr></thead>
-              <tbody>
-                <tr v-for="item in items" :key="(item as SupplierPriceHistoryRecord).id">
-                  <td>{{ (item as SupplierPriceHistoryRecord).supplier_name }}</td>
-                  <td>{{ (item as SupplierPriceHistoryRecord).product_name }}</td>
-                  <td>{{ formatCurrency((item as SupplierPriceHistoryRecord).price) }}</td>
-                  <td>{{ formatDate((item as SupplierPriceHistoryRecord).effective_from) }}</td>
-                  <td>{{ (item as SupplierPriceHistoryRecord).effective_to ? formatDate((item as SupplierPriceHistoryRecord).effective_to || '') : '-' }}</td>
-                </tr>
-              </tbody>
-            </table>
+          <template #actions="{ item }">
+            <div class="flex gap-2">
+              <button class="secondary-button" type="button" @click="openSupplierPriceEdit(item as SupplierPriceHistoryRecord)">
+                Edit
+              </button>
+              <button
+                class="secondary-button"
+                type="button"
+                :disabled="supplierPriceLoadingDelete === (item as SupplierPriceHistoryRecord).id"
+                @click="deleteSupplierPriceAction(item as SupplierPriceHistoryRecord)"
+              >
+                {{ supplierPriceLoadingDelete === (item as SupplierPriceHistoryRecord).id ? 'Menghapus...' : 'Hapus' }}
+              </button>
+            </div>
           </template>
-        </DataTableCard>
+        </ReusableCrudTable>
       </section>
 
       <DataTableCard
@@ -587,4 +823,37 @@ const supplierPaymentSearchText = (item: unknown) => {
       </section>
     </section>
   </div>
+
+  <ReusableUpdateModal
+    :initial-values="editingSupplier || {}"
+    :open="isSupplierEditOpen"
+    :loading="supplierUpdateLoading"
+    :fields="supplierEditFields"
+    submit-label="Update Supplier"
+    title="Update Supplier"
+    @close="isSupplierEditOpen = false"
+    @submit="submitSupplierUpdate"
+  />
+
+  <ReusableUpdateModal
+    :initial-values="editingSupplierProduct || {}"
+    :open="isSupplierProductEditOpen"
+    :loading="supplierProductUpdateLoading"
+    :fields="supplierProductEditFields"
+    submit-label="Update Mapping"
+    title="Update Supplier Product"
+    @close="isSupplierProductEditOpen = false"
+    @submit="submitSupplierProductUpdate"
+  />
+
+  <ReusableUpdateModal
+    :initial-values="editingSupplierPrice || {}"
+    :open="isSupplierPriceEditOpen"
+    :loading="supplierPriceUpdateLoading"
+    :fields="supplierPriceEditFields"
+    submit-label="Update Harga"
+    title="Update Harga Supplier"
+    @close="isSupplierPriceEditOpen = false"
+    @submit="submitSupplierPriceUpdate"
+  />
 </template>

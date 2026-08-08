@@ -31,6 +31,15 @@ export interface TraceGraph {
   entities: TraceEntity[]
   relations: TraceRelation[]
 }
+export interface TraceLabel {
+  trace_code: string
+  payload: Record<string, unknown>
+  label: {
+    content?: string
+    format?: string
+    print_payload?: Record<string, unknown>
+  }
+}
 export interface FoodSafetyProfile {
   id: string
   profile_code: string

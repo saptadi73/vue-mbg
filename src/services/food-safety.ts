@@ -4,6 +4,7 @@ import type {
   FoodSafetyCheckResult,
   FoodSafetyHold,
   FoodSafetyProfile,
+  TraceLabel,
   TraceEntity,
   TraceEvent,
   TraceGraph,
@@ -27,6 +28,8 @@ export const createTraceEntity = async (input: {
   ).data
 export const resolveTrace = async (code: string) =>
   (await apiRequest<TraceEntity>(`/api/v1/traceability/${encodeURIComponent(code)}`)).data
+export const getTraceLabel = async (code: string) =>
+  (await apiRequest<TraceLabel>(`/api/v1/traceability/entities/${encodeURIComponent(code)}/label`)).data
 export const getTraceTimeline = async (code: string) =>
   list(
     (
@@ -137,7 +140,7 @@ export const getTemperatureHistory = async (id: string) =>
   (await apiRequest<unknown>(`/api/v1/temperature/entities/${id}/history`)).data
 export const loadDeliveryPackage = async (routeId: string, input: Record<string, unknown>) =>
   (
-    await apiRequest<unknown>(`/api/v1/deliveries/${routeId}/packages/load`, {
+    await apiRequest<unknown>(`/api/v1/food-safety/deliveries/${routeId}/packages/load`, {
       method: 'POST',
       body: JSON.stringify(input),
     })
@@ -148,7 +151,21 @@ export const receiveDeliveryPackage = async (
   input: Record<string, unknown>,
 ) =>
   (
-    await apiRequest<unknown>(`/api/v1/deliveries/${routeId}/packages/${packageId}/receive`, {
+    await apiRequest<unknown>(`/api/v1/food-safety/deliveries/${routeId}/packages/${packageId}/receive`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+  ).data
+export const postRouteVehicleTemperature = async (routeId: string, input: Record<string, unknown>) =>
+  (
+    await apiRequest<unknown>(`/api/v1/food-safety/deliveries/${routeId}/vehicle-temperature`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+  ).data
+export const postVehicleTemperature = async (vehicleId: string, input: Record<string, unknown>) =>
+  (
+    await apiRequest<unknown>(`/api/v1/food-safety/vehicles/${vehicleId}/temperature`, {
       method: 'POST',
       body: JSON.stringify(input),
     })

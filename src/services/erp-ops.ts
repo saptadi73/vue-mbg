@@ -112,6 +112,28 @@ const cloneProcurementLines = (lines: PurchaseRequestDetailRecord['lines'], pref
     id: `${prefix}-ln-${Date.now()}-${index + 1}`,
   }))
 
+const updateArrayRecord = <T extends { id: string }>(
+  collection: T[],
+  id: string,
+  patch: Partial<T>,
+): T => {
+  const index = collection.findIndex((item) => item.id === id)
+  if (index === -1) {
+    throw new Error('Data tidak ditemukan.')
+  }
+  const updated = { ...collection[index], ...patch } as T
+  collection[index] = updated
+  return updated
+}
+
+const deleteArrayRecord = <T extends { id: string }>(collection: T[], id: string): void => {
+  const index = collection.findIndex((item) => item.id === id)
+  if (index === -1) {
+    throw new Error('Data tidak ditemukan.')
+  }
+  collection.splice(index, 1)
+}
+
 const syncPurchaseRequestStatus = (purchaseRequestId: string, status: string) => {
   const summary = mockPurchaseRequests.find((item) => item.id === purchaseRequestId)
   if (summary) summary.status = status
@@ -641,6 +663,45 @@ export const createSupplier = async (input: Omit<SupplierRecord, 'id'>) => {
   }
 }
 
+export const updateSupplier = async (
+  supplierId: string,
+  input: Partial<SupplierRecord>,
+): Promise<SupplierRecord> => {
+  try {
+    const payload = await apiRequest<SupplierRecord>(`/api/v1/procurement/purchase-requests/suppliers/${supplierId}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    })
+    return payload.data
+  } catch {
+    const updated = updateArrayRecord(mockSuppliers, supplierId, input)
+    return updated
+  }
+}
+
+export const deleteSupplier = async (supplierId: string) => {
+  try {
+    await apiRequest<unknown>(`/api/v1/procurement/purchase-requests/suppliers/${supplierId}`, {
+      method: 'DELETE',
+    })
+    return { deleted: true }
+  } catch {
+    deleteArrayRecord(mockSuppliers, supplierId)
+    const supplierProducts = mockSupplierProducts.filter((item) => item.supplier_id === supplierId)
+    supplierProducts.forEach((item) => {
+      const supplierProductId = item.id
+      deleteArrayRecord(mockSupplierProducts, supplierProductId)
+      for (let i = mockSupplierPriceHistories.length - 1; i >= 0; i -= 1) {
+        const history = mockSupplierPriceHistories[i]
+        if (history && history.supplier_product_id === supplierProductId) {
+          mockSupplierPriceHistories.splice(i, 1)
+        }
+      }
+    })
+    return { deleted: true }
+  }
+}
+
 export const getSupplierProducts = async () => {
   try {
     const payload = await apiRequest<unknown>('/api/v1/procurement/purchase-requests/supplier-products')
@@ -671,6 +732,44 @@ export const createSupplierProduct = async (
       product_code: product.code,
       product_name: product.name,
     }
+  }
+}
+
+export const updateSupplierProduct = async (
+  supplierProductId: string,
+  input: Partial<SupplierProductRecord>,
+) => {
+  try {
+    const payload = await apiRequest<SupplierProductRecord>(
+      `/api/v1/procurement/purchase-requests/supplier-products/${supplierProductId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(input),
+      },
+    )
+    return payload.data
+  } catch {
+    const updated = updateArrayRecord(mockSupplierProducts, supplierProductId, input as SupplierProductRecord)
+    const supplier = mockSuppliers.find((item) => item.id === updated.supplier_id)
+    const product = mockProducts.find((item) => item.id === updated.product_id)
+    if (supplier) updated.supplier_name = supplier.name
+    if (product) {
+      updated.product_name = product.name
+      updated.product_code = product.code
+    }
+    return updated
+  }
+}
+
+export const deleteSupplierProduct = async (supplierProductId: string) => {
+  try {
+    await apiRequest<unknown>(`/api/v1/procurement/purchase-requests/supplier-products/${supplierProductId}`, {
+      method: 'DELETE',
+    })
+    return { deleted: true }
+  } catch {
+    deleteArrayRecord(mockSupplierProducts, supplierProductId)
+    return { deleted: true }
   }
 }
 
@@ -705,6 +804,45 @@ export const createSupplierPriceHistory = async (
       supplier_name: supplierProduct.supplier_name,
       product_name: supplierProduct.product_name,
     }
+  }
+}
+
+export const updateSupplierPriceHistory = async (
+  supplierPriceHistoryId: string,
+  input: Partial<SupplierPriceHistoryRecord>,
+) => {
+  try {
+    const payload = await apiRequest<SupplierPriceHistoryRecord>(
+      `/api/v1/procurement/purchase-requests/supplier-price-histories/${supplierPriceHistoryId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(input),
+      },
+    )
+    return payload.data
+  } catch {
+    const updated = updateArrayRecord(mockSupplierPriceHistories, supplierPriceHistoryId, input as SupplierPriceHistoryRecord)
+    const product = mockSupplierProducts.find((item) => item.id === updated.supplier_product_id)
+    if (product) {
+      updated.supplier_name = product.supplier_name
+      updated.product_name = product.product_name
+    }
+    return updated
+  }
+}
+
+export const deleteSupplierPriceHistory = async (supplierPriceHistoryId: string) => {
+  try {
+    await apiRequest<unknown>(
+      `/api/v1/procurement/purchase-requests/supplier-price-histories/${supplierPriceHistoryId}`,
+      {
+        method: 'DELETE',
+      },
+    )
+    return { deleted: true }
+  } catch {
+    deleteArrayRecord(mockSupplierPriceHistories, supplierPriceHistoryId)
+    return { deleted: true }
   }
 }
 

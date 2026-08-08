@@ -11,6 +11,7 @@ import {
   createFoodSafetyRecall,
   createTraceEntity,
   createTraceRelation,
+  getTraceLabel,
   getFoodSafetyAlerts,
   getFoodSafetyProfiles,
   getTraceGraph,
@@ -26,6 +27,7 @@ import type {
   TraceEntity,
   TraceEvent,
   TraceGraph,
+  TraceLabel,
 } from '@/types/food-safety'
 import { readStoredSession } from '@/utils/auth-storage'
 import { formatDateTime } from '@/utils/format'
@@ -43,6 +45,7 @@ const timeline = ref<TraceEvent[]>([])
 const graph = ref<TraceGraph | null>(null)
 const graphDirection = ref<'backward' | 'forward'>('backward')
 const qrUrl = ref('')
+const traceLabel = ref<TraceLabel | null>(null)
 const profiles = ref<FoodSafetyProfile[]>([])
 const alerts = ref<FoodSafetyAlert[]>([])
 const checkResult = ref<FoodSafetyCheckResult | null>(null)
@@ -106,6 +109,7 @@ const execute = async (action: () => Promise<void>, success: string) => {
 }
 const syncTrace = async (entity: TraceEntity) => {
   trace.value = entity
+  traceLabel.value = null
   traceForm.trace_code = entity.trace_code
   recallForm.trace_code = entity.trace_code
   relationForm.child_trace_code ||= entity.trace_code
@@ -116,6 +120,11 @@ const syncTrace = async (entity: TraceEntity) => {
   })
   timeline.value = await getTraceTimeline(entity.trace_code)
   graph.value = await getTraceGraph(entity.trace_code, graphDirection.value)
+  try {
+    traceLabel.value = await getTraceLabel(entity.trace_code)
+  } catch {
+    traceLabel.value = null
+  }
 }
 const findTrace = () =>
   execute(
@@ -280,6 +289,13 @@ watch(activeTab, (tab) => {
           <img :src="qrUrl" class="mx-auto w-48 rounded-xl bg-white p-2" alt="Trace QR" />
           <p class="mt-3 font-mono font-semibold text-app-heading">{{ trace.trace_code }}</p>
           <p class="mt-1 text-xs text-app-muted">QR hanya berisi trace_code opaque</p>
+        </div>
+        <div v-if="traceLabel" class="surface-subtle rounded-3xl p-5">
+          <p class="eyebrow-text">Label payload</p>
+          <p class="mt-2 text-sm text-app-body">
+            {{ traceLabel.label?.content || 'Label siap dikirim ke printer / service print barcode.' }}
+          </p>
+          <pre class="mt-2 overflow-x-auto text-xs text-app-muted">{{ JSON.stringify(traceLabel.label?.print_payload || traceLabel.payload, null, 2) }}</pre>
         </div>
         <div class="border-t border-white/10 pt-4">
           <p class="font-semibold text-app-heading">Catat Event</p>

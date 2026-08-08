@@ -449,7 +449,9 @@ const selectReport = (sppgId: string) => {
                 <td>{{ (item as DeliveryProofRecord).receiver_name }}</td>
                 <td>{{ formatDateTime((item as DeliveryProofRecord).received_at) }}</td>
                 <td>{{ formatNumber((item as DeliveryProofRecord).received_portions) }}</td>
-                <td>{{ formatNumber((item as DeliveryProofRecord).temperature_celsius || 0) }} C</td>
+                <td>
+                  {{ formatNumber(((item as DeliveryProofRecord).temperature_c ?? (item as DeliveryProofRecord).temperature_celsius) || 0) }} C
+                </td>
                 <td><StatusBadge :status="(item as DeliveryProofRecord).condition_status" /></td>
               </tr>
             </tbody>
@@ -482,7 +484,9 @@ const selectReport = (sppgId: string) => {
                 </td>
                 <td>{{ formatDateTime((item as DeliveryIncidentRecord).incident_time) }}</td>
                 <td><StatusBadge :status="(item as DeliveryIncidentRecord).severity" /></td>
-                <td>{{ formatNumber((item as DeliveryIncidentRecord).temperature_celsius || 0) }} C</td>
+                <td>
+                  {{ formatNumber(((item as DeliveryIncidentRecord).temperature_c ?? (item as DeliveryIncidentRecord).temperature_celsius) || 0) }} C
+                </td>
                 <td><StatusBadge :status="(item as DeliveryIncidentRecord).status" /></td>
               </tr>
             </tbody>

@@ -50,6 +50,25 @@ const resolveLatLng = (input: Record<string, unknown>) => {
   return { latitude, longitude }
 }
 
+const normalizeCoordinate = (input: unknown) => {
+  if (!input) return null
+  if (Array.isArray(input)) {
+    const [longitude, latitude] = input as unknown[]
+    const lng = Number(longitude)
+    const lat = Number(latitude)
+    if (Number.isNaN(lat) || Number.isNaN(lng)) return null
+    return { latitude: lat, longitude: lng }
+  }
+
+  if (typeof input === 'string') {
+    const [lng, lat] = input.split(',').map((item) => Number(item.trim()))
+    if (Number.isNaN(lat) || Number.isNaN(lng)) return null
+    return { latitude: lat, longitude: lng }
+  }
+
+  return resolveLatLng(asRecord(input) ?? {})
+}
+
 const normalizePoints = (
   input: unknown,
   resolver?: (item: Record<string, unknown>, index: number) => Partial<GeoPointRecord>,
@@ -187,22 +206,23 @@ const normalizeDeliveryRoutes = (input: unknown): DeliveryRouteRecord[] => {
     .map((item, index) => {
       const record = asRecord(item)
       if (!record) return null
+      const routeRecord = asRecord(record.route) || asRecord(record.delivery_route) || record
 
-      const from = asRecord(record.from_coordinate)
-      const to = asRecord(record.to_coordinate)
+      const from = asRecord(routeRecord.from_coordinate) || asRecord(routeRecord.from) || normalizeCoordinate((routeRecord as Record<string, unknown>).from_coordinates)
+      const to = asRecord(routeRecord.to_coordinate) || asRecord(routeRecord.to) || normalizeCoordinate((routeRecord as Record<string, unknown>).to_coordinates)
       const fromCoordinate = from ? resolveLatLng(from) : null
       const toCoordinate = to ? resolveLatLng(to) : null
       if (!fromCoordinate || !toCoordinate) return null
 
       const line = asRecord(record.line)
       return {
-        id: String(record.id ?? record.delivery_order_id ?? index),
-        kitchen_id: record.kitchen_id ? String(record.kitchen_id) : record.sppg_id ? String(record.sppg_id) : undefined,
-        school_id: record.school_id ? String(record.school_id) : undefined,
-        delivery_order_id: record.delivery_order_id ? String(record.delivery_order_id) : undefined,
-        delivery_number: String(record.delivery_number ?? `DLV-${index + 1}`),
-        status: String(record.status ?? 'UNKNOWN'),
-        distance_km: Number(record.distance_km ?? 0),
+        id: String(routeRecord.id ?? routeRecord.delivery_order_id ?? index),
+        kitchen_id: routeRecord.kitchen_id ? String(routeRecord.kitchen_id) : routeRecord.sppg_id ? String(routeRecord.sppg_id) : undefined,
+        school_id: routeRecord.school_id ? String(routeRecord.school_id) : undefined,
+        delivery_order_id: routeRecord.delivery_order_id ? String(routeRecord.delivery_order_id) : undefined,
+        delivery_number: String(routeRecord.delivery_number ?? `DLV-${index + 1}`),
+        status: String(routeRecord.status ?? 'UNKNOWN'),
+        distance_km: Number(routeRecord.distance_km ?? 0),
         from_coordinate: fromCoordinate,
         to_coordinate: toCoordinate,
         line:
@@ -760,19 +780,33 @@ export const getFleetVehicleLocationHistory = async (vehicleId: string, limit = 
   }
 }
 
-export const getDeliveryRouteById = async (deliveryId: string) => {
+export const getDeliveryRouteById = async (deliveryId: string): Promise<DeliveryRouteRecord | null> => {
   try {
-    const payload = await apiRequest<unknown>(`/api/v1/gis/deliveries/${deliveryId}/route`)
-    const items = normalizeDeliveryRoutes(payload.data)
-    return items[0] || null
+    const candidates = await Promise.allSettled([
+      apiRequest<unknown>(`/api/v1/gis/deliveries/${deliveryId}/route`),
+      apiRequest<unknown>(`/api/v1/gis/delivery-orders/${deliveryId}/route`),
+      apiRequest<unknown>(`/api/v1/deliveries/${deliveryId}/route`),
+    ])
+
+    for (const candidate of candidates) {
+      if (candidate.status !== 'fulfilled') continue
+      const routeItems = normalizeDeliveryRoutes(candidate.value.data)
+      if (routeItems.length > 0) {
+        return routeItems[0] || null
+      }
+    }
   } catch {
-    const fallback = buildFallbackDataset().deliveryRoutes || []
-    return (
-      fallback.find(
-        (item) => item.delivery_order_id === deliveryId || item.id === deliveryId || item.delivery_number === deliveryId,
-      ) || fallback[0] || null
-    )
   }
+
+  const fallback = buildFallbackDataset().deliveryRoutes || []
+  return (
+    fallback.find(
+      (item) =>
+        item.delivery_order_id === deliveryId ||
+        item.id === deliveryId ||
+        item.delivery_number === deliveryId,
+    ) || fallback[0] || null
+  )
 }
 
 export const validateAssignment = async (input: { kitchen_id: string; school_id: string; planned_portions: number }) => {

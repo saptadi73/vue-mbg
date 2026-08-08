@@ -130,7 +130,7 @@ export const getDeliveryOrders = async () => {
 
 export const getDeliveryPackages = async () => {
   try {
-    const payload = await apiRequest<unknown>('/api/v1/deliveries/packages')
+    const payload = await apiRequest<unknown>('/api/v1/food-safety/deliveries/packages')
     const items = normalizeDeliveryPackages(payload.data)
     return { items, total: totalFromEnvelope(payload, items.length) }
   } catch {
@@ -286,6 +286,49 @@ export const createRoutePlan = async (input: {
         input.stops.some((stop) => stop.delivery_order_id === item.delivery_order_id),
       ),
       incidents: [],
+    }
+  }
+}
+
+export const updateRouteVehicle = async (routeId: string, vehicleId: string | null) => {
+  try {
+    const payload = await apiRequest<unknown>(`/api/v1/delivery-orders/routes/${routeId}/vehicle`, {
+      method: 'PATCH',
+      body: JSON.stringify({ vehicle_id: vehicleId }),
+    })
+    return payload.data
+  } catch {
+    const route = mockDeliveryRoutes.find((item) => item.id === routeId)
+    if (route) {
+      route.route_status = 'PLANNED'
+      route.notes = [route.notes || '', `vehicle_id di-set dari ${vehicleId || 'null'}`].filter(Boolean).join(' | ')
+    }
+    return { route_id: routeId, vehicle_id: vehicleId }
+  }
+}
+
+export const sendRouteVehicleLocation = async (
+  routeId: string,
+  input: {
+    latitude: number
+    longitude: number
+    recorded_at?: string
+    accuracy_meter?: number | null
+    speed_kph?: number | null
+    heading_degree?: number | null
+    measurement_method?: string
+  },
+) => {
+  try {
+    const payload = await apiRequest<unknown>(`/api/v1/delivery-orders/routes/${routeId}/vehicle-location`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+    return payload.data
+  } catch {
+    return {
+      route_id: routeId,
+      recorded_at: input.recorded_at || new Date().toISOString(),
     }
   }
 }

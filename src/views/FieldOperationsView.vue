@@ -10,10 +10,12 @@ import {
   getFoodSafetyProfiles,
   loadDeliveryPackage,
   receiveDeliveryPackage,
+  getTraceLabel,
   recordTemperatureReading,
   resolveTrace,
 } from '@/services/food-safety'
 import { useAppStore } from '@/stores/app'
+import { isQzReady, printQrLabel } from '@/services/thermal-printer'
 import type { DeliveryRoutePlanRecord, FleetVehicleRecord } from '@/types/domain'
 import type { FoodSafetyProfile, TraceEntity } from '@/types/food-safety'
 
@@ -26,6 +28,8 @@ const activePanel = ref<'temperature' | 'gps' | 'qr'>('temperature')
 const busy = ref(false)
 const message = ref('')
 const error = ref('')
+const printMessage = ref('')
+const printError = ref('')
 const vehicles = ref<FleetVehicleRecord[]>([])
 const deliveryRoutes = ref<DeliveryRoutePlanRecord[]>([])
 const profiles = ref<FoodSafetyProfile[]>([])
@@ -92,6 +96,7 @@ const isRawMaterial = computed(() => traceResult.value?.entity_type === 'RAW_MAT
 const isPackage = computed(() =>
   ['PACKAGE', 'CONTAINER', 'MEAL_BATCH'].includes(traceResult.value?.entity_type || ''),
 )
+const resolvedPackageId = computed(() => traceResult.value?.id || traceResult.value?.entity_id || '')
 
 const run = async (action: () => Promise<void>, success: string) => {
   busy.value = true
@@ -104,6 +109,59 @@ const run = async (action: () => Promise<void>, success: string) => {
     error.value = cause instanceof Error ? cause.message : 'Operasi gagal diproses.'
   } finally {
     busy.value = false
+  }
+}
+
+const printQrFromValue = async (value: string, caption: string) => {
+  printMessage.value = ''
+  printError.value = ''
+  const qrDataUrl = `https://chart.googleapis.com/chart?chs=260x260&cht=qr&chl=${encodeURIComponent(value)}&choe=UTF-8`
+  try {
+    if (await isQzReady()) {
+      const result = await printQrLabel({
+        value: `${caption}: ${value}`,
+        pageWidthMm: 101.6,
+        pageHeightMm: 76.2,
+      })
+      printMessage.value = result
+      return
+    }
+
+    const w = window.open('', '_blank')
+    if (!w) {
+      throw new Error('Popup print diblokir. Aktifkan popup untuk fallback print.')
+    }
+    w.document.write(`
+      <html>
+        <body style="font-family:Arial,sans-serif;padding:16px;text-align:center;">
+          <h3>${caption}</h3>
+          <img src="${qrDataUrl}" alt="QR code" />
+          <p style="word-break:break-all; margin-top:8px;">${value}</p>
+        </body>
+      </html>
+    `)
+    w.document.close()
+    w.print()
+    printMessage.value = 'Label dicetak via browser.'
+  } catch (cause) {
+    printError.value = cause instanceof Error ? cause.message : 'Gagal mencetak QR label.'
+  }
+}
+
+const printTraceWithOptionalLabel = async (code: string, caption: string) => {
+  try {
+    let value = code
+    try {
+      const label = await getTraceLabel(code)
+      if (label?.label?.content) {
+        value = `${code} - ${label.label.content}`
+      }
+    } catch {
+      // Biarkan fallback ke kode murni jika endpoint label belum tersedia.
+    }
+    await printQrFromValue(value, caption)
+  } catch (cause) {
+    printError.value = cause instanceof Error ? cause.message : `Gagal mencetak ${caption}.`
   }
 }
 
@@ -210,6 +268,8 @@ const resetQrResult = () => {
   qrCode.value = ''
   message.value = ''
   error.value = ''
+  printMessage.value = ''
+  printError.value = ''
 }
 
 const submitMaterialMovement = () =>
@@ -235,6 +295,9 @@ const submitMaterialMovement = () =>
       })
       materialForm.quantity = null
       materialForm.notes = ''
+      if (qrAction.value === 'RAW_RECEIVED') {
+        await printTraceWithOptionalLabel(traceResult.value.trace_code, 'Terima bahan baku')
+      }
     },
     qrAction.value === 'RAW_RECEIVED'
       ? 'Barang masuk berhasil dicatat.'
@@ -270,6 +333,7 @@ const submitPackageDispatch = () =>
         },
       })
       dispatchForm.notes = ''
+      await printTraceWithOptionalLabel(traceResult.value.trace_code, 'Kemasan dikirim')
     },
     `Kemasan mulai dikirim dengan ${selectedDispatchVehicle.value?.vehicle_code || 'kendaraan terpilih'}.`,
   )
@@ -303,15 +367,19 @@ const submitPackageReceive = () =>
     if (!traceResult.value || !isPackage.value) {
       throw new Error('QR harus bertipe PACKAGE, CONTAINER, atau MEAL_BATCH untuk penerimaan.')
     }
+    if (!resolvedPackageId.value) {
+      throw new Error('Data paket tidak lengkap. Selesaikan resolve QR lalu coba lagi.')
+    }
     if (receiveForm.latitude === null || receiveForm.longitude === null) {
       throw new Error('GPS penerimaan wajib diambil atau diisi.')
     }
-    await receiveDeliveryPackage(receiveForm.route_id, traceResult.value.entity_id, {
+    await receiveDeliveryPackage(receiveForm.route_id, resolvedPackageId.value, {
       received_at: new Date().toISOString(),
       temperature_c: receiveForm.temperature_c,
       latitude: receiveForm.latitude,
       longitude: receiveForm.longitude,
     })
+    await printTraceWithOptionalLabel(traceResult.value.trace_code, 'Paket diterima')
   }, 'Paket MBG berhasil ditandai diterima.')
 
 const scanCameraFrame = async (detector: BarcodeDetectorInstance) => {
@@ -415,8 +483,14 @@ onBeforeUnmount(stopCamera)
     >
       {{ message }}
     </p>
+    <p v-if="printMessage" class="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+      {{ printMessage }}
+    </p>
     <p v-if="error" class="rounded-2xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
       {{ error }}
+    </p>
+    <p v-if="printError" class="rounded-2xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+      {{ printError }}
     </p>
 
     <section v-if="activePanel === 'temperature'" class="glass-panel p-6">

@@ -353,19 +353,22 @@ Aturan praktis:
 3. `GET /api/v1/delivery-orders/routes`
 4. `GET /api/v1/delivery-orders/routes/{route_id}`
 5. `POST /api/v1/delivery-orders/routes`
-6. `POST /api/v1/delivery-orders/from-production-order/{production_order_id}`
-7. `POST /api/v1/delivery-orders/{delivery_order_id}/incidents`
-8. `POST /api/v1/delivery-orders/{delivery_order_id}/proof`
+6. `PATCH /api/v1/delivery-orders/routes/{route_id}/vehicle`
+7. `POST /api/v1/delivery-orders/routes/{route_id}/vehicle-location`
+8. `POST /api/v1/delivery-orders/from-production-order/{production_order_id}`
+9. `POST /api/v1/delivery-orders/{delivery_order_id}/incidents`
+10. `POST /api/v1/delivery-orders/{delivery_order_id}/proof`
 
 ### Food Safety & Traceability
 
 1. `POST /api/v1/traceability/entities`
 2. `GET /api/v1/traceability/{trace_code}`
-3. `POST /api/v1/traceability/{trace_code}/events`
-4. `POST /api/v1/traceability/relations`
-5. `GET /api/v1/traceability/{trace_code}/backward`
-6. `GET /api/v1/traceability/{trace_code}/forward`
-7. `GET /api/v1/traceability/{trace_code}/timeline`
+3. `GET /api/v1/traceability/entities/{trace_code}/label`
+4. `POST /api/v1/traceability/{trace_code}/events`
+5. `POST /api/v1/traceability/relations`
+6. `GET /api/v1/traceability/{trace_code}/backward`
+7. `GET /api/v1/traceability/{trace_code}/forward`
+8. `GET /api/v1/traceability/{trace_code}/timeline`
 8. `GET /api/v1/food-safety/profiles`
 9. `POST /api/v1/food-safety/profiles`
 10. `POST /api/v1/food-safety/checks`
@@ -376,10 +379,65 @@ Aturan praktis:
 15. `POST /api/v1/food-safety/recalls`
 16. `POST /api/v1/temperature/readings`
 17. `GET /api/v1/temperature/entities/{entity_id}/history`
-17a. `GET /api/v1/deliveries/packages`
-18. `POST /api/v1/deliveries/{route_id}/packages/load`
-19. `POST /api/v1/deliveries/{route_id}/route-snapshot`
-20. `POST /api/v1/deliveries/{route_id}/packages/{package_id}/receive`
+17a. `GET /api/v1/food-safety/deliveries/packages`
+18. `POST /api/v1/food-safety/deliveries/{route_id}/packages/load`
+19. `POST /api/v1/food-safety/deliveries/{route_id}/route-snapshot`
+20. `POST /api/v1/food-safety/deliveries/{route_id}/vehicle-temperature`
+21. `POST /api/v1/food-safety/vehicles/{vehicle_id}/temperature`
+22. `POST /api/v1/food-safety/deliveries/{route_id}/packages/{package_id}/receive`
+
+## Status Review Backend untuk Kebutuhan Operasional 14 Poin
+
+Checklist implementasi backend vs kebutuhan Anda:
+
+1. Pembelian raw material -> trigger inventory: **OK sebagian**
+   - Sudah ada PR/PO/GR dan transaksi `RECEIPT`.
+   - Trace identity line dibuat otomatis oleh backend; FE bisa meneruskan/override `trace_code` dari payload bila perlu. Label print tetap via `GET /api/v1/traceability/entities/{trace_code}/label`.
+
+2. Update suhu penyimpanan raw material: **OK sebagian**
+   - Sudah ada safety profile, temperature readings, alerts, holds.
+
+3. Meal Plan: **OK**
+   - CRUD + reserve materials sudah ada.
+
+4. Pengeluaran raw material + pencatatan QR + pengurangan stock: **OK**
+- Issue ke produksi berjalan, stok berkurang, dan kode QR dapat dipasang dari request completion production (`issue_trace_codes`).
+
+5. Pencatatan biaya pembelian: **OK**
+   - Jurnal otomatis untuk GR, invoice, payment.
+
+6. Pembuatan produksi + re-label produk jadi: **OK**
+ - Traceability produk jadi otomatis dibuat saat complete (`output_trace_code`) dan siap print QR via label endpoint.
+
+7. Suhu/waktu cooking + hold-time: **OK**
+   - Safety check mendukung gate/violation + `predicted_recipient_at`.
+
+8. Pengiriman dengan armada + destinasi: **OK**
+   - Delivery order dan route sudah ada.
+
+9. Suhu armada: **OK**
+ - Tersedia endpoint baku untuk suhu armada berbasis `vehicle_id`:
+   `POST /api/v1/food-safety/vehicles/{vehicle_id}/temperature`, serta endpoint per-trip
+   (`/api/v1/food-safety/deliveries/{route_id}/vehicle-temperature`) dan snapshot route.
+   Penerapan warning kini lengkap dengan `warning_reason` dan varians durasi pada snapshot route.
+
+10. Jarak/waktu + warning SLA: **OK**
+  - Jarak diproses di route creation dan snapshot; warning engine sudah otomatis dengan output `warning_level`, `warning_reason`, `time_to_deadline_minutes`, `duration_variance_minutes`, `expected_duration_minutes`.
+
+11. Update lokasi armada: **OK**
+   - `POST /api/v1/fleet/vehicles/{vehicle_id}/locations`
+
+12. Penerimaan paket makanan: **OK**
+   - `POST /api/v1/delivery-orders/{delivery_order_id}/proof`, `POST /api/v1/food-safety/deliveries/{route_id}/packages/{package_id}/receive`.
+
+13. Tagihan pemerintah: **OK**
+   - Endpoint pemerintah claim lengkap.
+
+14. Biaya-biaya: **OK sebagian**
+   - Costing ada, dan distribusi akan diprioritaskan dari route snapshot (jika ada `distribution_cost_total`) lalu fallback ke policy.
+
+15. Laporan traceability/finance/inventory: **OK**
+   - Modul traceability dan reporting telah tersedia.
 
 ### Accounting
 
@@ -1767,6 +1825,10 @@ Catatan:
 - `labor_cost_source` bernilai `POLICY` bila labor cost aktual belum ada dan sistem fallback ke `cost_policy`
 - `labor_cost_source` bernilai `NONE` bila tidak ada labor cost aktual dan tidak ada policy aktif
 - bila ada `cost policy` aktif pada tanggal produksi, komponen utility, packaging, distribution, overhead, waste, dan fallback labor akan ikut dihitung
+- `distribution_cost_source` bernilai `SNAPSHOT` jika cost route diambil dari `delivery route snapshot`.
+  Bila snapshot belum ada, sistem fallback ke `POLICY` atau `NONE` untuk distribusi.
+- `distribution_route_count` menunjukkan jumlah route yang terkait production order.
+- `distribution_routes_with_cost` menunjukkan jumlah route yang memang memiliki nilai `distribution_cost_total`.
 
 ### Notification
 
@@ -4436,7 +4498,9 @@ Membuat production order dari meal plan yang sudah `MATERIAL_RESERVED`.
 {
   "actual_portions": 100,
   "accepted_portions": 98,
-  "rejected_portions": 2
+  "rejected_portions": 2,
+  "issue_trace_codes": ["RM-TRK-0001", "RM-TRK-0002"],
+  "output_trace_code": "PRD-20260725-001"
 }
 ```
 
@@ -4814,7 +4878,7 @@ Response `data` mengembalikan bundle delivery order, termasuk route/proof/incide
   "route_stop_id": "uuid",
   "received_portions": 100,
   "rejected_portions": 0,
-  "temperature_celsius": 62.5,
+  "temperature_c": 62.5,
   "condition_status": "GOOD",
   "condition_notes": "Diterima baik",
   "photo_urls": [
@@ -4843,7 +4907,7 @@ Mencatat incident pada proses distribusi untuk kebutuhan monitoring route, food 
   "description": "Perlu pengecekan box termal",
   "route_stop_id": "uuid",
   "incident_gps": "-6.1702,106.8283",
-  "temperature_celsius": 58.4,
+  "temperature_c": 58.4,
   "media_urls": [
     "https://example.com/incidents/temp-drop.jpg"
   ],
@@ -5135,7 +5199,7 @@ Backend menjalankan forward trace dan menyimpan seluruh `affected_trace_ids`. Fr
 
 ### Package Loading dan Receiving
 
-`GET /api/v1/deliveries/packages`
+`GET /api/v1/food-safety/deliveries/packages`
 
 Mengembalikan daftar lifecycle produk kemasan sejak produksi selesai dimasak, mulai dikemas, dimuat atau mulai delivery, sampai diterima di sekolah. List mengikuti scope `X-Tenant-ID` dan opsional `X-SPPG-ID`, serta diurutkan dari waktu packaging terbaru.
 
@@ -5190,7 +5254,7 @@ Catatan frontend:
 
 Sebelum loading, package harus memiliki trace identity dengan `entity_type` `PACKAGE`, `CONTAINER`, atau `MEAL_BATCH`.
 
-`POST /api/v1/deliveries/{route_id}/packages/load`
+`POST /api/v1/food-safety/deliveries/{route_id}/packages/load`
 
 ```json
 {
@@ -5206,7 +5270,7 @@ Sebelum loading, package harus memiliki trace identity dengan `entity_type` `PAC
 
 Receiving package:
 
-`POST /api/v1/deliveries/{route_id}/packages/{package_id}/receive`
+`POST /api/v1/food-safety/deliveries/{route_id}/packages/{package_id}/receive`
 
 ```json
 {
@@ -5221,7 +5285,7 @@ Receiving package:
 
 Frontend dapat menghitung route memakai Google Maps Platform, lalu mengirim snapshot penting ke backend:
 
-`POST /api/v1/deliveries/{route_id}/route-snapshot`
+`POST /api/v1/food-safety/deliveries/{route_id}/route-snapshot`
 
 ```json
 {
@@ -5231,6 +5295,7 @@ Frontend dapat menghitung route memakai Google Maps Platform, lalu mengirim snap
   "duration_seconds": 2280,
   "estimated_arrival_at": "2026-08-08T08:28:00Z",
   "provider": "GOOGLE_ROUTES",
+  "distribution_cost_total": 45000,
   "encoded_polyline": "encoded-polyline",
   "provider_response": {
     "routing_preference": "TRAFFIC_AWARE"
