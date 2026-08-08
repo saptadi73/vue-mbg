@@ -27,8 +27,17 @@ const props = withDefaults(
     draftServiceArea?: GeoJsonFeature['geometry'] | GeoJsonFeatureCollection | null
     fleetTrail?: FleetVehicleLocationRecord[] | null
     fleetTrailFocusIndex?: number | null
+    focusVehicleId?: string | null
+    fleetEtaByVehicle?: Record<string, { minutes: number | null; destinationLabel: string | null; estimatedArrivalAt: string | null }> | null
   }>(),
-  { mode: 'overview', draftServiceArea: null, fleetTrail: null, fleetTrailFocusIndex: null },
+  {
+    mode: 'overview',
+    draftServiceArea: null,
+    fleetTrail: null,
+    fleetTrailFocusIndex: null,
+    focusVehicleId: null,
+    fleetEtaByVehicle: null,
+  },
 )
 
 const googleMaps = useGoogleMaps()
@@ -96,6 +105,7 @@ const fleetColor = (status?: string) => {
 
 const addVehicleMarker = (vehicle: FleetVehicleLocationRecord, bounds: any) => {
   const gm = mapsApi()!
+  const etaMeta = props.fleetEtaByVehicle?.[vehicle.vehicle_id]
   const position = { lat: vehicle.latitude, lng: vehicle.longitude }
   const marker = new gm.Marker({
     map,
@@ -114,8 +124,27 @@ const addVehicleMarker = (vehicle: FleetVehicleLocationRecord, bounds: any) => {
     },
   })
   const speed = Number(vehicle.speed_kmh || 0).toLocaleString('id-ID', { maximumFractionDigits: 1 })
+  const etaMinutes = etaMeta?.minutes ?? vehicle.eta_minutes ?? null
+  const etaText = etaMinutes === null || etaMinutes === undefined ? 'ETA belum tersedia' : etaMinutes <= 0 ? 'Sudah tiba di tujuan' : `${etaMinutes} menit lagi`
+  const etaTone = etaMinutes === null || etaMinutes === undefined
+    ? '#94a3b8'
+    : etaMinutes <= 0
+      ? '#22c55e'
+      : etaMinutes <= 15
+        ? '#2dd4bf'
+        : etaMinutes <= 30
+          ? '#f59e0b'
+          : '#ef4444'
+  const arrivalText = etaMeta?.estimatedArrivalAt || vehicle.estimated_arrival_at
+    ? new Date(etaMeta?.estimatedArrivalAt || vehicle.estimated_arrival_at || Date.now()).toLocaleString('id-ID', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : 'Belum tersedia'
   const info = new gm.InfoWindow({
-    content: `<div style="min-width:210px"><strong>${vehicle.vehicle_code}</strong><br>${vehicle.plate_number || '-'}<hr style="margin:8px 0"><b>Status:</b> ${vehicle.status}<br><b>Pengemudi:</b> ${vehicle.driver_name || '-'}<br><b>Kecepatan:</b> ${speed} km/jam<br><b>Posisi terakhir:</b> ${vehicle.location_recorded_at || '-'}<br><small>${vehicle.latitude.toFixed(6)}, ${vehicle.longitude.toFixed(6)}</small></div>`,
+    content: `<div style="min-width:240px"><strong>${vehicle.vehicle_code}</strong><br>${vehicle.plate_number || '-'}<hr style="margin:8px 0"><b>Status:</b> ${vehicle.status}<br><b>Pengemudi:</b> ${vehicle.driver_name || '-'}<br><b>Kecepatan:</b> ${speed} km/jam<br><b>ETA:</b> <span style="color:${etaTone};font-weight:700">${etaText}</span><br><b>Tujuan:</b> ${etaMeta?.destinationLabel || vehicle.eta_destination || 'Tujuan rute aktif'}<br><b>Estimasi tiba:</b> ${arrivalText}<br><b>Posisi terakhir:</b> ${vehicle.location_recorded_at || '-'}<br><small>${vehicle.latitude.toFixed(6)}, ${vehicle.longitude.toFixed(6)}</small></div>`,
   })
   marker.addListener('click', () => info.open({ anchor: marker, map }))
   overlays.push(marker)
@@ -157,6 +186,7 @@ const render = () => {
   if (!map || !gm) return
   clear()
   const bounds = new gm.LatLngBounds()
+  let focusPosition: { lat: number; lng: number } | null = null
   const modesWithKitchens = ['overview', 'coverage', 'routes', 'serviceAreas', 'fleet']
   if (modesWithKitchens.includes(props.mode))
     props.dataset.kitchens.forEach((p) =>
@@ -183,7 +213,12 @@ const render = () => {
       ),
     )
   if (props.mode === 'fleet')
-    (props.dataset.fleetVehicles || []).forEach((vehicle) => addVehicleMarker(vehicle, bounds))
+    (props.dataset.fleetVehicles || []).forEach((vehicle) => {
+      addVehicleMarker(vehicle, bounds)
+      if (props.focusVehicleId && vehicle.vehicle_id === props.focusVehicleId) {
+        focusPosition = { lat: vehicle.latitude, lng: vehicle.longitude }
+      }
+    })
   if (props.mode === 'risk')
     (props.dataset.riskPoints || []).forEach((p) =>
       addMarker(
@@ -234,7 +269,12 @@ const render = () => {
     overlays.push(new gm.Polyline({ map, path, strokeColor: '#f97316', strokeWeight: 4 }))
     path.forEach((point) => bounds.extend(point))
   }
-  if (!bounds.isEmpty()) map.fitBounds(bounds, 48)
+  if (focusPosition) {
+    map.panTo(focusPosition)
+    map.setZoom(14)
+  } else if (!bounds.isEmpty()) {
+    map.fitBounds(bounds, 48)
+  }
 }
 
 onMounted(async () => {
@@ -262,6 +302,7 @@ watch(
     props.draftServiceArea,
     props.fleetTrail,
     props.fleetTrailFocusIndex,
+    props.focusVehicleId,
   ],
   render,
   { deep: true },
@@ -272,15 +313,21 @@ onBeforeUnmount(clear)
 <template>
   <MapPanel v-if="!shouldRenderGoogle" v-bind="props" />
   <section v-else class="glass-panel p-3">
-    <div class="mb-3 flex flex-col gap-2 px-2 pt-2 lg:flex-row lg:items-center lg:justify-between">
+    <div class="mb-3 flex flex-col gap-3 rounded-[24px] border border-[var(--app-panel-border)] bg-white/5 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
       <div>
         <h3 class="font-display text-xl text-app-heading">{{ title }}</h3>
         <p class="mt-1 text-sm text-app-body">
           Google Maps Platform · data spasial bersumber dari PostGIS/FastAPI.
         </p>
       </div>
-      <span class="legend-chip">Google Maps</span>
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="legend-chip">Google Maps</span>
+        <span class="legend-chip">Live GPS</span>
+        <span class="legend-chip">ETA status</span>
+      </div>
     </div>
-    <div ref="mapRef" class="h-[560px] rounded-[28px]"></div>
+    <div class="overflow-hidden rounded-[32px] border border-[var(--app-panel-border)] bg-slate-950/10">
+      <div ref="mapRef" class="h-[560px]"></div>
+    </div>
   </section>
 </template>

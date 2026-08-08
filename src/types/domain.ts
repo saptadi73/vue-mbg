@@ -1200,6 +1200,9 @@ export interface FleetVehicleLocationRecord {
   location_recorded_at?: string | null
   speed_kmh?: number | null
   heading_deg?: number | null
+  eta_minutes?: number | null
+  eta_destination?: string | null
+  estimated_arrival_at?: string | null
 }
 
 export interface FleetVehicleLocationPingPayload {

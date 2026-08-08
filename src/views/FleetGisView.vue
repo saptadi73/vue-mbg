@@ -8,7 +8,7 @@ import { useAsyncState } from '@/composables/useAsyncState'
 import { getFleetVehicleLocationHistory, getGisOverview } from '@/services/gis'
 import { useAppStore } from '@/stores/app'
 import type { FleetVehicleLocationRecord } from '@/types/domain'
-import { formatNumber } from '@/utils/format'
+import { formatDateTime, formatNumber } from '@/utils/format'
 
 type FleetGisServiceRow = {
   id: string
@@ -42,15 +42,33 @@ const historyState = useAsyncState(() =>
 )
 const trailFocusIndex = ref<number | null>(null)
 const playbackRunning = ref(false)
+const mapFocusVehicleId = ref<string | null>(null)
 let playbackTimer: ReturnType<typeof setInterval> | null = null
 
 const data = computed(() => gisState.data.value ?? null)
-const fleetRows = computed(() => data.value?.fleetVehicles || [])
+const fleetRows = computed<FleetVehicleLocationRecord[]>(() => {
+  const vehicles = data.value?.fleetVehicles || []
+  return vehicles.map((vehicle) => ({ ...vehicle, ...resolveVehicleEta(vehicle) }))
+})
 const selectedVehicle = computed(
   () =>
     fleetRows.value.find((item) => item.vehicle_id === selectedVehicleId.value) ||
     fleetRows.value[0] ||
     null,
+)
+const selectedVehicleEta = computed(() => selectedVehicle.value || null)
+const selectedVehicleEtaText = computed(() => getEtaText(selectedVehicleEta.value))
+const fleetEtaByVehicle = computed(() =>
+  Object.fromEntries(
+    fleetRows.value.map((vehicle) => [
+      vehicle.vehicle_id,
+      {
+        minutes: vehicle.eta_minutes ?? null,
+        destinationLabel: vehicle.eta_destination ?? null,
+        estimatedArrivalAt: vehicle.estimated_arrival_at ?? null,
+      },
+    ]),
+  ),
 )
 const selectedTrail = computed(() => historyState.data.value?.items || [])
 const focusedTrailPoint = computed(
@@ -96,6 +114,55 @@ const selectedTrailDistance = computed(() => {
   }
   return total
 })
+
+const resolveVehicleEta = (vehicle: FleetVehicleLocationRecord) => {
+  const route = data.value?.deliveryRoutes?.[0] ?? null
+  if (!route) {
+    return {
+      eta_minutes: null,
+      eta_destination: null,
+      estimated_arrival_at: null,
+    }
+  }
+
+  const destination = route.to_coordinate
+  const deltaLat = vehicle.latitude - destination.latitude
+  const deltaLng = vehicle.longitude - destination.longitude
+  const distanceKm = Math.max(0, Math.sqrt(deltaLat * deltaLat + deltaLng * deltaLng) * 111)
+  const speedKmh = Math.max(vehicle.speed_kmh || 0, 8)
+  const etaMinutes = vehicle.status === 'ARRIVED' || distanceKm < 0.3 ? 0 : Math.max(1, Math.round((distanceKm / Math.max(speedKmh * 0.7, 1)) * 60))
+
+  return {
+    eta_minutes: etaMinutes,
+    eta_destination: route.delivery_number ? `Tujuan ${route.delivery_number}` : 'Tujuan rute aktif',
+    estimated_arrival_at: new Date(Date.now() + etaMinutes * 60_000).toISOString(),
+  }
+}
+
+const getEtaText = (item: FleetVehicleLocationRecord | null | undefined) => {
+  const minutes = item?.eta_minutes ?? null
+  if (minutes === null || minutes === undefined) return 'Estimasi belum tersedia'
+  if (minutes <= 0) return 'Sudah tiba di tujuan'
+  return `${formatNumber(minutes)} menit lagi`
+}
+
+const getEtaToneClasses = (item: FleetVehicleLocationRecord | null | undefined) => {
+  const minutes = item?.eta_minutes ?? null
+  if (minutes === null || minutes === undefined) return 'bg-slate-500/15 text-slate-700 ring-1 ring-slate-500/20'
+  if (minutes <= 0) return 'bg-emerald-500/15 text-emerald-700 ring-1 ring-emerald-500/20'
+  if (minutes <= 15) return 'bg-teal-500/15 text-teal-700 ring-1 ring-teal-500/20'
+  if (minutes <= 30) return 'bg-amber-500/15 text-amber-700 ring-1 ring-amber-500/20'
+  return 'bg-rose-500/15 text-rose-700 ring-1 ring-rose-500/20'
+}
+
+const getEtaStatusLabel = (item: FleetVehicleLocationRecord | null | undefined) => {
+  const minutes = item?.eta_minutes ?? null
+  if (minutes === null || minutes === undefined) return 'Belum ada'
+  if (minutes <= 0) return 'Tiba'
+  if (minutes <= 15) return 'Segera'
+  if (minutes <= 30) return 'Waspada'
+  return 'Terlambat'
+}
 
 const documentationRows = computed<FleetGisServiceRow[]>(() => [
   {
@@ -148,6 +215,7 @@ const historySearchText = (item: unknown) => {
 const selectVehicle = async (vehicleId: string) => {
   stopPlayback()
   selectedVehicleId.value = vehicleId
+  mapFocusVehicleId.value = vehicleId
   await historyState.execute()
   trailFocusIndex.value = selectedTrail.value.length ? selectedTrail.value.length - 1 : null
 }
@@ -158,6 +226,7 @@ const reload = async () => {
     selectedVehicleId.value = fleetRows.value[0]!.vehicle_id
   }
   if (selectedVehicleId.value) {
+    mapFocusVehicleId.value = selectedVehicleId.value
     await historyState.execute()
     trailFocusIndex.value = selectedTrail.value.length ? selectedTrail.value.length - 1 : null
   }
@@ -216,6 +285,24 @@ const togglePlayback = () => {
   }, 1100)
 }
 
+const focusSelectedVehicle = async () => {
+  if (!selectedVehicle.value) return
+  selectedVehicleId.value = selectedVehicle.value.vehicle_id
+  mapFocusVehicleId.value = selectedVehicle.value.vehicle_id
+  stopPlayback()
+  await historyState.execute()
+  trailFocusIndex.value = selectedTrail.value.length ? selectedTrail.value.length - 1 : null
+}
+
+const centerMapOnSelectedVehicle = async () => {
+  await focusSelectedVehicle()
+}
+
+const resetTrail = () => {
+  stopPlayback()
+  trailFocusIndex.value = selectedTrail.value.length ? selectedTrail.value.length - 1 : null
+}
+
 watch(
   fleetRows,
   (items) => {
@@ -250,24 +337,24 @@ onUnmounted(() => {
     />
 
     <section class="grid gap-4 xl:grid-cols-5">
-      <article class="glass-panel p-5">
+      <article class="glass-panel p-5 transition-transform duration-200 hover:-translate-y-1">
         <p class="text-sm text-app-muted">Fleet live</p>
         <p class="mt-3 font-display text-3xl text-app-heading">{{ fleetRows.length }}</p>
         <p class="mt-2 text-sm text-app-body">
           Jumlah kendaraan dengan posisi terkini pada scope aktif.
         </p>
       </article>
-      <article class="glass-panel p-5">
+      <article class="glass-panel p-5 transition-transform duration-200 hover:-translate-y-1">
         <p class="text-sm text-app-muted">In transit</p>
         <p class="mt-3 font-display text-3xl text-app-heading">{{ inTransitCount }}</p>
         <p class="mt-2 text-sm text-app-body">Unit yang sedang bergerak ke titik distribusi.</p>
       </article>
-      <article class="glass-panel p-5">
+      <article class="glass-panel p-5 transition-transform duration-200 hover:-translate-y-1">
         <p class="text-sm text-app-muted">Loading</p>
         <p class="mt-3 font-display text-3xl text-app-heading">{{ loadingCount }}</p>
         <p class="mt-2 text-sm text-app-body">Unit yang masih berada pada tahap muat.</p>
       </article>
-      <article class="glass-panel p-5">
+      <article class="glass-panel p-5 transition-transform duration-200 hover:-translate-y-1">
         <p class="text-sm text-app-muted">Arrived / maintenance</p>
         <p class="mt-3 font-display text-3xl text-app-heading">
           {{ arrivedCount }} / {{ maintenanceCount }}
@@ -276,7 +363,7 @@ onUnmounted(() => {
           Ringkasan kendaraan tiba dan yang sedang di bengkel.
         </p>
       </article>
-      <article class="glass-panel p-5">
+      <article class="glass-panel p-5 transition-transform duration-200 hover:-translate-y-1">
         <p class="text-sm text-app-muted">Average speed</p>
         <p class="mt-3 font-display text-3xl text-app-heading">{{ formatNumber(avgSpeed) }} km/h</p>
         <p class="mt-2 text-sm text-app-body">
@@ -285,7 +372,7 @@ onUnmounted(() => {
       </article>
     </section>
 
-    <section class="glass-panel p-4">
+    <section class="glass-panel border border-[var(--app-panel-border)] bg-white/5 p-4">
       <div class="flex flex-col gap-4 xl:flex-row xl:items-end">
         <label class="form-field flex-1">
           <span>Date from</span>
@@ -332,8 +419,10 @@ onUnmounted(() => {
     <template v-else-if="data">
       <MapPanel
         :dataset="data"
+        :fleet-eta-by-vehicle="fleetEtaByVehicle"
         :fleet-trail="selectedTrail"
         :fleet-trail-focus-index="trailFocusIndex"
+        :focus-vehicle-id="mapFocusVehicleId"
         mode="fleet"
       />
 
@@ -355,6 +444,7 @@ onUnmounted(() => {
                   <th>SPPG</th>
                   <th>Status</th>
                   <th>Speed</th>
+                  <th>ETA</th>
                   <th>Updated</th>
                 </tr>
               </thead>
@@ -378,6 +468,21 @@ onUnmounted(() => {
                     {{ formatNumber((item as FleetVehicleLocationRecord).speed_kmh || 0) }} km/h
                   </td>
                   <td>
+                    <div class="space-y-1">
+                      <div class="flex flex-wrap items-center gap-2">
+                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold" :class="getEtaToneClasses(item as FleetVehicleLocationRecord)">
+                          {{ getEtaStatusLabel(item as FleetVehicleLocationRecord) }}
+                        </span>
+                        <p class="font-semibold text-app-heading">
+                          {{ getEtaText(item as FleetVehicleLocationRecord) }}
+                        </p>
+                      </div>
+                      <p class="text-xs text-app-muted">
+                        {{ (item as FleetVehicleLocationRecord).eta_destination || 'Tujuan rute aktif' }}
+                      </p>
+                    </div>
+                  </td>
+                  <td>
                     <div class="flex items-center justify-between gap-3">
                       <span>{{
                         (item as FleetVehicleLocationRecord).location_recorded_at || '-'
@@ -397,7 +502,7 @@ onUnmounted(() => {
           </template>
         </DataTableCard>
 
-        <article class="glass-panel p-6">
+        <article class="glass-panel p-6 xl:sticky xl:top-4 xl:self-start">
           <p class="eyebrow-text">Selected Vehicle Trail</p>
           <div class="mt-5 grid gap-4">
             <div class="surface-subtle rounded-3xl p-4">
@@ -409,6 +514,30 @@ onUnmounted(() => {
                 {{ selectedVehicle?.plate_number || '-' }} |
                 {{ selectedVehicle?.driver_name || 'Tanpa driver aktif' }}
               </p>
+              <div class="mt-3 flex flex-wrap gap-2">
+                <span class="inline-flex items-center rounded-full border border-[var(--app-panel-border)] bg-white/8 px-2.5 py-1 text-[11px] font-semibold text-app-heading">
+                  GPS live
+                </span>
+                <span class="inline-flex items-center rounded-full border border-[var(--app-panel-border)] bg-white/8 px-2.5 py-1 text-[11px] font-semibold text-app-heading">
+                  ETA • {{ selectedVehicleEtaText }}
+                </span>
+                <span class="inline-flex items-center rounded-full border border-[var(--app-panel-border)] bg-white/8 px-2.5 py-1 text-[11px] font-semibold text-app-heading">
+                  Trail • {{ selectedTrail.length }} titik
+                </span>
+              </div>
+              <div class="mt-3 rounded-2xl border border-[var(--app-panel-border)] bg-white/5 p-3">
+                <div class="flex items-center justify-between gap-3">
+                  <p class="text-xs uppercase tracking-[0.2em] text-app-muted">ETA sampai tujuan</p>
+                  <span class="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold" :class="getEtaToneClasses(selectedVehicle)">
+                    {{ getEtaStatusLabel(selectedVehicle) }}
+                  </span>
+                </div>
+                <p class="mt-2 font-semibold text-app-heading">{{ selectedVehicleEtaText }}</p>
+                <p class="mt-1 text-sm text-app-body">
+                  {{ selectedVehicle?.eta_destination || 'Tujuan rute aktif' }} •
+                  {{ selectedVehicle?.estimated_arrival_at ? formatDateTime(selectedVehicle.estimated_arrival_at) : 'estimasi tiba belum tersedia' }}
+                </p>
+              </div>
             </div>
             <div class="surface-subtle rounded-3xl p-4">
               <p class="text-sm text-app-muted">Trail summary</p>
@@ -466,6 +595,12 @@ onUnmounted(() => {
                     @click="goNextTrail"
                   >
                     Next
+                  </button>
+                  <button class="secondary-button" type="button" @click="centerMapOnSelectedVehicle">
+                    Center map
+                  </button>
+                  <button class="secondary-button" type="button" @click="resetTrail">
+                    Reset trail
                   </button>
                 </div>
               </div>
