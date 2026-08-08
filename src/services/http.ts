@@ -1,6 +1,7 @@
 import { env } from '@/config/env'
 import type { ApiEnvelope } from '@/types/api'
 import { clearStoredSession, readStoredSession } from '@/utils/auth-storage'
+import { isUuid } from '@/utils/validation'
 
 export class ApiError extends Error {
   status: number
@@ -43,8 +44,12 @@ export const apiRequest = async <T>(
 
   try {
     const session = readStoredSession()
-    const tenantHeader = session?.accessToken ? session.tenantId : session?.tenantId || env.devTenantId
-    const sppgHeader = session?.accessToken ? session.activeSppgId : session?.activeSppgId || env.devSppgId
+    const tenantId = session?.accessToken ? session.tenantId : session?.tenantId || env.devTenantId
+    const sppgId = session?.accessToken
+      ? session.activeSppgId
+      : session?.activeSppgId || env.devSppgId
+    const tenantHeader = isUuid(tenantId) ? tenantId : undefined
+    const sppgHeader = isUuid(sppgId) ? sppgId : undefined
     let response: Response
 
     try {

@@ -556,7 +556,6 @@ export const getGisOverview = async (filters: GisOverviewFilters = {}): Promise<
       apiRequest<unknown>('/api/v1/gis/kitchens', {
         query: {
           bbox: filters.bbox,
-          snapshot_date: filters.date_to || filters.date_from,
         },
       }),
       apiRequest<unknown>('/api/v1/gis/schools', {

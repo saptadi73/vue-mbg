@@ -95,8 +95,12 @@ const resolveGisFilters = () => ({
   date_from: gisFilters.date_from,
   date_to: gisFilters.date_to,
   sppg_id: gisFilters.use_active_sppg
-    ? activeSppgId.value || undefined
-    : gisFilters.sppg_id || undefined,
+    ? isUuid(activeSppgId.value)
+      ? activeSppgId.value
+      : undefined
+    : isUuid(gisFilters.sppg_id)
+      ? gisFilters.sppg_id
+      : undefined,
   bbox: gisFilters.bbox || undefined,
 })
 
