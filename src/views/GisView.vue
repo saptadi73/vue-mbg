@@ -3,7 +3,7 @@ import { computed, reactive, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import DataTableCard from '@/components/common/DataTableCard.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
-import MapPanel from '@/components/gis/MapPanel.vue'
+import MapPanel from '@/components/gis/GoogleMapPanel.vue'
 import { useAsyncState } from '@/composables/useAsyncState'
 import {
   createServiceArea,
@@ -99,7 +99,9 @@ const serviceAreaForm = reactive({
 const resolveGisFilters = () => ({
   date_from: gisFilters.date_from,
   date_to: gisFilters.date_to,
-  sppg_id: gisFilters.use_active_sppg ? activeSppgId.value || undefined : gisFilters.sppg_id || undefined,
+  sppg_id: gisFilters.use_active_sppg
+    ? activeSppgId.value || undefined
+    : gisFilters.sppg_id || undefined,
   bbox: gisFilters.bbox || undefined,
 })
 
@@ -214,87 +216,106 @@ const parsedServiceArea = computed<{
   message: string
   geometry: GeoJsonFeature['geometry'] | GeoJsonFeatureCollection | null
   vertexCount: number
-}>(
-  () => {
-    const source = serviceAreaForm.geojsonText.trim()
-    if (!source) {
+}>(() => {
+  const source = serviceAreaForm.geojsonText.trim()
+  if (!source) {
+    return {
+      valid: false,
+      message: 'GeoJSON belum diisi.',
+      geometry: null,
+      vertexCount: 0,
+    }
+  }
+
+  try {
+    const parsed = JSON.parse(source) as
+      | GeoJsonFeature['geometry']
+      | GeoJsonFeatureCollection
+      | Record<string, unknown>
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      'type' in parsed &&
+      (parsed.type === 'Polygon' || parsed.type === 'MultiPolygon')
+    ) {
+      const polygonGeometry = parsed as GeoJsonFeature['geometry'] & { coordinates: unknown[] }
+      const vertexCount =
+        parsed.type === 'Polygon'
+          ? (polygonGeometry.coordinates[0] as unknown[] | undefined)?.length || 0
+          : (
+              (polygonGeometry.coordinates[0] as unknown[] | undefined)?.[0] as
+                | unknown[]
+                | undefined
+            )?.length || 0
       return {
-        valid: false,
-        message: 'GeoJSON belum diisi.',
-        geometry: null,
-        vertexCount: 0,
+        valid: true,
+        message: 'GeoJSON valid dan siap disimpan.',
+        geometry: polygonGeometry,
+        vertexCount,
       }
     }
 
-    try {
-      const parsed = JSON.parse(source) as
-        | GeoJsonFeature['geometry']
-        | GeoJsonFeatureCollection
-        | Record<string, unknown>
-      if (
-        parsed &&
-        typeof parsed === 'object' &&
-        'type' in parsed &&
-        (parsed.type === 'Polygon' || parsed.type === 'MultiPolygon')
-      ) {
-        const polygonGeometry = parsed as GeoJsonFeature['geometry'] & { coordinates: unknown[] }
-        const vertexCount =
-          parsed.type === 'Polygon'
-            ? (((polygonGeometry.coordinates[0] as unknown[] | undefined)?.length) || 0)
-            : ((((polygonGeometry.coordinates[0] as unknown[] | undefined)?.[0] as unknown[] | undefined)?.length) || 0)
-        return {
-          valid: true,
-          message: 'GeoJSON valid dan siap disimpan.',
-          geometry: polygonGeometry,
-          vertexCount,
-        }
-      }
-
-      if (parsed && typeof parsed === 'object' && 'type' in parsed && parsed.type === 'FeatureCollection') {
-        const featureCollection = parsed as GeoJsonFeatureCollection
-        const firstGeometry = featureCollection.features[0]?.geometry
-        const validGeometry =
-          firstGeometry?.type === 'Polygon' || firstGeometry?.type === 'MultiPolygon'
-        return {
-          valid: Boolean(validGeometry),
-          message: validGeometry
-            ? 'FeatureCollection valid dan siap disimpan.'
-            : 'FeatureCollection harus memiliki geometry Polygon atau MultiPolygon.',
-          geometry: validGeometry ? featureCollection : null,
-          vertexCount:
-            firstGeometry?.type === 'Polygon'
-              ? ((((firstGeometry.coordinates as unknown[])[0] as unknown[] | undefined)?.length) || 0)
-              : firstGeometry?.type === 'MultiPolygon'
-                ? (((((firstGeometry.coordinates as unknown[])[0] as unknown[] | undefined)?.[0] as unknown[] | undefined)?.length) || 0)
-                : 0,
-        }
-      }
-
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      'type' in parsed &&
+      parsed.type === 'FeatureCollection'
+    ) {
+      const featureCollection = parsed as GeoJsonFeatureCollection
+      const firstGeometry = featureCollection.features[0]?.geometry
+      const validGeometry =
+        firstGeometry?.type === 'Polygon' || firstGeometry?.type === 'MultiPolygon'
       return {
-        valid: false,
-        message: 'Gunakan geometry GeoJSON bertipe Polygon, MultiPolygon, atau FeatureCollection.',
-        geometry: null,
-        vertexCount: 0,
-      }
-    } catch (error) {
-      return {
-        valid: false,
-        message: error instanceof Error ? error.message : 'GeoJSON tidak valid.',
-        geometry: null,
-        vertexCount: 0,
+        valid: Boolean(validGeometry),
+        message: validGeometry
+          ? 'FeatureCollection valid dan siap disimpan.'
+          : 'FeatureCollection harus memiliki geometry Polygon atau MultiPolygon.',
+        geometry: validGeometry ? featureCollection : null,
+        vertexCount:
+          firstGeometry?.type === 'Polygon'
+            ? ((firstGeometry.coordinates as unknown[])[0] as unknown[] | undefined)?.length || 0
+            : firstGeometry?.type === 'MultiPolygon'
+              ? (
+                  ((firstGeometry.coordinates as unknown[])[0] as unknown[] | undefined)?.[0] as
+                    | unknown[]
+                    | undefined
+                )?.length || 0
+              : 0,
       }
     }
-  },
-)
 
-const activeServiceArea = computed(() =>
-  serviceAreaRows.value.find((item) => item.sppg_id === serviceAreaForm.sppg_id) || null,
+    return {
+      valid: false,
+      message: 'Gunakan geometry GeoJSON bertipe Polygon, MultiPolygon, atau FeatureCollection.',
+      geometry: null,
+      vertexCount: 0,
+    }
+  } catch (error) {
+    return {
+      valid: false,
+      message: error instanceof Error ? error.message : 'GeoJSON tidak valid.',
+      geometry: null,
+      vertexCount: 0,
+    }
+  }
+})
+
+const activeServiceArea = computed(
+  () => serviceAreaRows.value.find((item) => item.sppg_id === serviceAreaForm.sppg_id) || null,
 )
 
 const modeOptions: Array<{ id: GisMode; label: string; description: string }> = [
   { id: 'overview', label: 'Overview', description: 'Semua layer inti dalam satu peta kontrol.' },
-  { id: 'coverage', label: 'Coverage', description: 'Coverage sekolah terhadap radius layanan SPPG.' },
-  { id: 'unserved', label: 'Unserved', description: 'Sekolah yang masih di luar jangkauan layanan.' },
+  {
+    id: 'coverage',
+    label: 'Coverage',
+    description: 'Coverage sekolah terhadap radius layanan SPPG.',
+  },
+  {
+    id: 'unserved',
+    label: 'Unserved',
+    description: 'Sekolah yang masih di luar jangkauan layanan.',
+  },
   { id: 'risk', label: 'Risk Heatmap', description: 'Skor risiko operasional per node SPPG.' },
   { id: 'distribution', label: 'Distribution', description: 'Hotspot distribusi per sekolah.' },
   { id: 'serviceAreas', label: 'Service Areas', description: 'Polygon area layanan tersimpan.' },
@@ -400,7 +421,8 @@ const loadSelectedServiceArea = () => {
   serviceAreaForm.valid_to = selected.valid_to || ''
   serviceAreaForm.mode = 'update'
 
-  const feature = 'features' in selected.boundary_geojson ? selected.boundary_geojson.features[0] : null
+  const feature =
+    'features' in selected.boundary_geojson ? selected.boundary_geojson.features[0] : null
   const geometry = feature?.geometry
   if (geometry) {
     serviceAreaForm.geojsonText = JSON.stringify(geometry, null, 2)
@@ -437,7 +459,8 @@ const saveServiceArea = async () => {
 
     await gisState.execute()
   } catch (error) {
-    serviceAreaError.value = error instanceof Error ? error.message : 'Gagal menyimpan service area.'
+    serviceAreaError.value =
+      error instanceof Error ? error.message : 'Gagal menyimpan service area.'
   } finally {
     serviceAreaSaving.value = false
   }
@@ -475,7 +498,9 @@ const saveServiceArea = async () => {
       </article>
       <article class="glass-panel p-5">
         <p class="text-sm text-app-muted">Total route distance</p>
-        <p class="mt-3 font-display text-3xl text-app-heading">{{ routeDistanceTotal.toFixed(1) }} km</p>
+        <p class="mt-3 font-display text-3xl text-app-heading">
+          {{ routeDistanceTotal.toFixed(1) }} km
+        </p>
         <p class="mt-2 text-sm text-app-body">Akumulasi jarak delivery route yang sedang tampil.</p>
       </article>
     </section>
@@ -484,13 +509,22 @@ const saveServiceArea = async () => {
       <div class="flex flex-col gap-4 border-b border-[var(--app-panel-border)] pb-4">
         <div>
           <p class="eyebrow-text">Operational Filters</p>
-          <h2 class="mt-2 font-display text-2xl text-app-heading">Preset cepat GIS per 20 Juli 2026</h2>
-          <p class="mt-2 text-sm text-app-body">Dokumentasi menyarankan preset seperti Hari ini, 3 hari terakhir, dan Besok. Filter ini diterapkan ke layer sekolah, distribution heatmap, risk map, dan delivery routes.</p>
+          <h2 class="mt-2 font-display text-2xl text-app-heading">
+            Preset cepat GIS per 20 Juli 2026
+          </h2>
+          <p class="mt-2 text-sm text-app-body">
+            Dokumentasi menyarankan preset seperti Hari ini, 3 hari terakhir, dan Besok. Filter ini
+            diterapkan ke layer sekolah, distribution heatmap, risk map, dan delivery routes.
+          </p>
         </div>
         <div class="flex flex-wrap gap-2">
           <button
             class="rounded-full border px-4 py-2 text-sm transition"
-            :class="gisPreset === 'today' ? 'border-[var(--color-brand-400)] bg-[var(--color-brand-400)]/15 text-app-heading' : 'border-[var(--app-panel-border)] text-app-body'"
+            :class="
+              gisPreset === 'today'
+                ? 'border-[var(--color-brand-400)] bg-[var(--color-brand-400)]/15 text-app-heading'
+                : 'border-[var(--app-panel-border)] text-app-body'
+            "
             type="button"
             @click="applyPreset('today')"
           >
@@ -498,7 +532,11 @@ const saveServiceArea = async () => {
           </button>
           <button
             class="rounded-full border px-4 py-2 text-sm transition"
-            :class="gisPreset === 'last3days' ? 'border-[var(--color-brand-400)] bg-[var(--color-brand-400)]/15 text-app-heading' : 'border-[var(--app-panel-border)] text-app-body'"
+            :class="
+              gisPreset === 'last3days'
+                ? 'border-[var(--color-brand-400)] bg-[var(--color-brand-400)]/15 text-app-heading'
+                : 'border-[var(--app-panel-border)] text-app-body'
+            "
             type="button"
             @click="applyPreset('last3days')"
           >
@@ -506,7 +544,11 @@ const saveServiceArea = async () => {
           </button>
           <button
             class="rounded-full border px-4 py-2 text-sm transition"
-            :class="gisPreset === 'tomorrow' ? 'border-[var(--color-brand-400)] bg-[var(--color-brand-400)]/15 text-app-heading' : 'border-[var(--app-panel-border)] text-app-body'"
+            :class="
+              gisPreset === 'tomorrow'
+                ? 'border-[var(--color-brand-400)] bg-[var(--color-brand-400)]/15 text-app-heading'
+                : 'border-[var(--app-panel-border)] text-app-body'
+            "
             type="button"
             @click="applyPreset('tomorrow')"
           >
@@ -514,7 +556,11 @@ const saveServiceArea = async () => {
           </button>
           <button
             class="rounded-full border px-4 py-2 text-sm transition"
-            :class="gisPreset === 'custom' ? 'border-[var(--color-brand-400)] bg-[var(--color-brand-400)]/15 text-app-heading' : 'border-[var(--app-panel-border)] text-app-body'"
+            :class="
+              gisPreset === 'custom'
+                ? 'border-[var(--color-brand-400)] bg-[var(--color-brand-400)]/15 text-app-heading'
+                : 'border-[var(--app-panel-border)] text-app-body'
+            "
             type="button"
             @click="gisPreset = 'custom'"
           >
@@ -524,15 +570,29 @@ const saveServiceArea = async () => {
         <div class="grid gap-4 xl:grid-cols-[1fr_1fr_1fr_1.2fr_auto]">
           <label class="form-field">
             <span>Date from</span>
-            <input v-model="gisFilters.date_from" class="toolbar-input" type="date" @focus="gisPreset = 'custom'" />
+            <input
+              v-model="gisFilters.date_from"
+              class="toolbar-input"
+              type="date"
+              @focus="gisPreset = 'custom'"
+            />
           </label>
           <label class="form-field">
             <span>Date to</span>
-            <input v-model="gisFilters.date_to" class="toolbar-input" type="date" @focus="gisPreset = 'custom'" />
+            <input
+              v-model="gisFilters.date_to"
+              class="toolbar-input"
+              type="date"
+              @focus="gisPreset = 'custom'"
+            />
           </label>
           <label class="form-field">
             <span>SPPG focus</span>
-            <select v-model="gisFilters.sppg_id" class="toolbar-input" :disabled="gisFilters.use_active_sppg">
+            <select
+              v-model="gisFilters.sppg_id"
+              class="toolbar-input"
+              :disabled="gisFilters.use_active_sppg"
+            >
               <option value="">Semua SPPG</option>
               <option v-for="kitchen in kitchenOptions" :key="kitchen.id" :value="kitchen.id">
                 {{ kitchen.name }}
@@ -548,7 +608,9 @@ const saveServiceArea = async () => {
             />
           </label>
           <div class="flex items-end">
-            <button class="primary-button w-full" type="button" @click="reloadGis">Apply Filter</button>
+            <button class="primary-button w-full" type="button" @click="reloadGis">
+              Apply Filter
+            </button>
           </div>
         </div>
         <label class="inline-flex items-center gap-3 text-sm text-app-body">
@@ -561,14 +623,20 @@ const saveServiceArea = async () => {
         <div>
           <p class="eyebrow-text">Map Modes</p>
           <h2 class="mt-2 font-display text-2xl text-app-heading">Layer GIS berbasis backend</h2>
-          <p class="mt-2 text-sm text-app-body">Pilih mode untuk melihat bentuk data yang berbeda dari endpoint GIS backend.</p>
+          <p class="mt-2 text-sm text-app-body">
+            Pilih mode untuk melihat bentuk data yang berbeda dari endpoint GIS backend.
+          </p>
         </div>
         <div class="flex flex-wrap gap-2">
           <button
             v-for="option in modeOptions"
             :key="option.id"
             class="rounded-full border px-4 py-2 text-sm transition"
-            :class="activeMode === option.id ? 'border-[var(--color-brand-400)] bg-[var(--color-brand-400)]/15 text-app-heading' : 'border-[var(--app-panel-border)] text-app-body'"
+            :class="
+              activeMode === option.id
+                ? 'border-[var(--color-brand-400)] bg-[var(--color-brand-400)]/15 text-app-heading'
+                : 'border-[var(--app-panel-border)] text-app-body'
+            "
             type="button"
             @click="activeMode = option.id"
           >
@@ -584,10 +652,16 @@ const saveServiceArea = async () => {
     <div v-if="gisState.loading.value" class="loading-panel">Memuat layer GIS...</div>
     <div v-else-if="gisState.error.value" class="error-panel">
       <p>{{ gisState.error.value }}</p>
-      <button class="primary-button mt-3" type="button" @click="gisState.execute">Muat ulang</button>
+      <button class="primary-button mt-3" type="button" @click="gisState.execute">
+        Muat ulang
+      </button>
     </div>
     <template v-else-if="data">
-      <MapPanel :dataset="data" :draft-service-area="activeMode === 'serviceAreas' ? draftServiceAreaGeometry : null" :mode="activeMode" />
+      <MapPanel
+        :dataset="data"
+        :draft-service-area="activeMode === 'serviceAreas' ? draftServiceAreaGeometry : null"
+        :mode="activeMode"
+      />
 
       <section class="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <DataTableCard
@@ -614,12 +688,23 @@ const saveServiceArea = async () => {
                 <tr v-for="item in items" :key="(item as ServiceCoverageRecord).sppg_id">
                   <td>
                     <p>{{ (item as ServiceCoverageRecord).name }}</p>
-                    <p class="mt-1 text-xs text-app-muted">{{ (item as ServiceCoverageRecord).code }}</p>
+                    <p class="mt-1 text-xs text-app-muted">
+                      {{ (item as ServiceCoverageRecord).code }}
+                    </p>
                   </td>
                   <td>{{ formatNumber((item as ServiceCoverageRecord).covered_school_count) }}</td>
-                  <td>{{ formatNumber((item as ServiceCoverageRecord).out_of_radius_school_count) }}</td>
-                  <td>{{ (item as ServiceCoverageRecord).average_covered_distance_km.toFixed(2) }} km</td>
-                  <td>{{ (item as ServiceCoverageRecord).farthest_covered_school_distance_km.toFixed(2) }} km</td>
+                  <td>
+                    {{ formatNumber((item as ServiceCoverageRecord).out_of_radius_school_count) }}
+                  </td>
+                  <td>
+                    {{ (item as ServiceCoverageRecord).average_covered_distance_km.toFixed(2) }} km
+                  </td>
+                  <td>
+                    {{
+                      (item as ServiceCoverageRecord).farthest_covered_school_distance_km.toFixed(2)
+                    }}
+                    km
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -655,7 +740,12 @@ const saveServiceArea = async () => {
                       class="secondary-button"
                       :disabled="toolLoading"
                       type="button"
-                      @click="loadRouteDetail((item as DeliveryRouteRecord).delivery_order_id || (item as DeliveryRouteRecord).id)"
+                      @click="
+                        loadRouteDetail(
+                          (item as DeliveryRouteRecord).delivery_order_id ||
+                            (item as DeliveryRouteRecord).id,
+                        )
+                      "
                     >
                       Detail
                     </button>
@@ -699,9 +789,12 @@ const saveServiceArea = async () => {
 
         <article v-else class="glass-panel p-6">
           <p class="eyebrow-text">Spatial Insight</p>
-          <h3 class="mt-2 font-display text-2xl text-app-heading">Mode {{ modeOptions.find((item) => item.id === activeMode)?.label }}</h3>
+          <h3 class="mt-2 font-display text-2xl text-app-heading">
+            Mode {{ modeOptions.find((item) => item.id === activeMode)?.label }}
+          </h3>
           <p class="mt-3 text-sm text-app-body">
-            Mode ini difokuskan untuk membaca pola spasial langsung dari peta. Jika Anda butuh tabel operasional, gunakan mode Coverage, Routes, atau Service Areas.
+            Mode ini difokuskan untuk membaca pola spasial langsung dari peta. Jika Anda butuh tabel
+            operasional, gunakan mode Coverage, Routes, atau Service Areas.
           </p>
         </article>
 
@@ -724,7 +817,8 @@ const saveServiceArea = async () => {
                   </select>
                 </label>
                 <p class="text-sm text-app-body">
-                  Pilih sekolah lalu cari nearest kitchens, kemudian lanjutkan validasi assignment dari panel yang sama.
+                  Pilih sekolah lalu cari nearest kitchens, kemudian lanjutkan validasi assignment
+                  dari panel yang sama.
                 </p>
               </div>
             </div>
@@ -732,7 +826,11 @@ const saveServiceArea = async () => {
             <div class="surface-subtle rounded-3xl p-4">
               <h3 class="font-semibold text-app-heading">Nearest Kitchens</h3>
               <form class="mt-4 grid gap-3" @submit.prevent="loadNearestKitchens">
-                <input v-model="nearestForm.school_id" class="toolbar-input" placeholder="School ID" />
+                <input
+                  v-model="nearestForm.school_id"
+                  class="toolbar-input"
+                  placeholder="School ID"
+                />
                 <button class="secondary-button" :disabled="toolLoading" type="submit">
                   {{ toolLoading ? 'Memuat...' : 'Cari Dapur Terdekat' }}
                 </button>
@@ -742,23 +840,33 @@ const saveServiceArea = async () => {
             <div class="surface-subtle rounded-3xl p-4">
               <h3 class="font-semibold text-app-heading">Assignment Validation</h3>
               <form class="mt-4 grid gap-3" @submit.prevent="runAssignmentValidation">
-                <input v-model="validationForm.kitchen_id" class="toolbar-input" placeholder="Kitchen ID" />
-                <input v-model="validationForm.school_id" class="toolbar-input" placeholder="School ID" />
-                <input v-model.number="validationForm.planned_portions" class="toolbar-input" min="0" step="1" type="number" />
+                <input
+                  v-model="validationForm.kitchen_id"
+                  class="toolbar-input"
+                  placeholder="Kitchen ID"
+                />
+                <input
+                  v-model="validationForm.school_id"
+                  class="toolbar-input"
+                  placeholder="School ID"
+                />
+                <input
+                  v-model.number="validationForm.planned_portions"
+                  class="toolbar-input"
+                  min="0"
+                  step="1"
+                  type="number"
+                />
                 <button class="secondary-button" :disabled="toolLoading" type="submit">
                   {{ toolLoading ? 'Memvalidasi...' : 'Validasi Assignment' }}
                 </button>
               </form>
             </div>
-
           </div>
         </article>
       </section>
 
-      <section
-        v-if="activeMode === 'serviceAreas'"
-        class="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]"
-      >
+      <section v-if="activeMode === 'serviceAreas'" class="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <article class="glass-panel p-6">
           <p class="eyebrow-text">Service Area Editor</p>
           <h3 class="mt-2 font-display text-2xl text-app-heading">Create / Update Polygon</h3>
@@ -766,10 +874,16 @@ const saveServiceArea = async () => {
             Pilih kitchen, impor GeoJSON polygon, lalu simpan sebagai area layanan PostGIS.
           </p>
 
-          <div v-if="serviceAreaMessage" class="mt-4 rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
+          <div
+            v-if="serviceAreaMessage"
+            class="mt-4 rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200"
+          >
             {{ serviceAreaMessage }}
           </div>
-          <div v-if="serviceAreaError" class="mt-4 rounded-2xl border border-rose-400/25 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
+          <div
+            v-if="serviceAreaError"
+            class="mt-4 rounded-2xl border border-rose-400/25 bg-rose-400/10 px-4 py-3 text-sm text-rose-200"
+          >
             {{ serviceAreaError }}
           </div>
 
@@ -784,7 +898,11 @@ const saveServiceArea = async () => {
               </label>
               <label class="form-field">
                 <span>Select kitchen</span>
-                <select v-model="serviceAreaForm.sppg_id" class="toolbar-input" @change="loadSelectedServiceArea">
+                <select
+                  v-model="serviceAreaForm.sppg_id"
+                  class="toolbar-input"
+                  @change="loadSelectedServiceArea"
+                >
                   <option v-for="kitchen in kitchenOptions" :key="kitchen.id" :value="kitchen.id">
                     {{ kitchen.name }}
                   </option>
@@ -796,7 +914,12 @@ const saveServiceArea = async () => {
               </label>
               <label class="form-field">
                 <span>Valid from</span>
-                <input v-model="serviceAreaForm.valid_from" class="toolbar-input" type="date" required />
+                <input
+                  v-model="serviceAreaForm.valid_from"
+                  class="toolbar-input"
+                  type="date"
+                  required
+                />
               </label>
               <label class="form-field md:col-span-2">
                 <span>Valid to</span>
@@ -818,23 +941,42 @@ const saveServiceArea = async () => {
               <div class="mt-3 grid gap-4 md:grid-cols-3">
                 <div>
                   <p class="text-xs uppercase tracking-[0.2em] text-app-muted">Status</p>
-                  <p class="mt-2 text-sm font-semibold text-app-heading">{{ parsedServiceArea.valid ? 'VALID' : 'INVALID' }}</p>
+                  <p class="mt-2 text-sm font-semibold text-app-heading">
+                    {{ parsedServiceArea.valid ? 'VALID' : 'INVALID' }}
+                  </p>
                 </div>
                 <div>
                   <p class="text-xs uppercase tracking-[0.2em] text-app-muted">Vertices</p>
-                  <p class="mt-2 text-sm font-semibold text-app-heading">{{ formatNumber(parsedServiceArea.vertexCount) }}</p>
+                  <p class="mt-2 text-sm font-semibold text-app-heading">
+                    {{ formatNumber(parsedServiceArea.vertexCount) }}
+                  </p>
                 </div>
                 <div>
                   <p class="text-xs uppercase tracking-[0.2em] text-app-muted">Selected kitchen</p>
-                  <p class="mt-2 text-sm font-semibold text-app-heading">{{ kitchenOptions.find((item) => item.id === serviceAreaForm.sppg_id)?.name || '-' }}</p>
+                  <p class="mt-2 text-sm font-semibold text-app-heading">
+                    {{
+                      kitchenOptions.find((item) => item.id === serviceAreaForm.sppg_id)?.name ||
+                      '-'
+                    }}
+                  </p>
                 </div>
               </div>
               <p class="mt-3 text-sm text-app-body">{{ parsedServiceArea.message }}</p>
             </div>
 
             <div class="flex justify-end">
-              <button class="primary-button" :disabled="serviceAreaSaving || !parsedServiceArea.valid" type="submit">
-                {{ serviceAreaSaving ? 'Menyimpan...' : serviceAreaForm.mode === 'create' ? 'Create Service Area' : 'Update Service Area' }}
+              <button
+                class="primary-button"
+                :disabled="serviceAreaSaving || !parsedServiceArea.valid"
+                type="submit"
+              >
+                {{
+                  serviceAreaSaving
+                    ? 'Menyimpan...'
+                    : serviceAreaForm.mode === 'create'
+                      ? 'Create Service Area'
+                      : 'Update Service Area'
+                }}
               </button>
             </div>
           </form>
@@ -846,26 +988,45 @@ const saveServiceArea = async () => {
             <div class="surface-subtle rounded-3xl p-4">
               <p class="text-sm text-app-muted">Kitchen</p>
               <p class="mt-2 font-semibold text-app-heading">
-                {{ kitchenOptions.find((item) => item.id === serviceAreaForm.sppg_id)?.name || '-' }}
+                {{
+                  kitchenOptions.find((item) => item.id === serviceAreaForm.sppg_id)?.name || '-'
+                }}
               </p>
             </div>
             <div class="surface-subtle rounded-3xl p-4">
               <p class="text-sm text-app-muted">Service radius</p>
               <p class="mt-2 font-semibold text-app-heading">
-                {{ formatNumber(kitchenOptions.find((item) => item.id === serviceAreaForm.sppg_id)?.service_radius_meter || 0) }} m
+                {{
+                  formatNumber(
+                    kitchenOptions.find((item) => item.id === serviceAreaForm.sppg_id)
+                      ?.service_radius_meter || 0,
+                  )
+                }}
+                m
               </p>
             </div>
             <div class="surface-subtle rounded-3xl p-4">
               <p class="text-sm text-app-muted">Covered school count</p>
               <p class="mt-2 font-semibold text-app-heading">
-                {{ formatNumber(kitchenOptions.find((item) => item.id === serviceAreaForm.sppg_id)?.covered_school_count || 0) }}
+                {{
+                  formatNumber(
+                    kitchenOptions.find((item) => item.id === serviceAreaForm.sppg_id)
+                      ?.covered_school_count || 0,
+                  )
+                }}
               </p>
             </div>
             <div class="surface-subtle rounded-3xl p-4">
               <p class="text-sm text-app-muted">Polygon existing</p>
-              <p class="mt-2 font-semibold text-app-heading">{{ activeServiceArea?.name || 'Belum ada area tersimpan' }}</p>
+              <p class="mt-2 font-semibold text-app-heading">
+                {{ activeServiceArea?.name || 'Belum ada area tersimpan' }}
+              </p>
               <p class="mt-2 text-sm text-app-body">
-                {{ activeServiceArea?.valid_from ? `Aktif sejak ${activeServiceArea.valid_from}` : 'Gunakan editor di kiri untuk membuat area baru.' }}
+                {{
+                  activeServiceArea?.valid_from
+                    ? `Aktif sejak ${activeServiceArea.valid_from}`
+                    : 'Gunakan editor di kiri untuk membuat area baru.'
+                }}
               </p>
             </div>
           </div>
@@ -895,13 +1056,20 @@ const saveServiceArea = async () => {
                 <tr v-for="item in items" :key="(item as NearestKitchenRecord).kitchen_id">
                   <td>
                     <p>{{ (item as NearestKitchenRecord).kitchen_name }}</p>
-                    <p class="mt-1 text-xs text-app-muted">{{ (item as NearestKitchenRecord).code || '-' }}</p>
+                    <p class="mt-1 text-xs text-app-muted">
+                      {{ (item as NearestKitchenRecord).code || '-' }}
+                    </p>
                   </td>
                   <td>{{ formatNumber((item as NearestKitchenRecord).distance_m) }} m</td>
                   <td>{{ (item as NearestKitchenRecord).inside_service_area ? 'Ya' : 'Tidak' }}</td>
                   <td>
                     <div class="flex items-center justify-between gap-3">
-                      <span>{{ formatNumber((item as NearestKitchenRecord).service_radius_meter || 0) }} m</span>
+                      <span
+                        >{{
+                          formatNumber((item as NearestKitchenRecord).service_radius_meter || 0)
+                        }}
+                        m</span
+                      >
                       <button
                         class="secondary-button"
                         type="button"
@@ -929,19 +1097,28 @@ const saveServiceArea = async () => {
             <div class="grid gap-4 md:grid-cols-2">
               <div class="surface-subtle rounded-3xl p-4">
                 <p class="text-sm text-app-muted">Distance</p>
-                <p class="mt-2 font-semibold text-app-heading">{{ formatNumber(assignmentResult.distance_m || 0) }} m</p>
+                <p class="mt-2 font-semibold text-app-heading">
+                  {{ formatNumber(assignmentResult.distance_m || 0) }} m
+                </p>
               </div>
               <div class="surface-subtle rounded-3xl p-4">
                 <p class="text-sm text-app-muted">Inside Service Area</p>
-                <p class="mt-2 font-semibold text-app-heading">{{ assignmentResult.inside_service_area ? 'Ya' : 'Tidak' }}</p>
+                <p class="mt-2 font-semibold text-app-heading">
+                  {{ assignmentResult.inside_service_area ? 'Ya' : 'Tidak' }}
+                </p>
               </div>
             </div>
             <div class="surface-subtle rounded-3xl p-4">
               <p class="text-sm text-app-muted">Catatan</p>
-              <p class="mt-2 text-sm text-app-body">{{ assignmentResult.message || 'Tidak ada catatan tambahan.' }}</p>
+              <p class="mt-2 text-sm text-app-body">
+                {{ assignmentResult.message || 'Tidak ada catatan tambahan.' }}
+              </p>
             </div>
           </div>
-          <div v-else class="mt-5 rounded-3xl border border-[var(--app-panel-border)] p-4 text-sm text-app-muted">
+          <div
+            v-else
+            class="mt-5 rounded-3xl border border-[var(--app-panel-border)] p-4 text-sm text-app-muted"
+          >
             Jalankan validasi assignment untuk melihat hasil kelayakan spasial sekolah ke dapur.
           </div>
         </article>
@@ -953,20 +1130,27 @@ const saveServiceArea = async () => {
           <div v-if="selectedRoute" class="mt-5 grid gap-4">
             <div class="surface-subtle rounded-3xl p-4">
               <p class="text-sm text-app-muted">Delivery Number</p>
-              <p class="mt-2 font-display text-2xl text-app-heading">{{ selectedRoute.delivery_number }}</p>
-              <p class="mt-2 text-sm text-app-body">Status {{ selectedRoute.status }} | Jarak {{ selectedRoute.distance_km.toFixed(2) }} km</p>
+              <p class="mt-2 font-display text-2xl text-app-heading">
+                {{ selectedRoute.delivery_number }}
+              </p>
+              <p class="mt-2 text-sm text-app-body">
+                Status {{ selectedRoute.status }} | Jarak
+                {{ selectedRoute.distance_km.toFixed(2) }} km
+              </p>
             </div>
             <div class="grid gap-4 md:grid-cols-2">
               <div class="surface-subtle rounded-3xl p-4">
                 <p class="text-sm text-app-muted">From Coordinate</p>
                 <p class="mt-2 font-semibold text-app-heading">
-                  {{ selectedRoute.from_coordinate.latitude.toFixed(4) }}, {{ selectedRoute.from_coordinate.longitude.toFixed(4) }}
+                  {{ selectedRoute.from_coordinate.latitude.toFixed(4) }},
+                  {{ selectedRoute.from_coordinate.longitude.toFixed(4) }}
                 </p>
               </div>
               <div class="surface-subtle rounded-3xl p-4">
                 <p class="text-sm text-app-muted">To Coordinate</p>
                 <p class="mt-2 font-semibold text-app-heading">
-                  {{ selectedRoute.to_coordinate.latitude.toFixed(4) }}, {{ selectedRoute.to_coordinate.longitude.toFixed(4) }}
+                  {{ selectedRoute.to_coordinate.latitude.toFixed(4) }},
+                  {{ selectedRoute.to_coordinate.longitude.toFixed(4) }}
                 </p>
               </div>
             </div>
@@ -975,8 +1159,12 @@ const saveServiceArea = async () => {
               <p class="mt-2 text-sm text-app-body">{{ selectedRoute.delivery_order_id || '-' }}</p>
             </div>
           </div>
-          <div v-else class="mt-5 rounded-3xl border border-[var(--app-panel-border)] p-4 text-sm text-app-muted">
-            Pilih salah satu route pada tabel `Delivery Routes` untuk melihat detail rute delivery dari backend GIS.
+          <div
+            v-else
+            class="mt-5 rounded-3xl border border-[var(--app-panel-border)] p-4 text-sm text-app-muted"
+          >
+            Pilih salah satu route pada tabel `Delivery Routes` untuk melihat detail rute delivery
+            dari backend GIS.
           </div>
         </article>
 
@@ -986,18 +1174,26 @@ const saveServiceArea = async () => {
             <div class="surface-subtle rounded-3xl p-4">
               <p class="text-sm text-app-muted">School Target</p>
               <p class="mt-2 font-semibold text-app-heading">
-                {{ schoolOptions.find((item) => item.id === validationForm.school_id)?.name || validationForm.school_id }}
+                {{
+                  schoolOptions.find((item) => item.id === validationForm.school_id)?.name ||
+                  validationForm.school_id
+                }}
               </p>
             </div>
             <div class="surface-subtle rounded-3xl p-4">
               <p class="text-sm text-app-muted">Kitchen Candidate</p>
               <p class="mt-2 font-semibold text-app-heading">
-                {{ kitchenOptions.find((item) => item.id === validationForm.kitchen_id)?.name || validationForm.kitchen_id }}
+                {{
+                  kitchenOptions.find((item) => item.id === validationForm.kitchen_id)?.name ||
+                  validationForm.kitchen_id
+                }}
               </p>
             </div>
             <div class="surface-subtle rounded-3xl p-4">
               <p class="text-sm text-app-muted">Planned Portions</p>
-              <p class="mt-2 font-semibold text-app-heading">{{ formatNumber(validationForm.planned_portions) }}</p>
+              <p class="mt-2 font-semibold text-app-heading">
+                {{ formatNumber(validationForm.planned_portions) }}
+              </p>
             </div>
           </div>
         </article>
@@ -1024,7 +1220,9 @@ const saveServiceArea = async () => {
             <tbody>
               <tr v-for="item in items" :key="(item as GisServiceRow).id">
                 <td>{{ (item as GisServiceRow).screen }}</td>
-                <td><span class="text-xs text-app-muted">{{ (item as GisServiceRow).endpoint }}</span></td>
+                <td>
+                  <span class="text-xs text-app-muted">{{ (item as GisServiceRow).endpoint }}</span>
+                </td>
                 <td>{{ (item as GisServiceRow).purpose }}</td>
                 <td>{{ (item as GisServiceRow).status }}</td>
               </tr>

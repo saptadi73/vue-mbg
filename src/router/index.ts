@@ -38,6 +38,7 @@ const FleetVehicleDetailView = () => import('@/views/FleetVehicleDetailView.vue'
 const FleetDriverTrackerView = () => import('@/views/FleetDriverTrackerView.vue')
 const FeedbackView = () => import('@/views/FeedbackView.vue')
 const QualityInspectionsView = () => import('@/views/QualityInspectionsView.vue')
+const FoodSafetyTraceabilityView = () => import('@/views/FoodSafetyTraceabilityView.vue')
 const GisView = () => import('@/views/GisView.vue')
 const FleetGisView = () => import('@/views/FleetGisView.vue')
 const SchoolsView = () => import('@/views/SchoolsView.vue')
@@ -124,6 +125,7 @@ const router = createRouter({
     { path: '/delivery/reports', name: 'delivery-reports', component: DeliveryReportsView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer', 'quality_officer'] } },
     { path: '/feedback', name: 'feedback', component: FeedbackView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer', 'quality_officer'] } },
     { path: '/quality/inspections', name: 'quality-inspections', component: QualityInspectionsView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'quality_officer'] } },
+    { path: '/quality/food-safety', name: 'food-safety-traceability', component: FoodSafetyTraceabilityView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'quality_officer'] } },
     { path: '/gis', name: 'gis', component: GisView, meta: { requiresAuth: true } },
     { path: '/gis/fleet', name: 'gis-fleet', component: FleetGisView, meta: { requiresAuth: true, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer'] } },
     { path: '/schools', name: 'schools', component: SchoolsView, meta: { requiresAuth: true } },

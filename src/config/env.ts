@@ -8,4 +8,5 @@ export const env = {
   apiTimeout: Number(import.meta.env.VITE_API_TIMEOUT || 12000),
   devTenantId: import.meta.env.VITE_DEV_TENANT_ID || 'tenant-demo-mbg',
   devSppgId: import.meta.env.VITE_DEV_SPPG_ID || 'sppg-jakarta-pusat-01',
+  googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
 }

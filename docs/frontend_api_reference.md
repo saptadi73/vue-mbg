@@ -1,6 +1,6 @@
 # Frontend API Reference
 
-Dokumentasi ini merangkum endpoint backend ERP MBG FastAPI yang aktif per 20 Juli 2026, dengan fokus kebutuhan integrasi frontend.
+Dokumentasi ini merangkum endpoint backend ERP MBG FastAPI yang aktif per 8 Agustus 2026, dengan fokus kebutuhan integrasi frontend. Versi ini mencakup Food Safety & End-to-End Traceability v2.1.
 
 ## Base URL
 
@@ -355,6 +355,29 @@ Aturan praktis:
 6. `POST /api/v1/delivery-orders/from-production-order/{production_order_id}`
 7. `POST /api/v1/delivery-orders/{delivery_order_id}/incidents`
 8. `POST /api/v1/delivery-orders/{delivery_order_id}/proof`
+
+### Food Safety & Traceability
+
+1. `POST /api/v1/traceability/entities`
+2. `GET /api/v1/traceability/{trace_code}`
+3. `POST /api/v1/traceability/{trace_code}/events`
+4. `POST /api/v1/traceability/relations`
+5. `GET /api/v1/traceability/{trace_code}/backward`
+6. `GET /api/v1/traceability/{trace_code}/forward`
+7. `GET /api/v1/traceability/{trace_code}/timeline`
+8. `GET /api/v1/food-safety/profiles`
+9. `POST /api/v1/food-safety/profiles`
+10. `POST /api/v1/food-safety/checks`
+11. `GET /api/v1/food-safety/alerts`
+12. `POST /api/v1/food-safety/alerts/{alert_id}/acknowledge`
+13. `POST /api/v1/food-safety/holds`
+14. `POST /api/v1/food-safety/holds/{hold_id}/release`
+15. `POST /api/v1/food-safety/recalls`
+16. `POST /api/v1/temperature/readings`
+17. `GET /api/v1/temperature/entities/{entity_id}/history`
+18. `POST /api/v1/deliveries/{route_id}/packages/load`
+19. `POST /api/v1/deliveries/{route_id}/route-snapshot`
+20. `POST /api/v1/deliveries/{route_id}/packages/{package_id}/receive`
 
 ### Accounting
 
@@ -4774,6 +4797,357 @@ Status akhir delivery:
 - `PARTIALLY_RECEIVED`
 - `REJECTED`
 - `CANCELLED`
+
+## Food Safety & End-to-End Traceability v2.1
+
+Semua request pada bagian ini harus mengirim `X-Tenant-ID`. Kirim juga `X-SPPG-ID` ketika UI bekerja dalam satu dapur. Endpoint mutation memerlukan bearer token dengan salah satu role:
+
+- `super_admin`
+- `tenant_admin`
+- `operations_manager`
+- `quality_officer`
+
+### Konsep QR dan Trace Identity
+
+Backend menghasilkan `trace_code` dan token opaque. Frontend bertanggung jawab merender, memindai, dan mencetak QR. QR sebaiknya hanya memuat `trace_code`, token, atau URL pendek; jangan memasukkan supplier, penerima, atau data sensitif langsung ke QR.
+
+Alur lineage utama:
+
+```text
+RAW_MATERIAL_LOT -> COOKING_BATCH -> MEAL_BATCH -> PACKAGE/CONTAINER
+                 -> VEHICLE/DELIVERY ROUTE -> DELIVERY STOP -> RECEIVED
+```
+
+### Membuat Trace Identity
+
+`POST /api/v1/traceability/entities`
+
+```json
+{
+  "tenant_id": "{{tenant_id}}",
+  "sppg_id": "{{sppg_id}}",
+  "entity_type": "RAW_MATERIAL_LOT",
+  "entity_id": "{{inventory_batch_id}}",
+  "status": "ACTIVE",
+  "metadata_json": {
+    "supplier_lot": "SUP-LOT-20260808-01"
+  }
+}
+```
+
+Response `data` penting:
+
+```json
+{
+  "id": "uuid",
+  "entity_type": "RAW_MATERIAL_LOT",
+  "entity_id": "uuid",
+  "trace_code": "TRC-RAW-A1B2C3D4",
+  "trace_token": "opaque-random-token",
+  "status": "ACTIVE"
+}
+```
+
+Simpan `trace_code` sebagai identitas yang ditampilkan/di-scan. `trace_token` diperlakukan sebagai credential opaque dan tidak boleh diparsing oleh frontend.
+
+### Mencatat Event dan Lineage
+
+`POST /api/v1/traceability/{trace_code}/events`
+
+```json
+{
+  "event_type": "STORED",
+  "notes": "Masuk cold room A",
+  "metadata_json": {
+    "location_code": "COLD-A"
+  }
+}
+```
+
+Contoh event yang direkomendasikan UI:
+
+- `RECEIVED`
+- `STORED`
+- `ISSUED`
+- `COOKED`
+- `PACKAGED`
+- `LOADED`
+- `DISPATCHED`
+- `ARRIVED`
+- `RECEIVED_BY_RECIPIENT`
+- `REJECTED`
+
+`POST /api/v1/traceability/relations`
+
+```json
+{
+  "parent_trace_code": "TRC-RAW-A1B2C3D4",
+  "child_trace_code": "TRC-COO-E5F6A7B8",
+  "relation_type": "CONSUMED_IN",
+  "quantity": 25.5,
+  "uom_id": "{{uom_id}}"
+}
+```
+
+Backend menolak self-reference, relasi lintas SPPG, duplikasi, dan lineage cycle.
+
+Endpoint baca:
+
+- `GET /api/v1/traceability/{trace_code}` untuk hasil scan QR.
+- `GET /api/v1/traceability/{trace_code}/timeline` untuk timeline satu objek.
+- `GET /api/v1/traceability/{trace_code}/backward` untuk menelusuri sumber bahan.
+- `GET /api/v1/traceability/{trace_code}/forward` untuk mencari seluruh produk/package terdampak.
+
+Response graph berisi `root`, `entities`, dan `relations`. Frontend dapat membentuk graph berdasarkan `parent_trace_entity_id` dan `child_trace_entity_id`.
+
+### Food Safety Profile
+
+`POST /api/v1/food-safety/profiles`
+
+```json
+{
+  "tenant_id": "{{tenant_id}}",
+  "sppg_id": "{{sppg_id}}",
+  "profile_code": "HOT_MEAL_STANDARD",
+  "profile_name": "Hot Meal Standard",
+  "entity_type": "MEAL_BATCH",
+  "temperature_min_c": 60,
+  "temperature_max_c": 80,
+  "max_storage_minutes": 120,
+  "warning_before_expiry_minutes": 15,
+  "temperature_excursion_tolerance_minutes": 5,
+  "max_time_to_recipient_minutes": 120,
+  "warning_buffer_minutes": 30,
+  "critical_action": "BLOCK"
+}
+```
+
+Nilai `critical_action`:
+
+- `WARN`
+- `HOLD`
+- `BLOCK`
+- `QA_APPROVAL`
+- `REJECT`
+
+Profile tanpa `sppg_id` berlaku pada level tenant. `GET /api/v1/food-safety/profiles` mengembalikan profile tenant-global dan profile untuk SPPG aktif.
+
+### Safety Check dan Gate
+
+`POST /api/v1/food-safety/checks`
+
+```json
+{
+  "profile_id": "{{profile_id}}",
+  "entity_type": "MEAL_BATCH",
+  "entity_id": "{{meal_batch_id}}",
+  "temperature_c": 58.5,
+  "stored_since": "2026-08-08T06:00:00Z",
+  "expiry_at": "2026-08-08T10:00:00Z",
+  "cooking_completed_at": "2026-08-08T07:00:00Z",
+  "predicted_recipient_at": "2026-08-08T09:05:00Z"
+}
+```
+
+Contoh response `data`:
+
+```json
+{
+  "gate": "BLOCK",
+  "status": "CRITICAL",
+  "violations": [
+    "TEMPERATURE_TOO_LOW",
+    "PREDICTED_UNSAFE_ARRIVAL"
+  ],
+  "safety_buffer_minutes": -5,
+  "recommended_action": "BLOCK"
+}
+```
+
+Frontend harus memakai `gate` untuk menentukan CTA:
+
+| Gate | Perilaku UI |
+|---|---|
+| `PASS` | Proses dapat dilanjutkan. |
+| `WARNING` | Tampilkan warning dan minta konfirmasi sesuai SOP. |
+| `HOLD` | Nonaktifkan posting dan arahkan ke QA/QC review. |
+| `BLOCK` | Blok transaksi. |
+| `REJECT` | Tandai batch/package ditolak. |
+
+### Temperature Reading
+
+`POST /api/v1/temperature/readings`
+
+```json
+{
+  "tenant_id": "{{tenant_id}}",
+  "sppg_id": "{{sppg_id}}",
+  "entity_type": "RAW_MATERIAL_LOT",
+  "entity_id": "{{inventory_batch_id}}",
+  "profile_id": "{{profile_id}}",
+  "temperature_c": 9.2,
+  "measured_at": "2026-08-08T07:15:00Z",
+  "measurement_method": "MANUAL",
+  "device_id": null,
+  "latitude": -6.1754,
+  "longitude": 106.8272
+}
+```
+
+Response `data` memiliki bentuk:
+
+```json
+{
+  "reading": {},
+  "alert": {}
+}
+```
+
+`alert` bernilai `null` jika reading masih aman. Jika melanggar profile, backend langsung membuat alert. Riwayat diambil melalui `GET /api/v1/temperature/entities/{entity_id}/history`.
+
+### Alert, HOLD, dan Release
+
+Daftar alert:
+
+```http
+GET /api/v1/food-safety/alerts?alert_status=OPEN
+```
+
+Status alert utama adalah `OPEN`, `ACKNOWLEDGED`, dan `RESOLVED`. Acknowledge:
+
+```http
+POST /api/v1/food-safety/alerts/{alert_id}/acknowledge
+```
+
+Membuat HOLD:
+
+```http
+POST /api/v1/food-safety/holds
+```
+
+```json
+{
+  "tenant_id": "{{tenant_id}}",
+  "sppg_id": "{{sppg_id}}",
+  "entity_type": "RAW_MATERIAL_LOT",
+  "entity_id": "{{inventory_batch_id}}",
+  "reason": "Temperature excursion memerlukan pemeriksaan QA",
+  "evidence": {
+    "photo_url": "https://example.com/evidence/thermometer.jpg"
+  }
+}
+```
+
+Release wajib membawa alasan dan dapat membawa evidence tambahan:
+
+```http
+POST /api/v1/food-safety/holds/{hold_id}/release
+```
+
+```json
+{
+  "reason": "QA memverifikasi produk masih aman",
+  "evidence": {
+    "inspection_id": "uuid"
+  }
+}
+```
+
+HOLD dan release menghasilkan audit event dengan actor, timestamp, reason, before/after status, dan evidence.
+
+### Recall
+
+`POST /api/v1/food-safety/recalls`
+
+```json
+{
+  "trace_code": "TRC-RAW-A1B2C3D4",
+  "reason": "Supplier lot dinyatakan tidak aman",
+  "severity": "CRITICAL"
+}
+```
+
+Backend menjalankan forward trace dan menyimpan seluruh `affected_trace_ids`. Frontend dapat memakai forward graph untuk menampilkan cooking batch, meal batch, package, serta delivery yang terdampak.
+
+### Package Loading dan Receiving
+
+Sebelum loading, package harus memiliki trace identity dengan `entity_type` `PACKAGE`, `CONTAINER`, atau `MEAL_BATCH`.
+
+`POST /api/v1/deliveries/{route_id}/packages/load`
+
+```json
+{
+  "tenant_id": "{{tenant_id}}",
+  "sppg_id": "{{sppg_id}}",
+  "package_trace_code": "TRC-PAC-11223344",
+  "delivery_stop_id": "{{delivery_stop_id}}",
+  "vehicle_id": "{{vehicle_id}}",
+  "loaded_at": "2026-08-08T07:30:00Z",
+  "temp_at_loading": 65.2
+}
+```
+
+Receiving package:
+
+`POST /api/v1/deliveries/{route_id}/packages/{package_id}/receive`
+
+```json
+{
+  "received_at": "2026-08-08T08:35:00Z",
+  "temperature_c": 61.8,
+  "latitude": -6.2001,
+  "longitude": 106.8167
+}
+```
+
+### Google Routes Snapshot
+
+Frontend dapat menghitung route memakai Google Maps Platform, lalu mengirim snapshot penting ke backend:
+
+`POST /api/v1/deliveries/{route_id}/route-snapshot`
+
+```json
+{
+  "tenant_id": "{{tenant_id}}",
+  "sppg_id": "{{sppg_id}}",
+  "distance_meters": 12450,
+  "duration_seconds": 2280,
+  "estimated_arrival_at": "2026-08-08T08:28:00Z",
+  "provider": "GOOGLE_ROUTES",
+  "encoded_polyline": "encoded-polyline",
+  "provider_response": {
+    "routing_preference": "TRAFFIC_AWARE"
+  }
+}
+```
+
+PostGIS tetap menjadi sumber kebenaran lokasi. Snapshot dipakai untuk audit planned-vs-actual dan sebagai input `predicted_recipient_at` pada safety check.
+
+### Food Safety Clock
+
+Saat production order selesai, backend mengisi `cooking_completed_at`. Frontend boleh menampilkan countdown, tetapi harus menghitung ulang dari timestamp backend:
+
+```text
+maximum_recipient_at = cooking_completed_at + max_time_to_recipient_minutes
+safety_buffer        = maximum_recipient_at - predicted_recipient_at
+```
+
+Jangan menjadikan countdown lokal sebagai sumber kebenaran. Refresh safety check ketika ETA, route, loading duration, atau waktu penerimaan berubah.
+
+### Error Code Penting
+
+| Code | Makna |
+|---|---|
+| `TRACE_ENTITY_NOT_FOUND` | QR/trace code tidak tersedia dalam tenant/SPPG aktif. |
+| `TRACE_ENTITY_EXISTS` | Objek sudah memiliki trace identity. |
+| `TRACE_RELATION_CYCLE` | Relasi menghasilkan siklus lineage. |
+| `TRACE_RELATION_SPPG_MISMATCH` | Parent dan child berasal dari SPPG berbeda. |
+| `SAFETY_PROFILE_NOT_FOUND` | Profile tidak ditemukan atau tidak aktif. |
+| `INVENTORY_BATCH_SAFETY_BLOCKED` | Batch gagal safety gate. |
+| `INVENTORY_BATCH_EXPIRED` | Batch kedaluwarsa. |
+| `ACTIVE_HOLD_EXISTS` | Objek sudah memiliki HOLD aktif. |
+| `ALERT_ALREADY_RESOLVED` | Alert final tidak dapat di-acknowledge. |
+| `PACKAGE_ALREADY_RECEIVED` | Receiving package terduplikasi. |
 
 ## Catatan Frontend
 

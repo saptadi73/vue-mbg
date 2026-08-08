@@ -87,6 +87,48 @@ Kode fleet demo yang aman dipakai frontend:
 - assignment utama: `2026-07-20`
 - histori GPS demo: tersedia untuk seluruh armada pada `2026-07-20`
 
+## Food Safety & Traceability Quick Flow
+
+```text
+Create trace identity -> render/scan QR -> add lineage/event
+-> run safety check -> PASS/WARNING/HOLD/BLOCK/REJECT
+-> load package -> save route snapshot -> receive package
+```
+
+Header wajib untuk seluruh flow:
+
+```http
+X-Tenant-ID: <tenant_uuid>
+X-SPPG-ID: <sppg_uuid>
+```
+
+Mutation memerlukan bearer token dengan role `super_admin`, `tenant_admin`, `operations_manager`, atau `quality_officer`.
+
+Contoh payload paling penting:
+
+```json
+{
+  "profile_id": "uuid",
+  "entity_type": "MEAL_BATCH",
+  "entity_id": "uuid",
+  "temperature_c": 58.5,
+  "cooking_completed_at": "2026-08-08T07:00:00Z",
+  "predicted_recipient_at": "2026-08-08T09:05:00Z"
+}
+```
+
+Gunakan `data.gate`, bukan teks pesan, untuk mengontrol CTA UI:
+
+| Gate | UI |
+|---|---|
+| `PASS` | Lanjutkan proses |
+| `WARNING` | Tampilkan warning/konfirmasi |
+| `HOLD` | Arahkan ke QA review |
+| `BLOCK` | Nonaktifkan posting |
+| `REJECT` | Tandai batch/package ditolak |
+
+Detail payload, response, QR lineage, alert, recall, package loading, dan Google Routes snapshot tersedia di `docs/frontend_api_reference.md`.
+
 ## Endpoint Matrix
 
 | Method | Endpoint | Auth | Role | Kegunaan |
@@ -94,6 +136,26 @@ Kode fleet demo yang aman dipakai frontend:
 | `GET` | `/health/live` | No | - | Health check ringan |
 | `GET` | `/health/ready` | No | - | Readiness check |
 | `GET` | `/health/database` | No | - | Check database |
+| `POST` | `/api/v1/traceability/entities` | Yes | Ops/QA | Buat identity QR opaque |
+| `GET` | `/api/v1/traceability/{trace_code}` | No | - | Resolve hasil scan QR |
+| `POST` | `/api/v1/traceability/{trace_code}/events` | Yes | Ops/QA | Catat event trace |
+| `POST` | `/api/v1/traceability/relations` | Yes | Ops/QA | Hubungkan parent-child lineage |
+| `GET` | `/api/v1/traceability/{trace_code}/backward` | No | - | Telusuri sumber bahan |
+| `GET` | `/api/v1/traceability/{trace_code}/forward` | No | - | Telusuri objek terdampak |
+| `GET` | `/api/v1/traceability/{trace_code}/timeline` | No | - | Timeline trace entity |
+| `GET` | `/api/v1/food-safety/profiles` | No | - | Profile safety tenant/SPPG |
+| `POST` | `/api/v1/food-safety/profiles` | Yes | Ops/QA | Buat batas safety configurable |
+| `POST` | `/api/v1/food-safety/checks` | No | - | Evaluasi safety gate dan ETA |
+| `GET` | `/api/v1/food-safety/alerts` | No | - | List alert safety |
+| `POST` | `/api/v1/food-safety/alerts/{alert_id}/acknowledge` | Yes | Ops/QA | Acknowledge alert |
+| `POST` | `/api/v1/food-safety/holds` | Yes | Ops/QA | Pasang HOLD |
+| `POST` | `/api/v1/food-safety/holds/{hold_id}/release` | Yes | Ops/QA | QA release dengan audit trail |
+| `POST` | `/api/v1/food-safety/recalls` | Yes | Ops/QA | Recall melalui forward trace |
+| `POST` | `/api/v1/temperature/readings` | Yes | Ops/QA | Catat suhu manual/IoT |
+| `GET` | `/api/v1/temperature/entities/{entity_id}/history` | No | - | Riwayat suhu objek |
+| `POST` | `/api/v1/deliveries/{route_id}/packages/load` | Yes | Ops/QA | Scan package ke armada/stop |
+| `POST` | `/api/v1/deliveries/{route_id}/route-snapshot` | Yes | Ops/QA | Simpan distance/duration/ETA |
+| `POST` | `/api/v1/deliveries/{route_id}/packages/{package_id}/receive` | Yes | Ops/QA | Catat receiving dan suhu |
 | `POST` | `/api/v1/identity/login` | No | - | Login JWT |
 | `GET` | `/api/v1/identity/me` | Yes | Any | Profil user aktif |
 | `POST` | `/api/v1/identity/switch-active-sppg` | Yes | Any | Pindah context SPPG aktif |

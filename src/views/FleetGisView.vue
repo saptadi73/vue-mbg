@@ -3,7 +3,7 @@ import { computed, onUnmounted, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import DataTableCard from '@/components/common/DataTableCard.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
-import MapPanel from '@/components/gis/MapPanel.vue'
+import MapPanel from '@/components/gis/GoogleMapPanel.vue'
 import { useAsyncState } from '@/composables/useAsyncState'
 import { getFleetVehicleLocationHistory, getGisOverview } from '@/services/gis'
 import { useAppStore } from '@/stores/app'
@@ -37,7 +37,9 @@ const resolveFilters = () => ({
 
 const gisState = useAsyncState(() => getGisOverview(resolveFilters()))
 const selectedVehicleId = ref('')
-const historyState = useAsyncState(() => getFleetVehicleLocationHistory(selectedVehicleId.value, 12))
+const historyState = useAsyncState(() =>
+  getFleetVehicleLocationHistory(selectedVehicleId.value, 12),
+)
 const trailFocusIndex = ref<number | null>(null)
 const playbackRunning = ref(false)
 let playbackTimer: ReturnType<typeof setInterval> | null = null
@@ -45,7 +47,10 @@ let playbackTimer: ReturnType<typeof setInterval> | null = null
 const data = computed(() => gisState.data.value ?? null)
 const fleetRows = computed(() => data.value?.fleetVehicles || [])
 const selectedVehicle = computed(
-  () => fleetRows.value.find((item) => item.vehicle_id === selectedVehicleId.value) || fleetRows.value[0] || null,
+  () =>
+    fleetRows.value.find((item) => item.vehicle_id === selectedVehicleId.value) ||
+    fleetRows.value[0] ||
+    null,
 )
 const selectedTrail = computed(() => historyState.data.value?.items || [])
 const focusedTrailPoint = computed(
@@ -53,10 +58,18 @@ const focusedTrailPoint = computed(
     (trailFocusIndex.value !== null ? selectedTrail.value[trailFocusIndex.value] : null) ||
     selectedTrailLatest.value,
 )
-const inTransitCount = computed(() => fleetRows.value.filter((item) => item.status === 'IN_TRANSIT').length)
-const loadingCount = computed(() => fleetRows.value.filter((item) => item.status === 'LOADING').length)
-const arrivedCount = computed(() => fleetRows.value.filter((item) => item.status === 'ARRIVED').length)
-const maintenanceCount = computed(() => fleetRows.value.filter((item) => item.status === 'MAINTENANCE').length)
+const inTransitCount = computed(
+  () => fleetRows.value.filter((item) => item.status === 'IN_TRANSIT').length,
+)
+const loadingCount = computed(
+  () => fleetRows.value.filter((item) => item.status === 'LOADING').length,
+)
+const arrivedCount = computed(
+  () => fleetRows.value.filter((item) => item.status === 'ARRIVED').length,
+)
+const maintenanceCount = computed(
+  () => fleetRows.value.filter((item) => item.status === 'MAINTENANCE').length,
+)
 const avgSpeed = computed(() => {
   const moving = fleetRows.value.filter((item) => (item.speed_kmh || 0) > 0)
   if (!moving.length) return 0
@@ -67,7 +80,9 @@ const selectedTrailAvgSpeed = computed(() => {
   if (!moving.length) return 0
   return moving.reduce((sum, item) => sum + (item.speed_kmh || 0), 0) / moving.length
 })
-const selectedTrailLatest = computed(() => selectedTrail.value[selectedTrail.value.length - 1] || null)
+const selectedTrailLatest = computed(
+  () => selectedTrail.value[selectedTrail.value.length - 1] || null,
+)
 const selectedTrailDistance = computed(() => {
   if (selectedTrail.value.length < 2) return 0
 
@@ -125,13 +140,7 @@ const documentationSearchText = (item: unknown) => {
 
 const historySearchText = (item: unknown) => {
   const row = item as FleetVehicleLocationRecord
-  return [
-    row.vehicle_code,
-    row.status,
-    row.location_recorded_at,
-    row.speed_kmh,
-    row.source,
-  ]
+  return [row.vehicle_code, row.status, row.location_recorded_at, row.speed_kmh, row.source]
     .filter(Boolean)
     .join(' ')
 }
@@ -211,7 +220,10 @@ watch(
   fleetRows,
   (items) => {
     if (!items.length) return
-    if (!selectedVehicleId.value || !items.some((item) => item.vehicle_id === selectedVehicleId.value)) {
+    if (
+      !selectedVehicleId.value ||
+      !items.some((item) => item.vehicle_id === selectedVehicleId.value)
+    ) {
       selectedVehicleId.value = items[0]!.vehicle_id
       historyState.execute()
     }
@@ -241,7 +253,9 @@ onUnmounted(() => {
       <article class="glass-panel p-5">
         <p class="text-sm text-app-muted">Fleet live</p>
         <p class="mt-3 font-display text-3xl text-app-heading">{{ fleetRows.length }}</p>
-        <p class="mt-2 text-sm text-app-body">Jumlah kendaraan dengan posisi terkini pada scope aktif.</p>
+        <p class="mt-2 text-sm text-app-body">
+          Jumlah kendaraan dengan posisi terkini pada scope aktif.
+        </p>
       </article>
       <article class="glass-panel p-5">
         <p class="text-sm text-app-muted">In transit</p>
@@ -255,13 +269,19 @@ onUnmounted(() => {
       </article>
       <article class="glass-panel p-5">
         <p class="text-sm text-app-muted">Arrived / maintenance</p>
-        <p class="mt-3 font-display text-3xl text-app-heading">{{ arrivedCount }} / {{ maintenanceCount }}</p>
-        <p class="mt-2 text-sm text-app-body">Ringkasan kendaraan tiba dan yang sedang di bengkel.</p>
+        <p class="mt-3 font-display text-3xl text-app-heading">
+          {{ arrivedCount }} / {{ maintenanceCount }}
+        </p>
+        <p class="mt-2 text-sm text-app-body">
+          Ringkasan kendaraan tiba dan yang sedang di bengkel.
+        </p>
       </article>
       <article class="glass-panel p-5">
         <p class="text-sm text-app-muted">Average speed</p>
         <p class="mt-3 font-display text-3xl text-app-heading">{{ formatNumber(avgSpeed) }} km/h</p>
-        <p class="mt-2 text-sm text-app-body">Rata-rata kecepatan kendaraan yang sedang bergerak.</p>
+        <p class="mt-2 text-sm text-app-body">
+          Rata-rata kecepatan kendaraan yang sedang bergerak.
+        </p>
       </article>
     </section>
 
@@ -286,9 +306,15 @@ onUnmounted(() => {
         </label>
         <label class="form-field flex-[1.2]">
           <span>BBox optional</span>
-          <input v-model="filters.bbox" class="toolbar-input" placeholder="106.800,-6.200,106.900,-6.100" />
+          <input
+            v-model="filters.bbox"
+            class="toolbar-input"
+            placeholder="106.800,-6.200,106.900,-6.100"
+          />
         </label>
-        <button class="primary-button xl:min-w-44" type="button" @click="reload">Refresh Fleet Map</button>
+        <button class="primary-button xl:min-w-44" type="button" @click="reload">
+          Refresh Fleet Map
+        </button>
       </div>
       <label class="mt-4 inline-flex items-center gap-3 text-sm text-app-body">
         <input v-model="filters.use_active_sppg" type="checkbox" />
@@ -299,7 +325,9 @@ onUnmounted(() => {
     <div v-if="gisState.loading.value" class="loading-panel">Memuat posisi fleet...</div>
     <div v-else-if="gisState.error.value" class="error-panel">
       <p>{{ gisState.error.value }}</p>
-      <button class="primary-button mt-3" type="button" @click="gisState.execute">Muat ulang</button>
+      <button class="primary-button mt-3" type="button" @click="gisState.execute">
+        Muat ulang
+      </button>
     </div>
     <template v-else-if="data">
       <MapPanel
@@ -334,18 +362,26 @@ onUnmounted(() => {
                 <tr v-for="item in items" :key="(item as FleetVehicleLocationRecord).id">
                   <td>
                     <p>{{ (item as FleetVehicleLocationRecord).vehicle_code }}</p>
-                    <p class="mt-1 text-xs text-app-muted">{{ (item as FleetVehicleLocationRecord).plate_number || '-' }}</p>
+                    <p class="mt-1 text-xs text-app-muted">
+                      {{ (item as FleetVehicleLocationRecord).plate_number || '-' }}
+                    </p>
                   </td>
                   <td>
                     <p>{{ (item as FleetVehicleLocationRecord).driver_name || '-' }}</p>
-                    <p class="mt-1 text-xs text-app-muted">{{ (item as FleetVehicleLocationRecord).assignment_role || '-' }}</p>
+                    <p class="mt-1 text-xs text-app-muted">
+                      {{ (item as FleetVehicleLocationRecord).assignment_role || '-' }}
+                    </p>
                   </td>
                   <td>{{ (item as FleetVehicleLocationRecord).sppg_name || '-' }}</td>
                   <td>{{ (item as FleetVehicleLocationRecord).status }}</td>
-                  <td>{{ formatNumber((item as FleetVehicleLocationRecord).speed_kmh || 0) }} km/h</td>
+                  <td>
+                    {{ formatNumber((item as FleetVehicleLocationRecord).speed_kmh || 0) }} km/h
+                  </td>
                   <td>
                     <div class="flex items-center justify-between gap-3">
-                      <span>{{ (item as FleetVehicleLocationRecord).location_recorded_at || '-' }}</span>
+                      <span>{{
+                        (item as FleetVehicleLocationRecord).location_recorded_at || '-'
+                      }}</span>
                       <button
                         class="secondary-button"
                         type="button"
@@ -370,7 +406,8 @@ onUnmounted(() => {
                 {{ selectedVehicle?.vehicle_code || 'Belum dipilih' }}
               </p>
               <p class="mt-2 text-sm text-app-body">
-                {{ selectedVehicle?.plate_number || '-' }} | {{ selectedVehicle?.driver_name || 'Tanpa driver aktif' }}
+                {{ selectedVehicle?.plate_number || '-' }} |
+                {{ selectedVehicle?.driver_name || 'Tanpa driver aktif' }}
               </p>
             </div>
             <div class="surface-subtle rounded-3xl p-4">
@@ -378,15 +415,21 @@ onUnmounted(() => {
               <div class="mt-3 grid gap-3 sm:grid-cols-3">
                 <div>
                   <p class="text-xs uppercase tracking-[0.2em] text-app-muted">Ping</p>
-                  <p class="mt-2 text-lg font-semibold text-app-heading">{{ formatNumber(selectedTrail.length) }}</p>
+                  <p class="mt-2 text-lg font-semibold text-app-heading">
+                    {{ formatNumber(selectedTrail.length) }}
+                  </p>
                 </div>
                 <div>
                   <p class="text-xs uppercase tracking-[0.2em] text-app-muted">Avg Speed</p>
-                  <p class="mt-2 text-lg font-semibold text-app-heading">{{ formatNumber(selectedTrailAvgSpeed) }} km/h</p>
+                  <p class="mt-2 text-lg font-semibold text-app-heading">
+                    {{ formatNumber(selectedTrailAvgSpeed) }} km/h
+                  </p>
                 </div>
                 <div>
                   <p class="text-xs uppercase tracking-[0.2em] text-app-muted">Latest</p>
-                  <p class="mt-2 text-sm font-semibold text-app-heading">{{ selectedTrailLatest?.location_recorded_at || '-' }}</p>
+                  <p class="mt-2 text-sm font-semibold text-app-heading">
+                    {{ selectedTrailLatest?.location_recorded_at || '-' }}
+                  </p>
                 </div>
               </div>
             </div>
@@ -400,13 +443,28 @@ onUnmounted(() => {
                   </p>
                 </div>
                 <div class="flex flex-wrap gap-2">
-                  <button class="secondary-button" :disabled="!selectedTrail.length" type="button" @click="goPrevTrail">
+                  <button
+                    class="secondary-button"
+                    :disabled="!selectedTrail.length"
+                    type="button"
+                    @click="goPrevTrail"
+                  >
                     Prev
                   </button>
-                  <button class="secondary-button" :disabled="!selectedTrail.length" type="button" @click="togglePlayback">
+                  <button
+                    class="secondary-button"
+                    :disabled="!selectedTrail.length"
+                    type="button"
+                    @click="togglePlayback"
+                  >
                     {{ playbackRunning ? 'Pause' : 'Play' }}
                   </button>
-                  <button class="secondary-button" :disabled="!selectedTrail.length" type="button" @click="goNextTrail">
+                  <button
+                    class="secondary-button"
+                    :disabled="!selectedTrail.length"
+                    type="button"
+                    @click="goNextTrail"
+                  >
                     Next
                   </button>
                 </div>
@@ -423,7 +481,9 @@ onUnmounted(() => {
             <div class="surface-subtle rounded-3xl p-4">
               <p class="text-sm text-app-muted">Tracking notes</p>
               <p class="mt-2 text-sm text-app-body">
-                Jejak historis memakai endpoint `GET /api/v1/fleet/vehicles/{vehicle_id}/locations`. Di fallback mock, trail dibentuk dari posisi live terakhir agar UI tetap terbaca saat backend belum memberi histori.
+                Jejak historis memakai endpoint `GET /api/v1/fleet/vehicles/{vehicle_id}/locations`.
+                Di fallback mock, trail dibentuk dari posisi live terakhir agar UI tetap terbaca
+                saat backend belum memberi histori.
               </p>
             </div>
           </div>
@@ -436,27 +496,38 @@ onUnmounted(() => {
           <div v-if="selectedVehicle" class="mt-5 grid gap-4">
             <div class="surface-subtle rounded-3xl p-4">
               <p class="text-sm text-app-muted">Current operational state</p>
-              <p class="mt-2 font-display text-2xl text-app-heading">{{ selectedVehicle.status }}</p>
+              <p class="mt-2 font-display text-2xl text-app-heading">
+                {{ selectedVehicle.status }}
+              </p>
               <p class="mt-2 text-sm text-app-body">
-                {{ selectedVehicle.sppg_name || '-' }} | {{ selectedVehicle.assignment_role || '-' }}
+                {{ selectedVehicle.sppg_name || '-' }} |
+                {{ selectedVehicle.assignment_role || '-' }}
               </p>
             </div>
             <div class="grid gap-4 md:grid-cols-2">
               <div class="surface-subtle rounded-3xl p-4">
                 <p class="text-xs uppercase tracking-[0.2em] text-app-muted">Driver</p>
-                <p class="mt-2 text-sm font-semibold text-app-heading">{{ selectedVehicle.driver_name || '-' }}</p>
+                <p class="mt-2 text-sm font-semibold text-app-heading">
+                  {{ selectedVehicle.driver_name || '-' }}
+                </p>
               </div>
               <div class="surface-subtle rounded-3xl p-4">
                 <p class="text-xs uppercase tracking-[0.2em] text-app-muted">Plate</p>
-                <p class="mt-2 text-sm font-semibold text-app-heading">{{ selectedVehicle.plate_number || '-' }}</p>
+                <p class="mt-2 text-sm font-semibold text-app-heading">
+                  {{ selectedVehicle.plate_number || '-' }}
+                </p>
               </div>
               <div class="surface-subtle rounded-3xl p-4">
                 <p class="text-xs uppercase tracking-[0.2em] text-app-muted">Current Speed</p>
-                <p class="mt-2 text-sm font-semibold text-app-heading">{{ formatNumber(selectedVehicle.speed_kmh || 0) }} km/h</p>
+                <p class="mt-2 text-sm font-semibold text-app-heading">
+                  {{ formatNumber(selectedVehicle.speed_kmh || 0) }} km/h
+                </p>
               </div>
               <div class="surface-subtle rounded-3xl p-4">
                 <p class="text-xs uppercase tracking-[0.2em] text-app-muted">Heading</p>
-                <p class="mt-2 text-sm font-semibold text-app-heading">{{ formatNumber(selectedVehicle.heading_deg || 0) }} deg</p>
+                <p class="mt-2 text-sm font-semibold text-app-heading">
+                  {{ formatNumber(selectedVehicle.heading_deg || 0) }} deg
+                </p>
               </div>
             </div>
           </div>
@@ -467,26 +538,35 @@ onUnmounted(() => {
           <div class="mt-5 grid gap-4">
             <div class="surface-subtle rounded-3xl p-4">
               <p class="text-sm text-app-muted">Focused timestamp</p>
-              <p class="mt-2 font-semibold text-app-heading">{{ focusedTrailPoint?.location_recorded_at || '-' }}</p>
+              <p class="mt-2 font-semibold text-app-heading">
+                {{ focusedTrailPoint?.location_recorded_at || '-' }}
+              </p>
             </div>
             <div class="grid gap-4 md:grid-cols-2">
               <div class="surface-subtle rounded-3xl p-4">
                 <p class="text-xs uppercase tracking-[0.2em] text-app-muted">Focused coordinate</p>
                 <p class="mt-2 text-sm font-semibold text-app-heading">
-                  {{ formatNumber(focusedTrailPoint?.latitude || 0) }}, {{ formatNumber(focusedTrailPoint?.longitude || 0) }}
+                  {{ formatNumber(focusedTrailPoint?.latitude || 0) }},
+                  {{ formatNumber(focusedTrailPoint?.longitude || 0) }}
                 </p>
               </div>
               <div class="surface-subtle rounded-3xl p-4">
                 <p class="text-xs uppercase tracking-[0.2em] text-app-muted">Focused speed</p>
-                <p class="mt-2 text-sm font-semibold text-app-heading">{{ formatNumber(focusedTrailPoint?.speed_kmh || 0) }} km/h</p>
+                <p class="mt-2 text-sm font-semibold text-app-heading">
+                  {{ formatNumber(focusedTrailPoint?.speed_kmh || 0) }} km/h
+                </p>
               </div>
               <div class="surface-subtle rounded-3xl p-4">
                 <p class="text-xs uppercase tracking-[0.2em] text-app-muted">Ping distance</p>
-                <p class="mt-2 text-sm font-semibold text-app-heading">{{ formatNumber(selectedTrailDistance) }} km</p>
+                <p class="mt-2 text-sm font-semibold text-app-heading">
+                  {{ formatNumber(selectedTrailDistance) }} km
+                </p>
               </div>
               <div class="surface-subtle rounded-3xl p-4">
                 <p class="text-xs uppercase tracking-[0.2em] text-app-muted">Trail source</p>
-                <p class="mt-2 text-sm font-semibold text-app-heading">{{ focusedTrailPoint?.source || '-' }}</p>
+                <p class="mt-2 text-sm font-semibold text-app-heading">
+                  {{ focusedTrailPoint?.source || '-' }}
+                </p>
               </div>
             </div>
           </div>
@@ -520,7 +600,9 @@ onUnmounted(() => {
                   {{ formatNumber((item as FleetVehicleLocationRecord).latitude) }},
                   {{ formatNumber((item as FleetVehicleLocationRecord).longitude) }}
                 </td>
-                <td>{{ formatNumber((item as FleetVehicleLocationRecord).speed_kmh || 0) }} km/h</td>
+                <td>
+                  {{ formatNumber((item as FleetVehicleLocationRecord).speed_kmh || 0) }} km/h
+                </td>
                 <td>{{ (item as FleetVehicleLocationRecord).source || '-' }}</td>
               </tr>
             </tbody>
@@ -547,7 +629,11 @@ onUnmounted(() => {
             </thead>
             <tbody>
               <tr v-for="item in items" :key="(item as FleetGisServiceRow).id">
-                <td><span class="text-xs text-app-muted">{{ (item as FleetGisServiceRow).endpoint }}</span></td>
+                <td>
+                  <span class="text-xs text-app-muted">{{
+                    (item as FleetGisServiceRow).endpoint
+                  }}</span>
+                </td>
                 <td>{{ (item as FleetGisServiceRow).purpose }}</td>
                 <td>{{ (item as FleetGisServiceRow).status }}</td>
               </tr>
