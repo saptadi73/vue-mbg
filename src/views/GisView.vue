@@ -24,6 +24,7 @@ import type {
   ServiceCoverageRecord,
 } from '@/types/domain'
 import { formatNumber } from '@/utils/format'
+import { isUuid } from '@/utils/validation'
 
 type GisMode =
   | 'overview'
@@ -42,6 +43,7 @@ const assignmentResult = ref<AssignmentValidationRecord | null>(null)
 const selectedRoute = ref<DeliveryRouteRecord | null>(null)
 const selectedRouteSource = ref<'backend' | 'fallback' | null>(null)
 const toolLoading = ref(false)
+const toolError = ref('')
 const serviceAreaSaving = ref(false)
 const serviceAreaMessage = ref('')
 const serviceAreaError = ref('')
@@ -56,12 +58,12 @@ const gisFilters = reactive({
 })
 
 const nearestForm = reactive({
-  school_id: 'school-1',
+  school_id: '',
 })
 
 const validationForm = reactive({
-  kitchen_id: 'sppg-jakarta-pusat-01',
-  school_id: 'school-1',
+  kitchen_id: '',
+  school_id: '',
   planned_portions: 120,
 })
 
@@ -288,6 +290,13 @@ const reloadGis = async () => {
 }
 
 const loadNearestKitchens = async () => {
+  toolError.value = ''
+  if (!isUuid(nearestForm.school_id)) {
+    nearestRows.value = []
+    toolError.value = 'Pilih sekolah dengan UUID database yang valid.'
+    return
+  }
+
   toolLoading.value = true
   try {
     const response = await getNearestKitchens(nearestForm.school_id)
@@ -370,6 +379,13 @@ const useNearestKitchen = async (kitchenId: string) => {
 }
 
 const runAssignmentValidation = async () => {
+  toolError.value = ''
+  if (!isUuid(validationForm.school_id) || !isUuid(validationForm.kitchen_id)) {
+    assignmentResult.value = null
+    toolError.value = 'School ID dan Kitchen ID harus berupa UUID database yang valid.'
+    return
+  }
+
   toolLoading.value = true
   try {
     assignmentResult.value = await validateAssignment({
@@ -769,6 +785,12 @@ const saveServiceArea = async () => {
 
         <article class="glass-panel p-6">
           <p class="eyebrow-text">Quick GIS Tools</p>
+          <div
+            v-if="toolError"
+            class="mt-4 rounded-2xl border border-rose-400/25 bg-rose-400/10 px-4 py-3 text-sm text-rose-200"
+          >
+            {{ toolError }}
+          </div>
           <div class="mt-5 grid gap-6">
             <div class="surface-subtle rounded-3xl p-4">
               <h3 class="font-semibold text-app-heading">School Assignment Workspace</h3>
@@ -800,7 +822,11 @@ const saveServiceArea = async () => {
                   class="toolbar-input"
                   placeholder="School ID"
                 />
-                <button class="secondary-button" :disabled="toolLoading" type="submit">
+                <button
+                  class="secondary-button"
+                  :disabled="toolLoading || !isUuid(nearestForm.school_id)"
+                  type="submit"
+                >
                   {{ toolLoading ? 'Memuat...' : 'Cari Dapur Terdekat' }}
                 </button>
               </form>
@@ -826,7 +852,15 @@ const saveServiceArea = async () => {
                   step="1"
                   type="number"
                 />
-                <button class="secondary-button" :disabled="toolLoading" type="submit">
+                <button
+                  class="secondary-button"
+                  :disabled="
+                    toolLoading ||
+                    !isUuid(validationForm.school_id) ||
+                    !isUuid(validationForm.kitchen_id)
+                  "
+                  type="submit"
+                >
                   {{ toolLoading ? 'Memvalidasi...' : 'Validasi Assignment' }}
                 </button>
               </form>

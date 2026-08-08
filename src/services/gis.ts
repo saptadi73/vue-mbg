@@ -1,4 +1,5 @@
 import { apiRequest } from '@/services/http'
+import { isUuid } from '@/utils/validation'
 import { mockDeliveryOrders, mockFleetAssignments, mockFleetVehicles, mockMapData } from '@/services/mock-data'
 import type {
   AssignmentValidationRecord,
@@ -700,6 +701,10 @@ export const getGisOverview = async (filters: GisOverviewFilters = {}): Promise<
 }
 
 export const getNearestKitchens = async (schoolId: string) => {
+  if (!isUuid(schoolId)) {
+    return { items: [] as NearestKitchenRecord[], total: 0 }
+  }
+
   try {
     const payload = await apiRequest<unknown>(`/api/v1/gis/schools/${schoolId}/nearest-kitchens`)
     const items = normalizeNearestKitchens(payload.data)
@@ -765,6 +770,10 @@ export const getDeliveryRouteById = async (deliveryId: string) => {
 }
 
 export const validateAssignment = async (input: { kitchen_id: string; school_id: string; planned_portions: number }) => {
+  if (!isUuid(input.school_id) || !isUuid(input.kitchen_id)) {
+    return null
+  }
+
   try {
     const payload = await apiRequest<unknown>('/api/v1/gis/assignments/validate', {
       method: 'POST',
