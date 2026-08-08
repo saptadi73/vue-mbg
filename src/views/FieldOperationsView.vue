@@ -4,6 +4,7 @@ import { LocateFixed, MapPin, QrCode, ScanLine, Thermometer } from '@lucide/vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { getDeliveryRoutes } from '@/services/delivery'
+import { getDeliveryPackages } from '@/services/delivery'
 import { createFleetVehicleLocationPing, getFleetVehicles } from '@/services/fleet'
 import {
   addTraceEvent,
@@ -18,8 +19,12 @@ import { useAppStore } from '@/stores/app'
 import { isQzReady, printQrLabel } from '@/services/thermal-printer'
 import type { DeliveryRoutePlanRecord, FleetVehicleRecord } from '@/types/domain'
 import type { FoodSafetyProfile, TraceEntity } from '@/types/food-safety'
+import type { DeliveryPackageLifecycleRecord } from '@/types/domain'
 
 type BarcodeResult = { rawValue: string }
+type JsQrDecodeResult = { data?: string }
+type JsQrDecoder = (data: Uint8ClampedArray, width: number, height: number, options?: unknown) => JsQrDecodeResult | null
+type WindowWithJsQr = Window & { jsQR?: JsQrDecoder }
 type BarcodeDetectorInstance = { detect: (source: HTMLVideoElement) => Promise<BarcodeResult[]> }
 type BarcodeDetectorConstructor = new (options?: { formats?: string[] }) => BarcodeDetectorInstance
 
@@ -34,6 +39,7 @@ const vehicles = ref<FleetVehicleRecord[]>([])
 const deliveryRoutes = ref<DeliveryRoutePlanRecord[]>([])
 const profiles = ref<FoodSafetyProfile[]>([])
 const traceResult = ref<TraceEntity | null>(null)
+const deliveryPackages = ref<DeliveryPackageLifecycleRecord[]>([])
 
 const temperatureForm = reactive({
   entity_type: 'MEAL_BATCH',
@@ -58,6 +64,7 @@ const qrCode = ref('')
 const qrAction = ref<'RAW_RECEIVED' | 'RAW_ISSUED' | 'PACKAGE_DISPATCH' | 'PACKAGE_RECEIVE'>(
   'RAW_RECEIVED',
 )
+const cameraSupportMessage = ref('')
 const materialForm = reactive({
   quantity: null as number | null,
   uom: 'kg',
@@ -82,6 +89,60 @@ const cameraActive = ref(false)
 const videoElement = ref<HTMLVideoElement | null>(null)
 let cameraStream: MediaStream | null = null
 let scanFrame = 0
+let jsQrDecoder: JsQrDecoder | null = null
+let jsQrLoading: Promise<JsQrDecoder | null> | null = null
+
+const loadJsQr = async () => {
+  if (jsQrDecoder) return jsQrDecoder
+  if (!jsQrLoading) {
+    jsQrLoading = (async () => {
+      const win = window as WindowWithJsQr
+      if (typeof win.jsQR === 'function') {
+        jsQrDecoder = win.jsQR
+        return jsQrDecoder
+      }
+
+      const scriptId = 'jsqr-cdn-fallback'
+      if (!document.getElementById(scriptId)) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement('script')
+          script.id = scriptId
+          script.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js'
+          script.async = true
+          script.onload = () => resolve()
+          script.onerror = () => reject(new Error('Gagal memuat jsQR dari CDN.'))
+          document.body.appendChild(script)
+        })
+      }
+
+      if (typeof win.jsQR === 'function') {
+        jsQrDecoder = win.jsQR
+        return jsQrDecoder
+      }
+      throw new Error('jsQR tidak tersedia.')
+    })()
+  }
+  return jsQrLoading
+}
+
+const readQrFromVideo = async (): Promise<string | null> => {
+  const video = videoElement.value
+  if (!video || !cameraActive.value || video.videoWidth === 0 || video.videoHeight === 0) return null
+
+  const decoder = await loadJsQr()
+  if (!decoder) return null
+
+  const canvas = document.createElement('canvas')
+  canvas.width = video.videoWidth
+  canvas.height = video.videoHeight
+  const context = canvas.getContext('2d')
+  if (!context) return null
+
+  context.drawImage(video, 0, 0, canvas.width, canvas.height)
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
+  const result = decoder(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' })
+  return result?.data || null
+}
 
 const selectedVehicle = computed(() =>
   vehicles.value.find((vehicle) => vehicle.id === gpsForm.vehicle_id),
@@ -96,7 +157,15 @@ const isRawMaterial = computed(() => traceResult.value?.entity_type === 'RAW_MAT
 const isPackage = computed(() =>
   ['PACKAGE', 'CONTAINER', 'MEAL_BATCH'].includes(traceResult.value?.entity_type || ''),
 )
-const resolvedPackageId = computed(() => traceResult.value?.id || traceResult.value?.entity_id || '')
+const resolvedPackage = computed(() => {
+  if (!traceResult.value?.trace_code) return null
+  const matched = deliveryPackages.value.find((item) => item.trace_code === traceResult.value!.trace_code)
+  return matched || null
+})
+const resolvedPackageId = computed(() => {
+  if (resolvedPackage.value?.package_id) return resolvedPackage.value.package_id
+  return traceResult.value?.id || traceResult.value?.entity_id || ''
+})
 
 const run = async (action: () => Promise<void>, success: string) => {
   busy.value = true
@@ -166,14 +235,16 @@ const printTraceWithOptionalLabel = async (code: string, caption: string) => {
 }
 
 const loadOptions = async () => {
-  const [fleetResult, safetyProfiles, routesResult] = await Promise.all([
+  const [fleetResult, safetyProfiles, routesResult, packagesResult] = await Promise.all([
     getFleetVehicles(),
     getFoodSafetyProfiles().catch(() => []),
     getDeliveryRoutes(),
+    getDeliveryPackages().catch(() => ({ items: [], total: 0 })),
   ])
   vehicles.value = fleetResult.items
   profiles.value = safetyProfiles
   deliveryRoutes.value = routesResult.items
+  deliveryPackages.value = packagesResult.items
   gpsForm.vehicle_id ||= vehicles.value[0]?.id || ''
   dispatchForm.vehicle_id ||= vehicles.value[0]?.id || ''
   dispatchForm.route_id ||= deliveryRoutes.value[0]?.id || ''
@@ -260,6 +331,10 @@ const resolveQr = () =>
     const value = qrCode.value.trim()
     if (!value) throw new Error('Kode QR belum tersedia.')
     traceResult.value = await resolveTrace(value)
+    const fallback = deliveryPackages.value.find((item) => item.trace_code === value)
+    if (!fallback && !traceResult.value?.id) {
+      throw new Error('Data paket tidak lengkap. Pilih trace yang valid untuk aksi ini.')
+    }
     stopCamera()
   }, 'QR berhasil dipindai dan data trace ditemukan.')
 
@@ -278,7 +353,7 @@ const submitMaterialMovement = () =>
       if (!traceResult.value || !isRawMaterial.value) {
         throw new Error('QR harus bertipe RAW_MATERIAL_LOT untuk transaksi bahan baku.')
       }
-      const eventType = qrAction.value === 'RAW_RECEIVED' ? 'RECEIVED' : 'ISSUED'
+    const eventType = qrAction.value === 'RAW_RECEIVED' ? 'RECEIVED' : 'ISSUED'
       await addTraceEvent(traceResult.value.trace_code, {
         event_type: eventType,
         notes:
@@ -370,6 +445,9 @@ const submitPackageReceive = () =>
     if (!resolvedPackageId.value) {
       throw new Error('Data paket tidak lengkap. Selesaikan resolve QR lalu coba lagi.')
     }
+    if (!resolvedPackage.value?.package_id) {
+      printError.value = 'Data paket belum sinkron ke modul delivery lifecycle. Tetap kirim dengan jejak trace_id.'
+    }
     if (receiveForm.latitude === null || receiveForm.longitude === null) {
       throw new Error('GPS penerimaan wajib diambil atau diisi.')
     }
@@ -382,14 +460,23 @@ const submitPackageReceive = () =>
     await printTraceWithOptionalLabel(traceResult.value.trace_code, 'Paket diterima')
   }, 'Paket MBG berhasil ditandai diterima.')
 
-const scanCameraFrame = async (detector: BarcodeDetectorInstance) => {
+const scanCameraFrame = async (detector?: BarcodeDetectorInstance) => {
   if (!cameraActive.value || !videoElement.value) return
   try {
-    const results = await detector.detect(videoElement.value)
-    if (results[0]?.rawValue) {
-      qrCode.value = results[0].rawValue
-      await resolveQr()
-      return
+    if (detector) {
+      const results = await detector.detect(videoElement.value)
+      if (results[0]?.rawValue) {
+        qrCode.value = results[0].rawValue
+        await resolveQr()
+        return
+      }
+    } else {
+      const value = await readQrFromVideo()
+      if (value) {
+        qrCode.value = value
+        await resolveQr()
+        return
+      }
     }
   } catch {
     // Kamera dapat belum siap pada beberapa frame pertama.
@@ -400,12 +487,9 @@ const scanCameraFrame = async (detector: BarcodeDetectorInstance) => {
 const startCamera = async () => {
   message.value = ''
   error.value = ''
+  cameraSupportMessage.value = ''
   const Detector = (window as typeof window & { BarcodeDetector?: BarcodeDetectorConstructor })
     .BarcodeDetector
-  if (!Detector) {
-    error.value = 'Pemindaian kamera belum didukung browser ini. Masukkan kode QR secara manual.'
-    return
-  }
   try {
     cameraStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment' },
@@ -416,8 +500,20 @@ const startCamera = async () => {
     if (!videoElement.value) return
     videoElement.value.srcObject = cameraStream
     await videoElement.value.play()
-    const detector = new Detector({ formats: ['qr_code'] })
-    scanFrame = window.requestAnimationFrame(() => void scanCameraFrame(detector))
+    if (Detector) {
+      const detector = new Detector({ formats: ['qr_code'] })
+      scanFrame = window.requestAnimationFrame(() => void scanCameraFrame(detector))
+    } else {
+      try {
+        await loadJsQr()
+        scanFrame = window.requestAnimationFrame(() => void scanCameraFrame())
+      } catch (cause) {
+        cameraSupportMessage.value = cause instanceof Error
+          ? `Gagal memuat library QR: ${cause.message}`
+          : 'Gagal memuat library QR untuk fallback scan.'
+        stopCamera()
+      }
+    }
   } catch (cause) {
     cameraActive.value = false
     error.value = cause instanceof Error ? cause.message : 'Kamera tidak dapat dibuka.'
@@ -442,7 +538,13 @@ onBeforeUnmount(stopCamera)
       title="Operasional Lapangan"
       subtitle="Pencatatan manual saat perangkat IoT belum tersedia, pelaporan GPS armada, dan pemindaian QR melalui web."
       :badges="['Mobile Ready', 'Manual Fallback', 'Audit Trail']"
-    />
+      />
+    <p
+      v-if="cameraSupportMessage"
+      class="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700"
+    >
+      {{ cameraSupportMessage }}
+    </p>
 
     <div class="grid gap-3 md:grid-cols-3">
       <button

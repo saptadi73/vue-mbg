@@ -11,6 +11,9 @@ import {
   mockGovernmentReceivableAging,
   mockInventory,
   mockInventoryBatches,
+  mockInventoryLocations,
+  mockInventoryTransactions,
+  mockInventoryWarehouses,
   mockInvestorFundingPositions,
   mockMealPlans,
   mockRoiBySppg,
@@ -31,6 +34,9 @@ import type {
   GovernmentReceivableAgingRecord,
   InventoryBalance,
   InventoryBatchRecord,
+  InventoryLocationRecord,
+  InventoryTransactionRecord,
+  InventoryWarehouseRecord,
   InvestorFundingPositionReport,
   InvestorFundingPositionRecord,
   MealPlan,
@@ -38,6 +44,11 @@ import type {
   RoiBySppgReport,
   RoiBySppgRecord,
 } from '@/types/domain'
+
+const localInventoryWarehouses: InventoryWarehouseRecord[] = [...mockInventoryWarehouses]
+const localInventoryLocations: InventoryLocationRecord[] = [...mockInventoryLocations]
+const localInventoryBatches: InventoryBatchRecord[] = [...mockInventoryBatches]
+const localInventoryTransactions: InventoryTransactionRecord[] = [...mockInventoryTransactions]
 
 const totalFromEnvelope = (payload: { meta?: { total?: number } }, fallback: number) =>
   payload.meta?.total ?? fallback
@@ -65,6 +76,348 @@ export const getInventoryBalances = async () => {
     return { items: payload.data || [], total: totalFromEnvelope(payload, payload.data?.length || 0) }
   } catch {
     return { items: mockInventory, total: mockInventory.length }
+  }
+}
+
+export const getInventoryWarehouses = async () => {
+  try {
+    const payload = await apiRequest<InventoryWarehouseRecord[]>('/api/v1/inventory/warehouses/')
+    return { items: payload.data || [], total: totalFromEnvelope(payload, payload.data?.length || 0) }
+  } catch {
+    return { items: localInventoryWarehouses, total: localInventoryWarehouses.length }
+  }
+}
+
+const asBlockFlag = (value: unknown) =>
+  typeof value === 'boolean' ? value : value ? value === 'true' || value === '1' || String(value).toUpperCase() === 'TRUE' : false
+
+export const createInventoryWarehouse = async (
+  input: Omit<InventoryWarehouseRecord, 'id' | 'tenant_id' | 'sppg_id'> & {
+    tenant_id?: string | null
+    sppg_id?: string | null
+  },
+) => {
+  try {
+    const payload = await apiRequest<InventoryWarehouseRecord>('/api/v1/inventory/warehouses/', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+    return payload.data
+  } catch {
+    const inputCode = String(input.code ?? '')
+    const inputName = String(input.name ?? '')
+    const inputType = String(input.warehouse_type ?? '')
+    const id = `wh-${Date.now()}`
+    const created: InventoryWarehouseRecord = {
+      id,
+      tenant_id: input.tenant_id || 'tenant-demo-mbg',
+      sppg_id: input.sppg_id || null,
+      code: inputCode,
+      name: inputName,
+      warehouse_type: inputType,
+      location: String(input.location || ''),
+      is_active: asBlockFlag(input.is_active),
+    }
+    localInventoryWarehouses.unshift(created)
+    return created
+  }
+}
+
+export const updateInventoryWarehouse = async (warehouseId: string, input: Partial<InventoryWarehouseRecord>) => {
+  try {
+    const payload = await apiRequest<InventoryWarehouseRecord>(`/api/v1/inventory/warehouses/${warehouseId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    })
+    return payload.data
+  } catch {
+    const index = localInventoryWarehouses.findIndex((item) => item.id === warehouseId)
+    if (index >= 0) {
+      const record = localInventoryWarehouses[index]
+      if (!record) {
+        throw new Error('Warehouse tidak ditemukan.')
+      }
+      const updated = { ...record, ...input, id: record.id }
+      localInventoryWarehouses[index] = updated
+      return updated as InventoryWarehouseRecord
+    }
+    throw new Error('Warehouse tidak ditemukan.')
+  }
+}
+
+export const deleteInventoryWarehouse = async (warehouseId: string) => {
+  try {
+    await apiRequest(`/api/v1/inventory/warehouses/${warehouseId}`, { method: 'DELETE' })
+    return { deleted: true }
+  } catch {
+    const index = localInventoryWarehouses.findIndex((item) => item.id === warehouseId)
+    if (index >= 0) {
+      localInventoryWarehouses.splice(index, 1)
+      return { deleted: true }
+    }
+    return { deleted: false }
+  }
+}
+
+export const getInventoryLocations = async () => {
+  try {
+    const payload = await apiRequest<InventoryLocationRecord[]>('/api/v1/inventory/locations/')
+    return { items: payload.data || [], total: totalFromEnvelope(payload, payload.data?.length || 0) }
+  } catch {
+    return { items: localInventoryLocations, total: localInventoryLocations.length }
+  }
+}
+
+export const createInventoryLocation = async (
+  input: Omit<InventoryLocationRecord, 'id' | 'tenant_id' | 'sppg_id'> & { tenant_id?: string | null; sppg_id?: string | null },
+) => {
+  try {
+    const payload = await apiRequest<InventoryLocationRecord>('/api/v1/inventory/locations/', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+    return payload.data
+  } catch {
+    const locationWarehouseId = input.warehouse_id ?? ''
+    const locationCode = String(input.code ?? '')
+    const locationName = String(input.name ?? '')
+    const locationType = String(input.location_type ?? '')
+    const id = `loc-${Date.now()}`
+    const created: InventoryLocationRecord = {
+      id,
+      tenant_id: input.tenant_id || 'tenant-demo-mbg',
+      warehouse_id: locationWarehouseId,
+      sppg_id: input.sppg_id || null,
+      parent_id: input.parent_id || null,
+      code: locationCode,
+      name: locationName,
+      location_type: locationType,
+      is_active: asBlockFlag(input.is_active),
+    }
+    localInventoryLocations.unshift(created)
+    return created
+  }
+}
+
+export const updateInventoryLocation = async (locationId: string, input: Partial<InventoryLocationRecord>) => {
+  try {
+    const payload = await apiRequest<InventoryLocationRecord>(`/api/v1/inventory/locations/${locationId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    })
+    return payload.data
+  } catch {
+    const index = localInventoryLocations.findIndex((item) => item.id === locationId)
+    if (index >= 0) {
+      const record = localInventoryLocations[index]
+      if (!record) {
+        throw new Error('Location tidak ditemukan.')
+      }
+      const updated = { ...record, ...input, id: record.id }
+      localInventoryLocations[index] = updated
+      return updated as InventoryLocationRecord
+    }
+    throw new Error('Location tidak ditemukan.')
+  }
+}
+
+export const deleteInventoryLocation = async (locationId: string) => {
+  try {
+    await apiRequest(`/api/v1/inventory/locations/${locationId}`, { method: 'DELETE' })
+    return { deleted: true }
+  } catch {
+    const index = localInventoryLocations.findIndex((item) => item.id === locationId)
+    if (index >= 0) {
+      localInventoryLocations.splice(index, 1)
+      return { deleted: true }
+    }
+    return { deleted: false }
+  }
+}
+
+export const getInventoryBatches = async () => {
+  try {
+    const payload = await apiRequest<InventoryBatchRecord[]>('/api/v1/inventory/batches/')
+    return { items: payload.data || [], total: totalFromEnvelope(payload, payload.data?.length || 0) }
+  } catch {
+    return { items: localInventoryBatches, total: localInventoryBatches.length }
+  }
+}
+
+export const createInventoryBatch = async (
+  input: Omit<
+    InventoryBatchRecord,
+    'id' | 'warehouse_name' | 'location_name' | 'quantity_available' | 'quantity_reserved'
+  > & {
+    product_name?: string
+    tenant_id?: string | null
+    supplier_id?: string | null
+    quantity_on_hand: number
+  },
+) => {
+  try {
+    const payload = await apiRequest<InventoryBatchRecord>('/api/v1/inventory/batches/', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+    return payload.data
+  } catch {
+    const wh = localInventoryWarehouses.find((item) => item.id === input.warehouse_id)
+    const loc = localInventoryLocations.find((item) => item.id === input.location_id)
+    const id = `batch-${Date.now()}`
+    const warehouseId = input.warehouse_id || ''
+    const locationId = input.location_id || undefined
+    const created: InventoryBatchRecord = {
+      id,
+      tenant_id: input.tenant_id || 'tenant-demo-mbg',
+      product_id: input.product_id || undefined,
+      supplier_id: input.supplier_id || undefined,
+      warehouse_id: warehouseId,
+      warehouse_name: wh?.name || 'Warehouse',
+      location_id: locationId,
+      location_name: loc?.name || 'Location',
+      product_name: String(input.product_name || 'Produk'),
+      batch_number: String(input.batch_number),
+      production_date: String(input.production_date || ''),
+      received_date: String(input.received_date || ''),
+      expiry_date: String(input.expiry_date),
+      quality_status: String((input as { quality_status?: string }).quality_status || 'PENDING'),
+      blocked: asBlockFlag(input.is_blocked),
+      is_blocked: asBlockFlag(input.is_blocked),
+      quantity_on_hand: Number(input.quantity_on_hand),
+      quantity_available: Number(input.quantity_on_hand),
+      quantity_reserved: 0,
+    }
+    localInventoryBatches.unshift(created)
+    return created
+  }
+}
+
+export const updateInventoryBatch = async (batchId: string, input: Partial<InventoryBatchRecord>) => {
+  try {
+    const payload = await apiRequest<InventoryBatchRecord>(`/api/v1/inventory/batches/${batchId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    })
+    return payload.data
+  } catch {
+    const index = localInventoryBatches.findIndex((item) => item.id === batchId)
+    if (index >= 0) {
+      const record = localInventoryBatches[index]
+      if (!record) {
+        throw new Error('Batch tidak ditemukan.')
+      }
+      const updated: InventoryBatchRecord = {
+        ...record,
+        ...input,
+        id: record.id,
+        blocked: input.is_blocked ?? record.blocked,
+        is_blocked: input.is_blocked ?? record.is_blocked,
+      }
+      localInventoryBatches[index] = updated
+      return updated
+    }
+    throw new Error('Batch tidak ditemukan.')
+  }
+}
+
+export const deleteInventoryBatch = async (batchId: string) => {
+  try {
+    await apiRequest(`/api/v1/inventory/batches/${batchId}`, { method: 'DELETE' })
+    return { deleted: true }
+  } catch {
+    const index = localInventoryBatches.findIndex((item) => item.id === batchId)
+    if (index >= 0) {
+      localInventoryBatches.splice(index, 1)
+      return { deleted: true }
+    }
+    return { deleted: false }
+  }
+}
+
+export const getInventoryTransactions = async () => {
+  try {
+    const payload = await apiRequest<InventoryTransactionRecord[]>('/api/v1/inventory/transactions/')
+    return { items: payload.data || [], total: totalFromEnvelope(payload, payload.data?.length || 0) }
+  } catch {
+    return { items: localInventoryTransactions, total: localInventoryTransactions.length }
+  }
+}
+
+export const createInventoryTransaction = async (
+  input: Omit<
+    InventoryTransactionRecord,
+    'id' | 'tenant_id' | 'sppg_id' | 'posted_by' | 'total_cost'
+  > & { tenant_id?: string | null; sppg_id?: string | null; total_cost?: number },
+) => {
+  try {
+    const payload = await apiRequest<InventoryTransactionRecord>('/api/v1/inventory/transactions/', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+    return payload.data
+  } catch {
+    const transactionType = String(input.transaction_type || 'RECEIPT')
+    const id = `trx-${Date.now()}`
+    const created: InventoryTransactionRecord = {
+      id,
+      tenant_id: input.tenant_id || 'tenant-demo-mbg',
+      sppg_id: input.sppg_id || null,
+      transaction_type: transactionType,
+      reference_type: input.reference_type || null,
+      reference_id: input.reference_id || null,
+      product_id: String(input.product_id),
+      batch_id: input.batch_id || null,
+      source_warehouse_id: input.source_warehouse_id || null,
+      destination_warehouse_id: input.destination_warehouse_id || null,
+      source_location_id: input.source_location_id || null,
+      destination_location_id: input.destination_location_id || null,
+      quantity: Number(input.quantity),
+      uom_id: String(input.uom_id),
+      unit_cost: Number(input.unit_cost),
+      total_cost: Number(input.total_cost ?? Number(input.quantity) * Number(input.unit_cost)),
+      transaction_at: String(input.transaction_at),
+      posted_by: 'demo.user',
+      notes: input.notes || undefined,
+    }
+    localInventoryTransactions.unshift(created)
+    return created
+  }
+}
+
+export const updateInventoryTransaction = async (transactionId: string, input: Partial<InventoryTransactionRecord>) => {
+  try {
+    const payload = await apiRequest<InventoryTransactionRecord>(`/api/v1/inventory/transactions/${transactionId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    })
+    return payload.data
+  } catch {
+    const index = localInventoryTransactions.findIndex((item) => item.id === transactionId)
+    if (index >= 0) {
+      const record = localInventoryTransactions[index]
+      if (!record) {
+        throw new Error('Transaction tidak ditemukan.')
+      }
+      const updated = { ...record, ...input, id: record.id }
+      localInventoryTransactions[index] = updated
+      return updated as InventoryTransactionRecord
+    }
+    throw new Error('Transaction tidak ditemukan.')
+  }
+}
+
+export const deleteInventoryTransaction = async (transactionId: string) => {
+  try {
+    await apiRequest(`/api/v1/inventory/transactions/${transactionId}`, { method: 'DELETE' })
+    return { deleted: true }
+  } catch {
+    const index = localInventoryTransactions.findIndex((item) => item.id === transactionId)
+    if (index >= 0) {
+      localInventoryTransactions.splice(index, 1)
+      return { deleted: true }
+    }
+    return { deleted: false }
   }
 }
 

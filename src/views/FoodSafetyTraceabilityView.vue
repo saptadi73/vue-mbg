@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import QRCode from 'qrcode'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { env } from '@/config/env'
+import { isQzReady, printQrLabel } from '@/services/thermal-printer'
 import {
   acknowledgeFoodSafetyAlert,
   addTraceEvent,
@@ -20,6 +21,7 @@ import {
   resolveTrace,
   runFoodSafetyCheck,
 } from '@/services/food-safety'
+import { getDeliveryPackages } from '@/services/delivery'
 import type {
   FoodSafetyAlert,
   FoodSafetyCheckResult,
@@ -29,10 +31,11 @@ import type {
   TraceGraph,
   TraceLabel,
 } from '@/types/food-safety'
+import type { DeliveryPackageLifecycleRecord } from '@/types/domain'
 import { readStoredSession } from '@/utils/auth-storage'
 import { formatDateTime } from '@/utils/format'
 
-type Tab = 'trace' | 'safety' | 'alerts'
+type Tab = 'trace' | 'safety' | 'alerts' | 'packages'
 const session = readStoredSession()
 const tenantId = session?.tenantId || env.devTenantId
 const sppgId = session?.activeSppgId || env.devSppgId
@@ -49,6 +52,77 @@ const traceLabel = ref<TraceLabel | null>(null)
 const profiles = ref<FoodSafetyProfile[]>([])
 const alerts = ref<FoodSafetyAlert[]>([])
 const checkResult = ref<FoodSafetyCheckResult | null>(null)
+const printLoading = ref(false)
+const printMessage = ref('')
+const printError = ref('')
+const packageLoading = ref(false)
+const cameraSupportMessage = ref('')
+const packages = ref<DeliveryPackageLifecycleRecord[]>([])
+const videoElement = ref<HTMLVideoElement | null>(null)
+const cameraActive = ref(false)
+let cameraStream: MediaStream | null = null
+let scanFrame = 0
+let jsQrDecoder: JsQrDecoder | null = null
+let jsQrLoading: Promise<JsQrDecoder | null> | null = null
+
+type BarcodeResult = { rawValue: string }
+type JsQrDecodeResult = { data?: string }
+type JsQrDecoder = (data: Uint8ClampedArray, width: number, height: number, options?: unknown) => JsQrDecodeResult | null
+type WindowWithJsQr = Window & { jsQR?: JsQrDecoder }
+type BarcodeDetectorInstance = { detect: (source: HTMLVideoElement) => Promise<BarcodeResult[]> }
+type BarcodeDetectorConstructor = new (options?: { formats?: string[] }) => BarcodeDetectorInstance
+
+const loadJsQr = async () => {
+  if (jsQrDecoder) return jsQrDecoder
+  if (!jsQrLoading) {
+    jsQrLoading = (async () => {
+      const win = window as WindowWithJsQr
+      if (typeof win.jsQR === 'function') {
+        jsQrDecoder = win.jsQR
+        return jsQrDecoder
+      }
+
+      const scriptId = 'jsqr-cdn-fallback'
+      if (!document.getElementById(scriptId)) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement('script')
+          script.id = scriptId
+          script.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js'
+          script.async = true
+          script.onload = () => resolve()
+          script.onerror = () => reject(new Error('Gagal memuat jsQR dari CDN.'))
+          document.body.appendChild(script)
+        })
+      }
+
+      if (typeof win.jsQR === 'function') {
+        jsQrDecoder = win.jsQR
+        return jsQrDecoder
+      }
+      throw new Error('jsQR tidak tersedia.')
+    })()
+  }
+  return jsQrLoading
+}
+
+const readQrFromVideo = async (): Promise<string | null> => {
+  const video = videoElement.value
+  if (!video || !cameraActive.value || video.videoWidth === 0 || video.videoHeight === 0) return null
+
+  const decoder = await loadJsQr()
+  if (!decoder) return null
+
+  const canvas = document.createElement('canvas')
+  canvas.width = video.videoWidth
+  canvas.height = video.videoHeight
+  const context = canvas.getContext('2d')
+  if (!context) return null
+
+  context.drawImage(video, 0, 0, canvas.width, canvas.height)
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
+  const result = decoder(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' })
+  return result?.data || null
+}
 
 const traceForm = reactive({
   trace_code: '',
@@ -126,6 +200,82 @@ const syncTrace = async (entity: TraceEntity) => {
     traceLabel.value = null
   }
 }
+const browserPrintQr = (qrValue: string, text: string) => {
+  const w = window.open('', '_blank')
+  if (!w) {
+    throw new Error('Popup print diblokir. Aktifkan popup browser untuk fallback print.')
+  }
+  const encoded = encodeURIComponent(qrValue)
+  w.document.write(`
+    <html>
+      <body style="font-family:Arial,sans-serif;padding:20px;text-align:center;">
+        <h3>${text}</h3>
+        <img src="https://chart.googleapis.com/chart?chs=220x220&cht=qr&chl=${encoded}&choe=UTF-8" alt="QR Label" />
+        <p style="margin-top:12px;">${text}</p>
+      </body>
+    </html>
+  `)
+  w.document.close()
+  w.print()
+}
+const printTraceLabel = async () => {
+  if (!trace.value) return
+  printLoading.value = true
+  printMessage.value = ''
+  printError.value = ''
+  try {
+    let value = trace.value.trace_code
+    try {
+      const label = await getTraceLabel(value)
+      if (label?.label?.content) {
+        value = `${value} - ${label.label.content}`
+      }
+    } catch {
+      // Endpoint label opsional saat demo masih belum siap.
+    }
+
+    if (await isQzReady()) {
+      await printQrLabel({ value })
+      printMessage.value = 'Label dikirim ke printer thermal.'
+    } else {
+      browserPrintQr(value, trace.value.trace_code)
+      printMessage.value = 'Label berhasil dicetak via browser.'
+    }
+  } catch (err) {
+    printError.value = err instanceof Error ? err.message : 'Gagal mencetak QR label.'
+  } finally {
+    printLoading.value = false
+  }
+}
+const printPackageLabel = async (code: string) => {
+  if (!code) return
+  printLoading.value = true
+  printMessage.value = ''
+  printError.value = ''
+  try {
+    let value = code
+    try {
+      const label = await getTraceLabel(code)
+      if (label?.label?.content) {
+        value = `${code} - ${label.label.content}`
+      }
+    } catch {
+      // label fallback tetap memakai trace code mentah
+    }
+
+    if (await isQzReady()) {
+      await printQrLabel({ value })
+      printMessage.value = 'Label paket dikirim ke printer thermal.'
+    } else {
+      browserPrintQr(value, code)
+      printMessage.value = 'Label paket berhasil dicetak via browser.'
+    }
+  } catch (err) {
+    printError.value = err instanceof Error ? err.message : 'Gagal mencetak label paket.'
+  } finally {
+    printLoading.value = false
+  }
+}
 const findTrace = () =>
   execute(
     async () => syncTrace(await resolveTrace(traceForm.trace_code.trim())),
@@ -172,6 +322,24 @@ const loadSafety = () =>
     if (!safetyForm.profile_id) safetyForm.profile_id = profiles.value[0]?.id || ''
     temperatureForm.profile_id ||= safetyForm.profile_id
   }, 'Data Food Safety diperbarui.')
+const loadPackages = async () => {
+  packageLoading.value = true
+  error.value = ''
+  try {
+    const payload = await getDeliveryPackages()
+    packages.value = payload.items
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Gagal memuat package lifecycle.'
+  } finally {
+    packageLoading.value = false
+  }
+}
+const pickPackage = async (traceCode: string) => {
+  if (!traceCode) return
+  activeTab.value = 'trace'
+  traceForm.trace_code = traceCode
+  await findTrace()
+}
 const checkSafety = () =>
   execute(async () => {
     checkResult.value = await runFoodSafetyCheck({
@@ -216,8 +384,78 @@ const acknowledge = (id: string) =>
     alerts.value = await getFoodSafetyAlerts()
   }, 'Alert berhasil di-acknowledge.')
 
+const scanCameraFrame = async (detector?: BarcodeDetectorInstance) => {
+  if (!cameraActive.value || !videoElement.value) return
+  try {
+    if (detector) {
+      const results = await detector.detect(videoElement.value)
+      if (results[0]?.rawValue) {
+        traceForm.trace_code = results[0].rawValue
+        await findTrace()
+        stopCamera()
+        return
+      }
+    } else {
+      const value = await readQrFromVideo()
+      if (value) {
+        traceForm.trace_code = value
+        await findTrace()
+        stopCamera()
+        return
+      }
+    }
+  } catch {
+    // kamera kadang belum stabil untuk frame awal
+  }
+  scanFrame = window.requestAnimationFrame(() => void scanCameraFrame(detector))
+}
+
+const startCamera = async () => {
+  printMessage.value = ''
+  printError.value = ''
+  cameraSupportMessage.value = ''
+  const Detector = (window as typeof window & { BarcodeDetector?: BarcodeDetectorConstructor })
+    .BarcodeDetector
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+    cameraActive.value = true
+    await nextTick()
+    if (!videoElement.value) return
+    videoElement.value.srcObject = cameraStream
+    await videoElement.value.play()
+    if (Detector) {
+      const detector = new Detector({ formats: ['qr_code'] })
+      scanFrame = window.requestAnimationFrame(() => void scanCameraFrame(detector))
+    } else {
+      try {
+        await loadJsQr()
+        scanFrame = window.requestAnimationFrame(() => void scanCameraFrame())
+      } catch (cause) {
+        cameraSupportMessage.value = cause instanceof Error
+          ? `Gagal memuat library QR: ${cause.message}`
+          : 'Gagal memuat library QR untuk fallback scan.'
+        stopCamera()
+      }
+    }
+  } catch (err) {
+    cameraActive.value = false
+    printError.value = err instanceof Error ? err.message : 'Tidak dapat membuka kamera.'
+  }
+}
+
+const stopCamera = () => {
+  cameraActive.value = false
+  window.cancelAnimationFrame(scanFrame)
+  cameraStream?.getTracks().forEach((track) => track.stop())
+  cameraStream = null
+  if (videoElement.value) videoElement.value.srcObject = null
+}
+
+onBeforeUnmount(stopCamera)
+
 watch(activeTab, (tab) => {
   if ((tab === 'safety' || tab === 'alerts') && !profiles.value.length) loadSafety()
+  if (tab === 'packages' && !packages.value.length) loadPackages()
 })
 </script>
 
@@ -230,19 +468,33 @@ watch(activeTab, (tab) => {
     />
     <div class="glass-panel flex flex-wrap gap-2 p-3">
       <button
-        v-for="tab in ['trace', 'safety', 'alerts'] as Tab[]"
+        v-for="tab in ['trace', 'safety', 'alerts', 'packages'] as Tab[]"
         :key="tab"
         class="secondary-button"
         :class="{ 'primary-button': activeTab === tab }"
         @click="activeTab = tab"
       >
         {{
-          tab === 'trace' ? 'QR & Lineage' : tab === 'safety' ? 'Safety Check' : 'Alerts & Actions'
+          tab === 'trace'
+            ? 'QR & Lineage'
+            : tab === 'safety'
+              ? 'Safety Check'
+              : tab === 'alerts'
+                ? 'Alerts & Actions'
+                : 'Packages'
         }}
       </button>
     </div>
     <p v-if="message" class="success-panel">{{ message }}</p>
     <p v-if="error" class="error-panel">{{ error }}</p>
+    <p
+      v-if="cameraSupportMessage"
+      class="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700"
+    >
+      {{ cameraSupportMessage }}
+    </p>
+    <p v-if="printMessage" class="success-panel">{{ printMessage }}</p>
+    <p v-if="printError" class="error-panel">{{ printError }}</p>
 
     <section v-if="activeTab === 'trace'" class="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
       <article class="glass-panel p-6 space-y-4">
@@ -259,7 +511,25 @@ watch(activeTab, (tab) => {
           >
             Resolve QR
           </button>
+          <button
+            class="secondary-button"
+            type="button"
+            :disabled="cameraActive"
+            @click="startCamera"
+          >
+            Buka kamera
+          </button>
+          <button v-if="cameraActive" class="secondary-button" type="button" @click="stopCamera">
+            Tutup kamera
+          </button>
         </div>
+        <video
+          v-if="cameraActive"
+          ref="videoElement"
+          class="mb-2 mt-3 aspect-video w-full rounded-2xl object-cover"
+          muted
+          playsinline
+        ></video>
         <div class="grid gap-3 md:grid-cols-2">
           <label class="form-field"
             ><span>Entity type</span
@@ -289,6 +559,14 @@ watch(activeTab, (tab) => {
           <img :src="qrUrl" class="mx-auto w-48 rounded-xl bg-white p-2" alt="Trace QR" />
           <p class="mt-3 font-mono font-semibold text-app-heading">{{ trace.trace_code }}</p>
           <p class="mt-1 text-xs text-app-muted">QR hanya berisi trace_code opaque</p>
+          <button
+            class="secondary-button mt-3"
+            :disabled="printLoading"
+            type="button"
+            @click="printTraceLabel"
+          >
+            {{ printLoading ? 'Mencetak...' : 'Cetak label QR' }}
+          </button>
         </div>
         <div v-if="traceLabel" class="surface-subtle rounded-3xl p-5">
           <p class="eyebrow-text">Label payload</p>
@@ -493,7 +771,7 @@ watch(activeTab, (tab) => {
       </article>
     </section>
 
-    <section v-else class="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+    <section v-else-if="activeTab === 'alerts'" class="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
       <article class="glass-panel p-6">
         <div class="flex justify-between">
           <p class="eyebrow-text">Open Alerts</p>
@@ -551,6 +829,45 @@ watch(activeTab, (tab) => {
             Buat Recall
           </button>
         </article>
+      </div>
+    </section>
+
+    <section v-else class="glass-panel">
+      <div class="border-b border-white/10 p-6">
+        <p class="eyebrow-text">Package Lifecycle</p>
+        <p class="mt-2 text-sm text-app-muted">
+          Menampilkan paket aktif dari endpoint delivery packages untuk aksi loading/receive.
+        </p>
+      </div>
+      <div class="space-y-4 p-6">
+        <p v-if="packageLoading" class="text-sm text-app-muted">Memuat data paket...</p>
+        <div v-else>
+          <div
+            v-for="item in packages"
+            :key="item.package_id"
+            class="surface-subtle mb-3 rounded-3xl p-4"
+          >
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p class="font-semibold text-app-heading">{{ item.trace_code }}</p>
+                <p class="mt-1 text-sm text-app-body">
+                  {{ item.product_name }} | {{ item.status_label || item.status }} | Porsi {{ item.quantity_portions }}
+                </p>
+              </div>
+              <div class="flex gap-2">
+                <button class="secondary-button" :disabled="printLoading" @click="printPackageLabel(item.trace_code)">
+                  Cetak label
+                </button>
+                <button class="secondary-button" @click="pickPackage(item.trace_code)">Buka Trace</button>
+              </div>
+            </div>
+            <div class="mt-2 text-xs text-app-muted">
+              <p v-if="item.route_code">Route: {{ item.route_code }}</p>
+              <p v-if="item.destination_name">Tujuan: {{ item.destination_name }}</p>
+            </div>
+          </div>
+          <p v-if="!packages.length" class="text-sm text-app-muted">Tidak ada paket dalam lifecycle.</p>
+        </div>
       </div>
     </section>
   </div>

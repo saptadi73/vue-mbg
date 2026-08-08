@@ -422,17 +422,71 @@ export interface InventoryBalance {
   quality_status?: string
 }
 
+export interface InventoryWarehouseRecord {
+  id: string
+  tenant_id?: string
+  sppg_id?: string | null
+  code: string
+  name: string
+  warehouse_type: string
+  location: string
+  is_active: boolean
+}
+
+export interface InventoryLocationRecord {
+  id: string
+  tenant_id?: string
+  warehouse_id: string
+  sppg_id?: string | null
+  parent_id: string | null
+  code: string
+  name: string
+  location_type: string
+  is_active: boolean
+}
+
 export interface InventoryBatchRecord {
   id: string
+  tenant_id?: string
+  product_id?: string
+  supplier_id?: string
   warehouse_id: string
   warehouse_name: string
   location_name: string
+  location_id?: string
   product_name: string
   batch_number: string
+  production_date?: string
+  received_date?: string
   expiry_date: string
+  is_blocked?: boolean
   quality_status: string
   blocked?: boolean
   quantity_available: number
+  quantity_on_hand?: number
+  quantity_reserved?: number
+}
+
+export interface InventoryTransactionRecord {
+  id: string
+  tenant_id?: string
+  sppg_id?: string | null
+  transaction_type: string
+  reference_type?: string | null
+  reference_id?: string | null
+  product_id: string
+  batch_id?: string | null
+  source_warehouse_id?: string | null
+  destination_warehouse_id?: string | null
+  source_location_id?: string | null
+  destination_location_id?: string | null
+  quantity: number
+  uom_id: string
+  unit_cost: number
+  total_cost?: number
+  transaction_at: string
+  posted_by?: string
+  notes?: string
 }
 
 export interface FefoPreviewCandidate {
