@@ -21,6 +21,7 @@
     "pinia": "^3.0.4",
     "postcss": "^8.5.20",
     "qrcode": "^1.5.4",
+    "qz-tray": "^2.2.6",
     "tailwindcss": "^4.3.3",
     "vue": "^3.5.38",
     "vue-router": "^5.1.0",
