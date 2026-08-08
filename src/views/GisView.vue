@@ -1033,7 +1033,7 @@ const saveServiceArea = async () => {
         </article>
       </section>
 
-      <section class="grid gap-6 xl:grid-cols-2">
+      <section>
         <DataTableCard
           :items="nearestRows"
           :page-size="4"
@@ -1085,43 +1085,6 @@ const saveServiceArea = async () => {
           </template>
         </DataTableCard>
 
-        <article class="glass-panel p-6">
-          <p class="eyebrow-text">Assignment Validation Result</p>
-          <div v-if="assignmentResult" class="mt-5 grid gap-4">
-            <div class="surface-subtle rounded-3xl p-4">
-              <p class="text-sm text-app-muted">Status Validasi</p>
-              <p class="mt-2 font-display text-2xl text-app-heading">
-                {{ assignmentResult.is_valid ? 'VALID' : 'INVALID' }}
-              </p>
-            </div>
-            <div class="grid gap-4 md:grid-cols-2">
-              <div class="surface-subtle rounded-3xl p-4">
-                <p class="text-sm text-app-muted">Distance</p>
-                <p class="mt-2 font-semibold text-app-heading">
-                  {{ formatNumber(assignmentResult.distance_m || 0) }} m
-                </p>
-              </div>
-              <div class="surface-subtle rounded-3xl p-4">
-                <p class="text-sm text-app-muted">Inside Service Area</p>
-                <p class="mt-2 font-semibold text-app-heading">
-                  {{ assignmentResult.inside_service_area ? 'Ya' : 'Tidak' }}
-                </p>
-              </div>
-            </div>
-            <div class="surface-subtle rounded-3xl p-4">
-              <p class="text-sm text-app-muted">Catatan</p>
-              <p class="mt-2 text-sm text-app-body">
-                {{ assignmentResult.message || 'Tidak ada catatan tambahan.' }}
-              </p>
-            </div>
-          </div>
-          <div
-            v-else
-            class="mt-5 rounded-3xl border border-[var(--app-panel-border)] p-4 text-sm text-app-muted"
-          >
-            Jalankan validasi assignment untuk melihat hasil kelayakan spasial sekolah ke dapur.
-          </div>
-        </article>
       </section>
 
       <section class="grid gap-6 xl:grid-cols-2">
