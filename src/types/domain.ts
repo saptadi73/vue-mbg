@@ -1229,6 +1229,36 @@ export interface FleetVehicleLocationPingRecord extends FleetVehicleLocationPing
   plate_number?: string | null
 }
 
+export interface FleetLatLng {
+  latitude: number
+  longitude: number
+}
+
+export interface FleetActiveRouteRecord {
+  route_id: string
+  route_code?: string | null
+  route_name?: string | null
+  route_status?: string | null
+  origin: FleetLatLng
+  destination: FleetLatLng
+  waypoints: FleetLatLng[]
+}
+
+export interface FleetVehicleStatusLiveRecord {
+  vehicle_id: string
+  vehicle_code: string
+  plate_number?: string | null
+  driver_id?: string | null
+  driver_name?: string | null
+  movement_status: string
+  current_position: FleetLatLng
+  speed_kph?: number | null
+  heading_degree?: number | null
+  recorded_at?: string | null
+  active_route: FleetActiveRouteRecord
+  path: FleetLatLng[]
+}
+
 export interface FundingSourceRecord {
   id: string
   name: string
@@ -1896,6 +1926,30 @@ export interface DeliveryOrderDetailRecord {
   route_stops: DeliveryRouteStopRecord[]
   proofs: DeliveryProofRecord[]
   incidents: DeliveryIncidentRecord[]
+}
+
+export interface DeliveryPackageLifecycleRecord {
+  package_id: string
+  trace_code: string
+  product_name: string
+  quantity_portions: number
+  production_order_id?: string | null
+  production_number?: string | null
+  cooking_completed_at?: string | null
+  packaging_started_at?: string | null
+  delivery_started_at?: string | null
+  status: string
+  status_label?: string | null
+  vehicle_id?: string | null
+  vehicle_code?: string | null
+  plate_number?: string | null
+  route_id?: string | null
+  route_code?: string | null
+  destination_school_id?: string | null
+  destination_name?: string | null
+  destination_address?: string | null
+  destination_latitude?: number | null
+  destination_longitude?: number | null
 }
 
 export interface FeedbackSubmissionRecord {

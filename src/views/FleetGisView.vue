@@ -3,11 +3,20 @@ import { computed, onUnmounted, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import DataTableCard from '@/components/common/DataTableCard.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
+import GoogleDirectionsPanel from '@/components/gis/GoogleDirectionsPanel.vue'
 import MapPanel from '@/components/gis/GoogleMapPanel.vue'
 import { useAsyncState } from '@/composables/useAsyncState'
+import { getDeliveryPackages } from '@/services/delivery'
+import { getFleetVehicleStatusLive } from '@/services/fleet'
 import { getFleetVehicleLocationHistory, getGisOverview } from '@/services/gis'
+import { saveRouteSnapshot } from '@/services/google-maps'
 import { useAppStore } from '@/stores/app'
-import type { FleetVehicleLocationRecord } from '@/types/domain'
+import type {
+  DeliveryPackageLifecycleRecord,
+  FleetLatLng,
+  FleetVehicleLocationRecord,
+  FleetVehicleStatusLiveRecord,
+} from '@/types/domain'
 import { formatDateTime, formatNumber } from '@/utils/format'
 
 type FleetGisServiceRow = {
@@ -15,6 +24,27 @@ type FleetGisServiceRow = {
   endpoint: string
   purpose: string
   status: string
+}
+
+type DirectionWarningCode = 'ON_TRACK' | 'WARNING' | 'LATE' | 'UNKNOWN'
+
+type DirectionInsight = {
+  distanceMeters: number
+  durationSeconds: number
+  estimatedArrivalAt: string
+  warningCode: DirectionWarningCode
+  warningLabel: string
+}
+
+type DirectionTarget = {
+  key: string
+  routeId: string | null
+  title: string
+  subtitle: string
+  origin: FleetLatLng
+  destination: FleetLatLng
+  waypoints: FleetLatLng[]
+  plannedArrivalAt?: string | null
 }
 
 const appStore = useAppStore()
@@ -36,6 +66,13 @@ const resolveFilters = () => ({
 })
 
 const gisState = useAsyncState(() => getGisOverview(resolveFilters()))
+const fleetLiveStatusState = useAsyncState(() =>
+  getFleetVehicleStatusLive({
+    tenantId: appStore.activeTenantId,
+    sppgId: filters.use_active_sppg ? activeSppgId.value || null : filters.sppg_id || null,
+  }),
+)
+const packageLifecycleState = useAsyncState(getDeliveryPackages)
 const selectedVehicleId = ref('')
 const historyState = useAsyncState(() =>
   getFleetVehicleLocationHistory(selectedVehicleId.value, 12),
@@ -43,6 +80,8 @@ const historyState = useAsyncState(() =>
 const trailFocusIndex = ref<number | null>(null)
 const playbackRunning = ref(false)
 const mapFocusVehicleId = ref<string | null>(null)
+const directionTarget = ref<DirectionTarget | null>(null)
+const routeInsights = ref<Record<string, DirectionInsight>>({})
 let playbackTimer: ReturnType<typeof setInterval> | null = null
 
 const data = computed(() => gisState.data.value ?? null)
@@ -71,6 +110,10 @@ const fleetEtaByVehicle = computed(() =>
   ),
 )
 const selectedTrail = computed(() => historyState.data.value?.items || [])
+const fleetTransitRows = computed<FleetVehicleStatusLiveRecord[]>(() =>
+  fleetLiveStatusState.data.value?.items || [],
+)
+const packageRows = computed<DeliveryPackageLifecycleRecord[]>(() => packageLifecycleState.data.value?.items || [])
 const focusedTrailPoint = computed(
   () =>
     (trailFocusIndex.value !== null ? selectedTrail.value[trailFocusIndex.value] : null) ||
@@ -114,6 +157,33 @@ const selectedTrailDistance = computed(() => {
   }
   return total
 })
+
+const directionWarningClass = (code?: DirectionWarningCode | null) => {
+  if (code === 'LATE') return 'bg-rose-500/15 text-rose-700 ring-1 ring-rose-500/20'
+  if (code === 'WARNING') return 'bg-amber-500/15 text-amber-700 ring-1 ring-amber-500/20'
+  if (code === 'ON_TRACK') return 'bg-emerald-500/15 text-emerald-700 ring-1 ring-emerald-500/20'
+  return 'bg-slate-500/15 text-slate-700 ring-1 ring-slate-500/20'
+}
+
+const fleetRouteKey = (item: FleetVehicleStatusLiveRecord) =>
+  `fleet:${item.vehicle_id}:${item.active_route.route_id}`
+
+const packageRouteKey = (item: DeliveryPackageLifecycleRecord) =>
+  `package:${item.package_id}:${item.route_id || 'none'}`
+
+const getDirectionInsight = (key: string) => routeInsights.value[key] || null
+
+const getDirectionSummaryText = (key: string) => {
+  const insight = getDirectionInsight(key)
+  if (!insight) return 'Klik arah route untuk menghitung ETA.'
+  const distanceKm = insight.distanceMeters / 1000
+  const durationMinutes = Math.max(1, Math.round(insight.durationSeconds / 60))
+  return `${distanceKm.toLocaleString('id-ID', { maximumFractionDigits: 1 })} km · ${durationMinutes.toLocaleString('id-ID')} menit`
+}
+
+const getDirectionWarningLabel = (key: string) => getDirectionInsight(key)?.warningLabel || 'Belum dihitung'
+
+const getDirectionWarningCode = (key: string) => getDirectionInsight(key)?.warningCode || 'UNKNOWN'
 
 const resolveVehicleEta = (vehicle: FleetVehicleLocationRecord) => {
   const route = data.value?.deliveryRoutes?.[0] ?? null
@@ -167,20 +237,38 @@ const getEtaStatusLabel = (item: FleetVehicleLocationRecord | null | undefined) 
 const documentationRows = computed<FleetGisServiceRow[]>(() => [
   {
     id: 'fleet-doc-1',
-    endpoint: 'GET /api/v1/fleet/vehicle-locations/live',
-    purpose: 'Mengambil posisi terbaru seluruh armada untuk dashboard GIS dan dispatch board.',
+    endpoint: 'GET /api/v1/fleet/vehicle-status/live',
+    purpose: 'Armada aktif IN_TRANSIT/DEPARTED lengkap current position, destination, waypoint, dan path.',
     status: 'Active',
   },
   {
     id: 'fleet-doc-2',
+    endpoint: 'GET /api/v1/fleet/vehicle-locations/live',
+    purpose: 'Posisi terbaru seluruh armada untuk layer peta dan marker fleet.',
+    status: 'Active',
+  },
+  {
+    id: 'fleet-doc-3',
+    endpoint: 'GET /api/v1/deliveries/packages',
+    purpose: 'Lifecycle daftar kemasan dari packaging sampai receiving dengan destination koordinat.',
+    status: 'Active',
+  },
+  {
+    id: 'fleet-doc-4',
     endpoint: 'GET /api/v1/fleet/vehicles/{vehicle_id}/locations',
     purpose: 'Mengambil histori GPS kendaraan terpilih untuk trail perjalanan.',
     status: 'Active',
   },
   {
-    id: 'fleet-doc-3',
+    id: 'fleet-doc-5',
     endpoint: 'POST /api/v1/fleet/vehicles/{vehicle_id}/locations',
     purpose: 'Mencatat atau meng-update lokasi GPS kendaraan dari operasi lapangan.',
+    status: 'Active',
+  },
+  {
+    id: 'fleet-doc-6',
+    endpoint: 'POST /api/v1/deliveries/{route_id}/route-snapshot',
+    purpose: 'Menyimpan snapshot distance, duration, ETA, dan encoded polyline dari provider route.',
     status: 'Active',
   },
 ])
@@ -212,6 +300,114 @@ const historySearchText = (item: unknown) => {
     .join(' ')
 }
 
+const fleetTransitSearchText = (item: unknown) => {
+  const row = item as FleetVehicleStatusLiveRecord
+  return [
+    row.vehicle_code,
+    row.plate_number,
+    row.driver_name,
+    row.movement_status,
+    row.active_route.route_code,
+    row.active_route.route_name,
+    row.recorded_at,
+  ]
+    .filter(Boolean)
+    .join(' ')
+}
+
+const packageSearchText = (item: unknown) => {
+  const row = item as DeliveryPackageLifecycleRecord
+  return [
+    row.trace_code,
+    row.product_name,
+    row.status,
+    row.status_label,
+    row.destination_name,
+    row.route_code,
+    row.vehicle_code,
+  ]
+    .filter(Boolean)
+    .join(' ')
+}
+
+const openFleetDirection = (item: FleetVehicleStatusLiveRecord) => {
+  directionTarget.value = {
+    key: fleetRouteKey(item),
+    routeId: item.active_route.route_id || null,
+    title: `Armada ${item.vehicle_code} · ${item.movement_status}`,
+    subtitle: `${item.active_route.route_code || '-'} · ${item.active_route.route_name || 'Rute aktif'} · driver ${item.driver_name || '-'}`,
+    origin: item.current_position,
+    destination: item.active_route.destination,
+    waypoints: item.active_route.waypoints || [],
+    plannedArrivalAt: null,
+  }
+}
+
+const resolvePackageOrigin = (item: DeliveryPackageLifecycleRecord): FleetLatLng | null => {
+  const byVehicle =
+    item.vehicle_id &&
+    fleetTransitRows.value.find((fleetItem) => fleetItem.vehicle_id === item.vehicle_id)
+  if (byVehicle) return byVehicle.current_position
+
+  const byRoute =
+    item.route_id &&
+    fleetTransitRows.value.find((fleetItem) => fleetItem.active_route.route_id === item.route_id)
+  if (byRoute) return byRoute.current_position
+
+  const kitchen = data.value?.kitchens?.[0]
+  if (!kitchen) return null
+  return { latitude: kitchen.latitude, longitude: kitchen.longitude }
+}
+
+const openPackageDirection = (item: DeliveryPackageLifecycleRecord) => {
+  if (item.destination_latitude === null || item.destination_latitude === undefined) return
+  if (item.destination_longitude === null || item.destination_longitude === undefined) return
+
+  const origin = resolvePackageOrigin(item)
+  if (!origin) return
+
+  directionTarget.value = {
+    key: packageRouteKey(item),
+    routeId: item.route_id || null,
+    title: `Paket ${item.trace_code}`,
+    subtitle: `${item.status_label || item.status} · ${item.destination_name || 'Tujuan belum terisi'}`,
+    origin,
+    destination: {
+      latitude: item.destination_latitude,
+      longitude: item.destination_longitude,
+    },
+    waypoints: [],
+    plannedArrivalAt: null,
+  }
+}
+
+const handleDirectionComputed = (insight: DirectionInsight) => {
+  if (!directionTarget.value) return
+  const target = directionTarget.value
+  routeInsights.value = {
+    ...routeInsights.value,
+    [target.key]: insight,
+  }
+
+  if (!target.routeId) return
+  void saveRouteSnapshot({
+    route_id: target.routeId,
+    tenant_id: appStore.activeTenantId,
+    sppg_id: activeSppgId.value || undefined,
+    distance_meters: insight.distanceMeters,
+    duration_seconds: insight.durationSeconds,
+    estimated_arrival_at: insight.estimatedArrivalAt,
+    provider: 'GOOGLE_ROUTES',
+    provider_response: {
+      warning_code: insight.warningCode,
+      warning_label: insight.warningLabel,
+      source: 'fleet_gis_directions_panel',
+    },
+  }).catch(() => {
+    // Snapshot is best-effort; the UI should not fail when backend audit endpoint is unavailable.
+  })
+}
+
 const selectVehicle = async (vehicleId: string) => {
   stopPlayback()
   selectedVehicleId.value = vehicleId
@@ -221,7 +417,11 @@ const selectVehicle = async (vehicleId: string) => {
 }
 
 const reload = async () => {
-  await gisState.execute()
+  await Promise.all([
+    gisState.execute(),
+    fleetLiveStatusState.execute(),
+    packageLifecycleState.execute(),
+  ])
   if (!selectedVehicleId.value && fleetRows.value.length) {
     selectedVehicleId.value = fleetRows.value[0]!.vehicle_id
   }
@@ -424,6 +624,158 @@ onUnmounted(() => {
         :fleet-trail-focus-index="trailFocusIndex"
         :focus-vehicle-id="mapFocusVehicleId"
         mode="fleet"
+      />
+
+      <section class="grid gap-6 xl:grid-cols-2">
+        <DataTableCard
+          :items="fleetTransitRows"
+          :page-size="6"
+          :search-text-resolver="fleetTransitSearchText"
+          empty-message="Belum ada armada in-transit/departed dari endpoint live status."
+          search-placeholder="Cari vehicle, driver, route code, status..."
+          title="Armada Dalam Pengiriman"
+        >
+          <template #table="{ items }">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Vehicle</th>
+                  <th>Route</th>
+                  <th>Status</th>
+                  <th>ETA & Warning</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in items" :key="fleetRouteKey(item as FleetVehicleStatusLiveRecord)">
+                  <td>
+                    <p>{{ (item as FleetVehicleStatusLiveRecord).vehicle_code }}</p>
+                    <p class="mt-1 text-xs text-app-muted">
+                      {{ (item as FleetVehicleStatusLiveRecord).plate_number || '-' }} ·
+                      {{ (item as FleetVehicleStatusLiveRecord).driver_name || '-' }}
+                    </p>
+                  </td>
+                  <td>
+                    <p>{{ (item as FleetVehicleStatusLiveRecord).active_route.route_code || '-' }}</p>
+                    <p class="mt-1 text-xs text-app-muted">
+                      {{ (item as FleetVehicleStatusLiveRecord).active_route.route_name || 'Rute aktif' }}
+                    </p>
+                  </td>
+                  <td>
+                    <p>{{ (item as FleetVehicleStatusLiveRecord).movement_status }}</p>
+                    <p class="mt-1 text-xs text-app-muted">
+                      {{ (item as FleetVehicleStatusLiveRecord).recorded_at ? formatDateTime((item as FleetVehicleStatusLiveRecord).recorded_at as string) : '-' }}
+                    </p>
+                  </td>
+                  <td>
+                    <div class="space-y-1">
+                      <span
+                        class="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                        :class="directionWarningClass(getDirectionWarningCode(fleetRouteKey(item as FleetVehicleStatusLiveRecord)))"
+                      >
+                        {{ getDirectionWarningLabel(fleetRouteKey(item as FleetVehicleStatusLiveRecord)) }}
+                      </span>
+                      <p class="text-xs text-app-muted">
+                        {{ getDirectionSummaryText(fleetRouteKey(item as FleetVehicleStatusLiveRecord)) }}
+                      </p>
+                    </div>
+                  </td>
+                  <td>
+                    <button class="secondary-button" type="button" @click="openFleetDirection(item as FleetVehicleStatusLiveRecord)">
+                      Direction
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </template>
+        </DataTableCard>
+
+        <DataTableCard
+          :items="packageRows"
+          :page-size="6"
+          :search-text-resolver="packageSearchText"
+          empty-message="Belum ada daftar kemasan dari endpoint package lifecycle."
+          search-placeholder="Cari trace code, status, tujuan, route code..."
+          title="Daftar Kemasan Pengiriman"
+        >
+          <template #table="{ items }">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Trace</th>
+                  <th>Produk</th>
+                  <th>Status</th>
+                  <th>Tujuan</th>
+                  <th>ETA & Warning</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in items" :key="packageRouteKey(item as DeliveryPackageLifecycleRecord)">
+                  <td>
+                    <p>{{ (item as DeliveryPackageLifecycleRecord).trace_code }}</p>
+                    <p class="mt-1 text-xs text-app-muted">
+                      {{ formatNumber((item as DeliveryPackageLifecycleRecord).quantity_portions) }} porsi
+                    </p>
+                  </td>
+                  <td>
+                    <p>{{ (item as DeliveryPackageLifecycleRecord).product_name }}</p>
+                    <p class="mt-1 text-xs text-app-muted">
+                      {{ (item as DeliveryPackageLifecycleRecord).vehicle_code || '-' }}
+                    </p>
+                  </td>
+                  <td>
+                    <p>{{ (item as DeliveryPackageLifecycleRecord).status_label || (item as DeliveryPackageLifecycleRecord).status }}</p>
+                    <p class="mt-1 text-xs text-app-muted">
+                      {{ (item as DeliveryPackageLifecycleRecord).delivery_started_at ? formatDateTime((item as DeliveryPackageLifecycleRecord).delivery_started_at as string) : '-' }}
+                    </p>
+                  </td>
+                  <td>
+                    <p>{{ (item as DeliveryPackageLifecycleRecord).destination_name || '-' }}</p>
+                    <p class="mt-1 text-xs text-app-muted">
+                      {{ (item as DeliveryPackageLifecycleRecord).route_code || '-' }}
+                    </p>
+                  </td>
+                  <td>
+                    <div class="space-y-1">
+                      <span
+                        class="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                        :class="directionWarningClass(getDirectionWarningCode(packageRouteKey(item as DeliveryPackageLifecycleRecord)))"
+                      >
+                        {{ getDirectionWarningLabel(packageRouteKey(item as DeliveryPackageLifecycleRecord)) }}
+                      </span>
+                      <p class="text-xs text-app-muted">
+                        {{ getDirectionSummaryText(packageRouteKey(item as DeliveryPackageLifecycleRecord)) }}
+                      </p>
+                    </div>
+                  </td>
+                  <td>
+                    <button
+                      class="secondary-button"
+                      :disabled="!(item as DeliveryPackageLifecycleRecord).destination_latitude || !(item as DeliveryPackageLifecycleRecord).destination_longitude"
+                      type="button"
+                      @click="openPackageDirection(item as DeliveryPackageLifecycleRecord)"
+                    >
+                      Direction
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </template>
+        </DataTableCard>
+      </section>
+
+      <GoogleDirectionsPanel
+        v-if="directionTarget"
+        :title="directionTarget.title"
+        :subtitle="directionTarget.subtitle"
+        :origin="directionTarget.origin"
+        :destination="directionTarget.destination"
+        :waypoints="directionTarget.waypoints"
+        :planned-arrival-at="directionTarget.plannedArrivalAt || null"
+        @route-computed="handleDirectionComputed"
       />
 
       <section class="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
