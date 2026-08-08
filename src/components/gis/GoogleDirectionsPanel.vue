@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useGoogleMaps } from '@/composables/useGoogleMaps'
 import type { FleetLatLng } from '@/types/domain'
+import { formatDateTimeLocal } from '@/utils/format'
 
 export type DirectionWarningCode = 'ON_TRACK' | 'WARNING' | 'LATE' | 'UNKNOWN'
 
@@ -66,10 +67,7 @@ const durationText = computed(() => {
 
 const etaText = computed(() => {
   if (!summary.value?.estimatedArrivalAt) return '-'
-  return new Date(summary.value.estimatedArrivalAt).toLocaleString('id-ID', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  })
+  return formatDateTimeLocal(summary.value.estimatedArrivalAt)
 })
 
 const toLatLng = (point: FleetLatLng) => ({ lat: point.latitude, lng: point.longitude })

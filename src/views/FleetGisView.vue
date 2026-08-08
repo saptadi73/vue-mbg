@@ -17,7 +17,7 @@ import type {
   FleetVehicleLocationRecord,
   FleetVehicleStatusLiveRecord,
 } from '@/types/domain'
-import { formatDateTime, formatNumber } from '@/utils/format'
+import { formatDateTimeLocal, formatNumber } from '@/utils/format'
 
 type FleetGisServiceRow = {
   id: string
@@ -572,7 +572,7 @@ onUnmounted(() => {
       </article>
     </section>
 
-    <section class="glass-panel border border-[var(--app-panel-border)] bg-white/5 p-4">
+    <section class="glass-panel border border-(--app-panel-border) bg-white/5 p-4">
       <div class="flex flex-col gap-4 xl:flex-row xl:items-end">
         <label class="form-field flex-1">
           <span>Date from</span>
@@ -626,8 +626,9 @@ onUnmounted(() => {
         mode="fleet"
       />
 
-      <section class="grid gap-6 xl:grid-cols-2">
+      <section class="flex flex-col gap-6">
         <DataTableCard
+          class="w-full"
           :items="fleetTransitRows"
           :page-size="6"
           :search-text-resolver="fleetTransitSearchText"
@@ -664,7 +665,7 @@ onUnmounted(() => {
                   <td>
                     <p>{{ (item as FleetVehicleStatusLiveRecord).movement_status }}</p>
                     <p class="mt-1 text-xs text-app-muted">
-                      {{ (item as FleetVehicleStatusLiveRecord).recorded_at ? formatDateTime((item as FleetVehicleStatusLiveRecord).recorded_at as string) : '-' }}
+                      {{ formatDateTimeLocal((item as FleetVehicleStatusLiveRecord).recorded_at) }}
                     </p>
                   </td>
                   <td>
@@ -692,6 +693,7 @@ onUnmounted(() => {
         </DataTableCard>
 
         <DataTableCard
+          class="w-full"
           :items="packageRows"
           :page-size="6"
           :search-text-resolver="packageSearchText"
@@ -728,7 +730,7 @@ onUnmounted(() => {
                   <td>
                     <p>{{ (item as DeliveryPackageLifecycleRecord).status_label || (item as DeliveryPackageLifecycleRecord).status }}</p>
                     <p class="mt-1 text-xs text-app-muted">
-                      {{ (item as DeliveryPackageLifecycleRecord).delivery_started_at ? formatDateTime((item as DeliveryPackageLifecycleRecord).delivery_started_at as string) : '-' }}
+                      {{ formatDateTimeLocal((item as DeliveryPackageLifecycleRecord).delivery_started_at) }}
                     </p>
                   </td>
                   <td>
@@ -836,9 +838,7 @@ onUnmounted(() => {
                   </td>
                   <td>
                     <div class="flex items-center justify-between gap-3">
-                      <span>{{
-                        (item as FleetVehicleLocationRecord).location_recorded_at || '-'
-                      }}</span>
+                      <span>{{ formatDateTimeLocal((item as FleetVehicleLocationRecord).location_recorded_at) }}</span>
                       <button
                         class="secondary-button"
                         type="button"
@@ -867,17 +867,17 @@ onUnmounted(() => {
                 {{ selectedVehicle?.driver_name || 'Tanpa driver aktif' }}
               </p>
               <div class="mt-3 flex flex-wrap gap-2">
-                <span class="inline-flex items-center rounded-full border border-[var(--app-panel-border)] bg-white/8 px-2.5 py-1 text-[11px] font-semibold text-app-heading">
+                <span class="inline-flex items-center rounded-full border border-(--app-panel-border) bg-white/8 px-2.5 py-1 text-[11px] font-semibold text-app-heading">
                   GPS live
                 </span>
-                <span class="inline-flex items-center rounded-full border border-[var(--app-panel-border)] bg-white/8 px-2.5 py-1 text-[11px] font-semibold text-app-heading">
+                <span class="inline-flex items-center rounded-full border border-(--app-panel-border) bg-white/8 px-2.5 py-1 text-[11px] font-semibold text-app-heading">
                   ETA • {{ selectedVehicleEtaText }}
                 </span>
-                <span class="inline-flex items-center rounded-full border border-[var(--app-panel-border)] bg-white/8 px-2.5 py-1 text-[11px] font-semibold text-app-heading">
+                <span class="inline-flex items-center rounded-full border border-(--app-panel-border) bg-white/8 px-2.5 py-1 text-[11px] font-semibold text-app-heading">
                   Trail • {{ selectedTrail.length }} titik
                 </span>
               </div>
-              <div class="mt-3 rounded-2xl border border-[var(--app-panel-border)] bg-white/5 p-3">
+              <div class="mt-3 rounded-2xl border border-(--app-panel-border) bg-white/5 p-3">
                 <div class="flex items-center justify-between gap-3">
                   <p class="text-xs uppercase tracking-[0.2em] text-app-muted">ETA sampai tujuan</p>
                   <span class="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold" :class="getEtaToneClasses(selectedVehicle)">
@@ -887,7 +887,7 @@ onUnmounted(() => {
                 <p class="mt-2 font-semibold text-app-heading">{{ selectedVehicleEtaText }}</p>
                 <p class="mt-1 text-sm text-app-body">
                   {{ selectedVehicle?.eta_destination || 'Tujuan rute aktif' }} •
-                  {{ selectedVehicle?.estimated_arrival_at ? formatDateTime(selectedVehicle.estimated_arrival_at) : 'estimasi tiba belum tersedia' }}
+                  {{ selectedVehicle?.estimated_arrival_at ? formatDateTimeLocal(selectedVehicle.estimated_arrival_at) : 'estimasi tiba belum tersedia' }}
                 </p>
               </div>
             </div>
@@ -909,7 +909,7 @@ onUnmounted(() => {
                 <div>
                   <p class="text-xs uppercase tracking-[0.2em] text-app-muted">Latest</p>
                   <p class="mt-2 text-sm font-semibold text-app-heading">
-                    {{ selectedTrailLatest?.location_recorded_at || '-' }}
+                    {{ formatDateTimeLocal(selectedTrailLatest?.location_recorded_at) }}
                   </p>
                 </div>
               </div>
@@ -920,7 +920,7 @@ onUnmounted(() => {
                   <p class="text-sm text-app-muted">Trail playback</p>
                   <p class="mt-2 text-sm text-app-body">
                     Fokus titik aktif:
-                    {{ focusedTrailPoint?.location_recorded_at || '-' }}
+                    {{ formatDateTimeLocal(focusedTrailPoint?.location_recorded_at) }}
                   </p>
                 </div>
                 <div class="flex flex-wrap gap-2">
@@ -959,7 +959,7 @@ onUnmounted(() => {
               <input
                 v-if="selectedTrail.length"
                 v-model.number="trailFocusIndex"
-                class="mt-4 w-full accent-[var(--color-brand-400)]"
+                class="mt-4 w-full accent-(--color-brand-400)"
                 :max="selectedTrail.length - 1"
                 min="0"
                 type="range"
@@ -1026,7 +1026,7 @@ onUnmounted(() => {
             <div class="surface-subtle rounded-3xl p-4">
               <p class="text-sm text-app-muted">Focused timestamp</p>
               <p class="mt-2 font-semibold text-app-heading">
-                {{ focusedTrailPoint?.location_recorded_at || '-' }}
+                {{ formatDateTimeLocal(focusedTrailPoint?.location_recorded_at) }}
               </p>
             </div>
             <div class="grid gap-4 md:grid-cols-2">
@@ -1081,7 +1081,7 @@ onUnmounted(() => {
             </thead>
             <tbody>
               <tr v-for="item in items" :key="(item as FleetVehicleLocationRecord).id">
-                <td>{{ (item as FleetVehicleLocationRecord).location_recorded_at || '-' }}</td>
+                <td>{{ formatDateTimeLocal((item as FleetVehicleLocationRecord).location_recorded_at) }}</td>
                 <td>{{ (item as FleetVehicleLocationRecord).status }}</td>
                 <td>
                   {{ formatNumber((item as FleetVehicleLocationRecord).latitude) }},

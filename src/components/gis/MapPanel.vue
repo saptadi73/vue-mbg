@@ -15,7 +15,7 @@ import type {
   MapDataset,
 } from '@/types/domain'
 import { useAppStore } from '@/stores/app'
-import { formatNumber } from '@/utils/format'
+import { formatDateTimeLocal, formatNumber } from '@/utils/format'
 
 type GisLayerMode =
   | 'overview'
@@ -364,7 +364,7 @@ const renderLayers = () => {
           `Fleet ${vehicle.status}${
             vehicle.driver_name ? `<br/>Driver: ${vehicle.driver_name}` : ''
           }${vehicle.sppg_name ? `<br/>SPPG: ${vehicle.sppg_name}` : ''}${
-            vehicle.location_recorded_at ? `<br/>Updated: ${vehicle.location_recorded_at}` : ''
+            vehicle.location_recorded_at ? `<br/>Updated: ${formatDateTimeLocal(vehicle.location_recorded_at)}` : ''
           }`,
           vehicleIconSvg(fleetStatusColor(vehicle.status), 13, 'car'),
         ),
@@ -393,7 +393,7 @@ const renderLayers = () => {
         fillOpacity: 0.95,
       }).bindPopup(
         `<strong>${point.vehicle_code}</strong><br/>Trail point ${index + 1}<br/>${
-          point.location_recorded_at || '-'
+          formatDateTimeLocal(point.location_recorded_at)
         }${point.speed_kmh ? `<br/>Speed: ${formatNumber(point.speed_kmh)} km/h` : ''}`,
       )
       addLayer(marker)

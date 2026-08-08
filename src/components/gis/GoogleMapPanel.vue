@@ -8,6 +8,7 @@ import type {
   GeoJsonFeatureCollection,
   MapDataset,
 } from '@/types/domain'
+import { formatDateTimeLocal } from '@/utils/format'
 
 type GisLayerMode =
   | 'overview'
@@ -136,15 +137,11 @@ const addVehicleMarker = (vehicle: FleetVehicleLocationRecord, bounds: any) => {
           ? '#f59e0b'
           : '#ef4444'
   const arrivalText = etaMeta?.estimatedArrivalAt || vehicle.estimated_arrival_at
-    ? new Date(etaMeta?.estimatedArrivalAt || vehicle.estimated_arrival_at || Date.now()).toLocaleString('id-ID', {
-        day: '2-digit',
-        month: 'short',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
+    ? formatDateTimeLocal(etaMeta?.estimatedArrivalAt || vehicle.estimated_arrival_at)
     : 'Belum tersedia'
+  const recordedAtText = formatDateTimeLocal(vehicle.location_recorded_at)
   const info = new gm.InfoWindow({
-    content: `<div style="min-width:240px"><strong>${vehicle.vehicle_code}</strong><br>${vehicle.plate_number || '-'}<hr style="margin:8px 0"><b>Status:</b> ${vehicle.status}<br><b>Pengemudi:</b> ${vehicle.driver_name || '-'}<br><b>Kecepatan:</b> ${speed} km/jam<br><b>ETA:</b> <span style="color:${etaTone};font-weight:700">${etaText}</span><br><b>Tujuan:</b> ${etaMeta?.destinationLabel || vehicle.eta_destination || 'Tujuan rute aktif'}<br><b>Estimasi tiba:</b> ${arrivalText}<br><b>Posisi terakhir:</b> ${vehicle.location_recorded_at || '-'}<br><small>${vehicle.latitude.toFixed(6)}, ${vehicle.longitude.toFixed(6)}</small></div>`,
+    content: `<div style="min-width:240px"><strong>${vehicle.vehicle_code}</strong><br>${vehicle.plate_number || '-'}<hr style="margin:8px 0"><b>Status:</b> ${vehicle.status}<br><b>Pengemudi:</b> ${vehicle.driver_name || '-'}<br><b>Kecepatan:</b> ${speed} km/jam<br><b>ETA:</b> <span style="color:${etaTone};font-weight:700">${etaText}</span><br><b>Tujuan:</b> ${etaMeta?.destinationLabel || vehicle.eta_destination || 'Tujuan rute aktif'}<br><b>Estimasi tiba:</b> ${arrivalText}<br><b>Posisi terakhir:</b> ${recordedAtText}<br><small>${vehicle.latitude.toFixed(6)}, ${vehicle.longitude.toFixed(6)}</small></div>`,
   })
   marker.addListener('click', () => info.open({ anchor: marker, map }))
   overlays.push(marker)
@@ -208,7 +205,7 @@ const render = () => {
         { lat: p.latitude, lng: p.longitude },
         p.vehicle_code,
         '#8b5cf6',
-        `${p.status} · ${p.location_recorded_at || '-'}`,
+        `${p.status} · ${formatDateTimeLocal(p.location_recorded_at)}`,
         bounds,
       ),
     )
