@@ -174,7 +174,14 @@ const normalizeCoverageSummary = (input: unknown): ServiceCoverageRecord[] => {
 }
 
 const normalizeDeliveryRoutes = (input: unknown): DeliveryRouteRecord[] => {
-  const list = Array.isArray(input) ? input : Array.isArray(asRecord(input)?.items) ? (asRecord(input)?.items as unknown[]) : []
+  const inputRecord = asRecord(input)
+  const list = Array.isArray(input)
+    ? input
+    : Array.isArray(inputRecord?.items)
+      ? (inputRecord.items as unknown[])
+      : inputRecord
+        ? [inputRecord]
+        : []
 
   return list
     .map((item, index) => {

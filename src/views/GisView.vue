@@ -366,12 +366,9 @@ const buildRouteCandidateFromSelection = (
 const useNearestKitchen = async (kitchenId: string) => {
   validationForm.kitchen_id = kitchenId
 
-  const routeCandidate =
-    routeRows.value.find(
-      (route) => route.kitchen_id === kitchenId && route.school_id === validationForm.school_id,
-    ) ||
-    routeRows.value.find((route) => route.kitchen_id === kitchenId) ||
-    routeRows.value.find((route) => route.school_id === validationForm.school_id)
+  const routeCandidate = routeRows.value.find(
+    (route) => route.kitchen_id === kitchenId && route.school_id === validationForm.school_id,
+  )
 
   if (!routeCandidate) {
     selectedRoute.value = buildRouteCandidateFromSelection(kitchenId, validationForm.school_id)
@@ -1141,8 +1138,8 @@ const saveServiceArea = async () => {
             v-else
             class="mt-5 rounded-3xl border border-[var(--app-panel-border)] p-4 text-sm text-app-muted"
           >
-            Pilih salah satu route pada tabel `Delivery Routes` untuk melihat detail rute delivery
-            dari backend GIS.
+            Pilih kitchen pada hasil `Nearest Kitchens` atau route pada tabel `Delivery Routes`
+            untuk melihat detail rute.
           </div>
         </article>
 
