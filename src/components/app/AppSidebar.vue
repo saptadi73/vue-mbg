@@ -84,8 +84,11 @@ const route = useRoute()
 const allowedRoles = computed(() => appStore.roles)
 const logoSrc = computed(() => (appStore.themeMode === 'dark' ? iconMbgChrome : iconMbgWarna))
 const desktopCollapsed = computed(() => !props.mobile && appStore.desktopSidebarCollapsed)
-const pendingApprovalCount = computed(() =>
-  mockWorkflowDocuments.flatMap((item) => item.approval_requests).filter((item) => item.status === 'PENDING').length,
+const pendingApprovalCount = computed(
+  () =>
+    mockWorkflowDocuments
+      .flatMap((item) => item.approval_requests)
+      .filter((item) => item.status === 'PENDING').length,
 )
 const procurementOpenCount = computed(
   () =>
@@ -107,9 +110,26 @@ const sections: NavSection[] = [
     items: [
       { label: 'Overview', to: '/', icon: LayoutDashboard, matchPrefixes: ['/'] },
       { label: 'GIS Intelligence', to: '/gis', icon: Map },
-      { label: 'GIS Fleet', to: '/gis/fleet', icon: Truck, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer'], matchPrefixes: ['/gis/fleet'] },
-      { label: 'Finance', to: '/finance', icon: WalletCards, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] },
-      { label: 'Finance Reports', to: '/finance/reports', icon: BarChart3, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'], matchPrefixes: ['/finance/reports'] },
+      {
+        label: 'GIS Fleet',
+        to: '/gis/fleet',
+        icon: Truck,
+        roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer'],
+        matchPrefixes: ['/gis/fleet'],
+      },
+      {
+        label: 'Finance',
+        to: '/finance',
+        icon: WalletCards,
+        roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'],
+      },
+      {
+        label: 'Finance Reports',
+        to: '/finance/reports',
+        icon: BarChart3,
+        roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'],
+        matchPrefixes: ['/finance/reports'],
+      },
     ],
   },
   {
@@ -119,14 +139,99 @@ const sections: NavSection[] = [
     items: [
       { label: 'Paket Makan', to: '/meal-plans', icon: Utensils },
       { label: 'Inventory', to: '/inventory', icon: Boxes, badge: 'inventoryAttention' },
-      { label: 'Fleet', to: '/fleet', icon: Truck, roles: ['super_admin', 'tenant_admin', 'operations_manager'], matchPrefixes: ['/fleet'] },
-      { label: 'Delivery', to: '/delivery', icon: PackageCheck, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer', 'quality_officer'], matchPrefixes: ['/delivery'] },
-      { label: 'Delivery Reports', to: '/delivery/reports', icon: ClipboardList, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer', 'quality_officer'], matchPrefixes: ['/delivery/reports'] },
-      { label: 'Feedback', to: '/feedback', icon: MessageSquare, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'delivery_officer', 'quality_officer'], matchPrefixes: ['/feedback'] },
-      { label: 'Quality QC', to: '/quality/inspections', icon: ShieldCheck, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'quality_officer'], matchPrefixes: ['/quality'] },
-      { label: 'Food Safety & Trace', to: '/quality/food-safety', icon: ScanLine, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'quality_officer'], matchPrefixes: ['/quality/food-safety'] },
-      { label: 'Procurement', to: '/procurement', icon: ShoppingCart, roles: ['super_admin', 'tenant_admin', 'procurement_officer', 'operations_manager', 'finance_manager'], matchPrefixes: ['/procurement'], badge: 'procurementOpen' },
-      { label: 'Costing', to: '/costing', icon: Calculator, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'] },
+      {
+        label: 'Fleet',
+        to: '/fleet',
+        icon: Truck,
+        roles: ['super_admin', 'tenant_admin', 'operations_manager'],
+        matchPrefixes: ['/fleet'],
+      },
+      {
+        label: 'Delivery',
+        to: '/delivery',
+        icon: PackageCheck,
+        roles: [
+          'super_admin',
+          'tenant_admin',
+          'operations_manager',
+          'delivery_officer',
+          'quality_officer',
+        ],
+        matchPrefixes: ['/delivery'],
+      },
+      {
+        label: 'Delivery Reports',
+        to: '/delivery/reports',
+        icon: ClipboardList,
+        roles: [
+          'super_admin',
+          'tenant_admin',
+          'operations_manager',
+          'delivery_officer',
+          'quality_officer',
+        ],
+        matchPrefixes: ['/delivery/reports'],
+      },
+      {
+        label: 'Operasional Lapangan',
+        to: '/field-operations',
+        icon: ScanLine,
+        roles: [
+          'super_admin',
+          'tenant_admin',
+          'operations_manager',
+          'delivery_officer',
+          'quality_officer',
+        ],
+        matchPrefixes: ['/field-operations'],
+      },
+      {
+        label: 'Feedback',
+        to: '/feedback',
+        icon: MessageSquare,
+        roles: [
+          'super_admin',
+          'tenant_admin',
+          'operations_manager',
+          'delivery_officer',
+          'quality_officer',
+        ],
+        matchPrefixes: ['/feedback'],
+      },
+      {
+        label: 'Quality QC',
+        to: '/quality/inspections',
+        icon: ShieldCheck,
+        roles: ['super_admin', 'tenant_admin', 'operations_manager', 'quality_officer'],
+        matchPrefixes: ['/quality'],
+      },
+      {
+        label: 'Food Safety & Trace',
+        to: '/quality/food-safety',
+        icon: ScanLine,
+        roles: ['super_admin', 'tenant_admin', 'operations_manager', 'quality_officer'],
+        matchPrefixes: ['/quality/food-safety'],
+      },
+      {
+        label: 'Procurement',
+        to: '/procurement',
+        icon: ShoppingCart,
+        roles: [
+          'super_admin',
+          'tenant_admin',
+          'procurement_officer',
+          'operations_manager',
+          'finance_manager',
+        ],
+        matchPrefixes: ['/procurement'],
+        badge: 'procurementOpen',
+      },
+      {
+        label: 'Costing',
+        to: '/costing',
+        icon: Calculator,
+        roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'],
+      },
     ],
   },
   {
@@ -134,15 +239,74 @@ const sections: NavSection[] = [
     title: 'Tata Kelola',
     icon: ShieldCheck,
     items: [
-      { label: 'Budget Planning', to: '/budgets', icon: WalletCards, roles: ['super_admin', 'tenant_admin', 'finance_manager'] },
-      { label: 'Workflow Approval', to: '/workflow-approvals', icon: Workflow, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'], badge: 'workflowPending' },
-      { label: 'Documents', to: '/documents', icon: FileText, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'quality_officer', 'finance_manager'], matchPrefixes: ['/documents'] },
-      { label: 'Audit Events', to: '/audit/events', icon: ScrollText, roles: ['super_admin', 'tenant_admin'], matchPrefixes: ['/audit'] },
-      { label: 'Integration Ops', to: '/integration-platform', icon: Network, roles: ['super_admin', 'tenant_admin'], matchPrefixes: ['/integration-platform'] },
-      { label: 'Government Claims', to: '/government-claims', icon: Landmark, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'], matchPrefixes: ['/government-claims'] },
-      { label: 'Funding', to: '/funding', icon: Landmark, roles: ['super_admin', 'tenant_admin', 'finance_manager'], matchPrefixes: ['/funding'] },
-      { label: 'Chart of Accounts', to: '/accounting/accounts', icon: BookOpen, roles: ['super_admin', 'tenant_admin', 'finance_manager'], matchPrefixes: ['/accounting/accounts'] },
-      { label: 'Journal Entries', to: '/accounting/journal-entries', icon: ClipboardCheck, roles: ['super_admin', 'tenant_admin', 'finance_manager'], matchPrefixes: ['/accounting/journal-entries'] },
+      {
+        label: 'Budget Planning',
+        to: '/budgets',
+        icon: WalletCards,
+        roles: ['super_admin', 'tenant_admin', 'finance_manager'],
+      },
+      {
+        label: 'Workflow Approval',
+        to: '/workflow-approvals',
+        icon: Workflow,
+        roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'],
+        badge: 'workflowPending',
+      },
+      {
+        label: 'Documents',
+        to: '/documents',
+        icon: FileText,
+        roles: [
+          'super_admin',
+          'tenant_admin',
+          'operations_manager',
+          'quality_officer',
+          'finance_manager',
+        ],
+        matchPrefixes: ['/documents'],
+      },
+      {
+        label: 'Audit Events',
+        to: '/audit/events',
+        icon: ScrollText,
+        roles: ['super_admin', 'tenant_admin'],
+        matchPrefixes: ['/audit'],
+      },
+      {
+        label: 'Integration Ops',
+        to: '/integration-platform',
+        icon: Network,
+        roles: ['super_admin', 'tenant_admin'],
+        matchPrefixes: ['/integration-platform'],
+      },
+      {
+        label: 'Government Claims',
+        to: '/government-claims',
+        icon: Landmark,
+        roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'],
+        matchPrefixes: ['/government-claims'],
+      },
+      {
+        label: 'Funding',
+        to: '/funding',
+        icon: Landmark,
+        roles: ['super_admin', 'tenant_admin', 'finance_manager'],
+        matchPrefixes: ['/funding'],
+      },
+      {
+        label: 'Chart of Accounts',
+        to: '/accounting/accounts',
+        icon: BookOpen,
+        roles: ['super_admin', 'tenant_admin', 'finance_manager'],
+        matchPrefixes: ['/accounting/accounts'],
+      },
+      {
+        label: 'Journal Entries',
+        to: '/accounting/journal-entries',
+        icon: ClipboardCheck,
+        roles: ['super_admin', 'tenant_admin', 'finance_manager'],
+        matchPrefixes: ['/accounting/journal-entries'],
+      },
     ],
   },
   {
@@ -150,11 +314,41 @@ const sections: NavSection[] = [
     title: 'Pegawai',
     icon: Users,
     items: [
-      { label: 'Positions', to: '/workforce/positions', icon: BriefcaseBusiness, roles: ['super_admin', 'tenant_admin', 'operations_manager'], matchPrefixes: ['/workforce/positions'] },
-      { label: 'Employees', to: '/workforce/employees', icon: Users, roles: ['super_admin', 'tenant_admin', 'operations_manager'], matchPrefixes: ['/workforce/employees'] },
-      { label: 'Shifts', to: '/workforce/shifts', icon: CalendarDays, roles: ['super_admin', 'tenant_admin', 'operations_manager'], matchPrefixes: ['/workforce/shifts'] },
-      { label: 'Attendance', to: '/workforce/attendance', icon: ClipboardCheck, roles: ['super_admin', 'tenant_admin', 'operations_manager'], matchPrefixes: ['/workforce/attendance'] },
-      { label: 'Timesheets', to: '/workforce/timesheets', icon: CalendarDays, roles: ['super_admin', 'tenant_admin', 'operations_manager', 'finance_manager'], matchPrefixes: ['/workforce/timesheets'] },
+      {
+        label: 'Positions',
+        to: '/workforce/positions',
+        icon: BriefcaseBusiness,
+        roles: ['super_admin', 'tenant_admin', 'operations_manager'],
+        matchPrefixes: ['/workforce/positions'],
+      },
+      {
+        label: 'Employees',
+        to: '/workforce/employees',
+        icon: Users,
+        roles: ['super_admin', 'tenant_admin', 'operations_manager'],
+        matchPrefixes: ['/workforce/employees'],
+      },
+      {
+        label: 'Shifts',
+        to: '/workforce/shifts',
+        icon: CalendarDays,
+        roles: ['super_admin', 'tenant_admin', 'operations_manager'],
+        matchPrefixes: ['/workforce/shifts'],
+      },
+      {
+        label: 'Attendance',
+        to: '/workforce/attendance',
+        icon: ClipboardCheck,
+        roles: ['super_admin', 'tenant_admin', 'operations_manager'],
+        matchPrefixes: ['/workforce/attendance'],
+      },
+      {
+        label: 'Timesheets',
+        to: '/workforce/timesheets',
+        icon: CalendarDays,
+        roles: ['super_admin', 'tenant_admin', 'operations_manager', 'finance_manager'],
+        matchPrefixes: ['/workforce/timesheets'],
+      },
     ],
   },
   {
@@ -162,8 +356,20 @@ const sections: NavSection[] = [
     title: 'Assets',
     icon: Archive,
     items: [
-      { label: 'Asset Register', to: '/assets', icon: Archive, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'], matchPrefixes: ['/assets'] },
-      { label: 'Asset Categories', to: '/assets/categories', icon: Boxes, roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'], matchPrefixes: ['/assets/categories'] },
+      {
+        label: 'Asset Register',
+        to: '/assets',
+        icon: Archive,
+        roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'],
+        matchPrefixes: ['/assets'],
+      },
+      {
+        label: 'Asset Categories',
+        to: '/assets/categories',
+        icon: Boxes,
+        roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'],
+        matchPrefixes: ['/assets/categories'],
+      },
     ],
   },
   {
@@ -172,8 +378,19 @@ const sections: NavSection[] = [
     icon: UserCog,
     items: [
       { label: 'My Profile', to: '/profile', icon: CircleUserRound, matchPrefixes: ['/profile'] },
-      { label: 'Notifications', to: '/notifications/inbox', icon: Bell, matchPrefixes: ['/notifications'] },
-      { label: 'Users', to: '/users', icon: UserCog, roles: ['super_admin', 'tenant_admin'], matchPrefixes: ['/users'] },
+      {
+        label: 'Notifications',
+        to: '/notifications/inbox',
+        icon: Bell,
+        matchPrefixes: ['/notifications'],
+      },
+      {
+        label: 'Users',
+        to: '/users',
+        icon: UserCog,
+        roles: ['super_admin', 'tenant_admin'],
+        matchPrefixes: ['/users'],
+      },
     ],
   },
   {
@@ -181,14 +398,38 @@ const sections: NavSection[] = [
     title: 'Master Data',
     icon: Database,
     items: [
-      { label: 'Programs', to: '/programs', icon: SquareKanban, roles: ['super_admin', 'tenant_admin'], matchPrefixes: ['/programs'] },
-      { label: 'Penerima Manfaat', to: '/beneficiaries', icon: UserRoundCheck, roles: ['super_admin', 'tenant_admin', 'operations_manager'], matchPrefixes: ['/beneficiaries'] },
-      { label: 'Yayasan', to: '/tenants', icon: Building2, roles: ['super_admin'], matchPrefixes: ['/tenants'] },
+      {
+        label: 'Programs',
+        to: '/programs',
+        icon: SquareKanban,
+        roles: ['super_admin', 'tenant_admin'],
+        matchPrefixes: ['/programs'],
+      },
+      {
+        label: 'Penerima Manfaat',
+        to: '/beneficiaries',
+        icon: UserRoundCheck,
+        roles: ['super_admin', 'tenant_admin', 'operations_manager'],
+        matchPrefixes: ['/beneficiaries'],
+      },
+      {
+        label: 'Yayasan',
+        to: '/tenants',
+        icon: Building2,
+        roles: ['super_admin'],
+        matchPrefixes: ['/tenants'],
+      },
       { label: 'SPPG', to: '/sppg', icon: Soup, matchPrefixes: ['/sppg'] },
       { label: 'Schools', to: '/schools', icon: GraduationCap, matchPrefixes: ['/schools'] },
       { label: 'Products', to: '/products', icon: PackageSearch, matchPrefixes: ['/products'] },
       { label: 'Recipes', to: '/recipes', icon: BookOpen, matchPrefixes: ['/recipes'] },
-      { label: 'Onboarding Wizard', to: '/onboarding/wizard', icon: Warehouse, roles: ['super_admin', 'tenant_admin'], matchPrefixes: ['/onboarding'] },
+      {
+        label: 'Onboarding Wizard',
+        to: '/onboarding/wizard',
+        icon: Warehouse,
+        roles: ['super_admin', 'tenant_admin'],
+        matchPrefixes: ['/onboarding'],
+      },
     ],
   },
 ]
@@ -214,7 +455,9 @@ const isItemActive = (item: NavItem) => {
     return true
   }
 
-  return (item.matchPrefixes || [item.to]).some((prefix) => prefix !== '/' && route.path.startsWith(prefix))
+  return (item.matchPrefixes || [item.to]).some(
+    (prefix) => prefix !== '/' && route.path.startsWith(prefix),
+  )
 }
 
 const getDefaultOpenState = () =>
@@ -347,14 +590,21 @@ const resolveItemTitle = (item: NavItem) => {
   <aside
     class="glass-panel shrink-0 flex-col p-5 transition-[width] duration-300"
     :class="[
-      props.mobile ? 'flex h-full rounded-none border-l-0 border-t-0 border-b-0 w-72' : 'hidden lg:flex',
+      props.mobile
+        ? 'flex h-full rounded-none border-l-0 border-t-0 border-b-0 w-72'
+        : 'hidden lg:flex',
       !props.mobile && desktopCollapsed ? 'w-24' : !props.mobile ? 'w-72' : '',
       desktopCollapsed ? 'sidebar-collapsed' : '',
     ]"
   >
-    <div class="mb-8 flex items-center gap-3" :class="desktopCollapsed ? 'flex-col justify-center' : 'justify-between'">
+    <div
+      class="mb-8 flex items-center gap-3"
+      :class="desktopCollapsed ? 'flex-col justify-center' : 'justify-between'"
+    >
       <div class="flex min-w-0 items-center gap-3" :class="{ 'justify-center': desktopCollapsed }">
-        <div class="overflow-hidden rounded-2xl border border-[var(--app-panel-border)] bg-white/80 shadow-[0_12px_30px_rgba(15,23,42,0.12)]">
+        <div
+          class="overflow-hidden rounded-2xl border border-[var(--app-panel-border)] bg-white/80 shadow-[0_12px_30px_rgba(15,23,42,0.12)]"
+        >
           <img :src="logoSrc" alt="ERP MBG logo" class="h-14 w-14 object-cover" />
         </div>
         <div v-if="!desktopCollapsed">
@@ -416,7 +666,11 @@ const resolveItemTitle = (item: NavItem) => {
               </span>
               <span v-if="!desktopCollapsed">{{ item.label }}</span>
             </span>
-            <span v-if="resolveBadge(item)" class="sidebar-item-badge" :class="{ 'sidebar-item-badge-floating': desktopCollapsed }">
+            <span
+              v-if="resolveBadge(item)"
+              class="sidebar-item-badge"
+              :class="{ 'sidebar-item-badge-floating': desktopCollapsed }"
+            >
               {{ resolveBadge(item) }}
             </span>
           </RouterLink>
@@ -426,8 +680,12 @@ const resolveItemTitle = (item: NavItem) => {
 
     <div v-if="!desktopCollapsed" class="surface-subtle mt-auto rounded-3xl p-4">
       <p class="eyebrow-text tracking-[0.24em]">Backend Dev</p>
-      <p class="mt-2 text-sm text-app-heading">Terhubung via `.env.development` ke `127.0.0.1:8000`.</p>
-      <p class="mt-3 text-xs text-app-muted">Service layer akan fallback ke mock state saat backend belum siap.</p>
+      <p class="mt-2 text-sm text-app-heading">
+        Terhubung via `.env.development` ke `127.0.0.1:8000`.
+      </p>
+      <p class="mt-3 text-xs text-app-muted">
+        Service layer akan fallback ke mock state saat backend belum siap.
+      </p>
     </div>
   </aside>
 </template>
