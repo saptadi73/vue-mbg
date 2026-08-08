@@ -1822,6 +1822,8 @@ export interface ServiceCoverageRecord {
 
 export interface DeliveryRouteRecord {
   id: string
+  kitchen_id?: string
+  school_id?: string
   delivery_order_id?: string
   delivery_number: string
   status: string

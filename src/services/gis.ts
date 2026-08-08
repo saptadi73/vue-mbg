@@ -189,6 +189,8 @@ const normalizeDeliveryRoutes = (input: unknown): DeliveryRouteRecord[] => {
       const line = asRecord(record.line)
       return {
         id: String(record.id ?? record.delivery_order_id ?? index),
+        kitchen_id: record.kitchen_id ? String(record.kitchen_id) : record.sppg_id ? String(record.sppg_id) : undefined,
+        school_id: record.school_id ? String(record.school_id) : undefined,
         delivery_order_id: record.delivery_order_id ? String(record.delivery_order_id) : undefined,
         delivery_number: String(record.delivery_number ?? `DLV-${index + 1}`),
         status: String(record.status ?? 'UNKNOWN'),
@@ -439,6 +441,8 @@ const buildFallbackDataset = (): MapDataset => {
 
   const deliveryRoutes: DeliveryRouteRecord[] = mockMapData.schools.slice(0, 2).map((school, index) => ({
     id: `route-${index + 1}`,
+    kitchen_id: primaryKitchen.id,
+    school_id: school.id,
     delivery_order_id: `do-${index + 1}`,
     delivery_number: `DO-20260720-000${index + 1}`,
     status: index === 0 ? 'DELIVERED' : 'IN_TRANSIT',

@@ -49,6 +49,15 @@ let overlays: any[] = []
 
 const mapsApi = () => (window as Window & { google?: { maps?: MapsApi } }).google?.maps
 const shouldRenderGoogle = computed(() => googleMaps.configured && !loadError.value)
+const showOnlyKitchens = ref(false)
+const showRadiusCircles = ref(true)
+const radiusMinMeters = ref(0)
+const radiusMaxMeters = ref(0)
+
+const formatDistance = (meters: number) =>
+  meters >= 1000
+    ? `${Math.round((meters / 1000) * 100) / 100} km`
+    : `${Math.round(meters)} m`
 
 const title = computed(
   () =>
@@ -94,6 +103,68 @@ const addMarker = (
   marker.addListener('click', () => info.open({ anchor: marker, map }))
   overlays.push(marker)
   bounds.extend(position)
+}
+
+const addCoverageCircle = (
+  position: { lat: number; lng: number },
+  radiusMeter: number,
+  color: string,
+  bounds: any,
+) => {
+  if (!Number.isFinite(radiusMeter) || radiusMeter <= 0) return
+
+  const gm = mapsApi()!
+  const circle = new gm.Circle({
+    map,
+    center: position,
+    radius: radiusMeter,
+    fillColor: color,
+    fillOpacity: 0.1,
+    strokeColor: color,
+    strokeOpacity: 0.85,
+    strokeWeight: 2,
+  })
+  overlays.push(circle)
+  const circleBounds = circle.getBounds()
+  if (circleBounds) bounds.union(circleBounds)
+}
+
+const buildKitchenInfo = (name: string, serviceRadius: number, coveredCount: number) => {
+  const radiusText = serviceRadius > 0 ? `Radius layanan: ${formatDistance(serviceRadius)}` : null
+  const coveredText = `Sekolah tercover: ${coveredCount}`
+  return `${name}<br>${radiusText ? `${radiusText}<br>` : ''}${coveredText}`
+}
+
+const radiusColorByCoverage = (coveredCount: number) => {
+  if (coveredCount <= 0) return '#ef4444'
+  if (coveredCount <= 2) return '#f59e0b'
+  return '#22c55e'
+}
+
+const radiusFilterRange = computed(() => {
+  const min = Math.max(0, Number(radiusMinMeters.value) || 0)
+  const max = Math.max(0, Number(radiusMaxMeters.value) || 0)
+  if (min > 0 && max > 0 && max < min) {
+    return { min: min, max: min, minGreaterThanMax: true }
+  }
+  return { min, max, minGreaterThanMax: false }
+})
+
+const isKitchenRadiusVisible = (radiusMeter: number) => {
+  const { min: minFilter, max: maxFilter, minGreaterThanMax } = radiusFilterRange.value
+  if (minGreaterThanMax) return false
+  if (!Number.isFinite(radiusMeter) || radiusMeter < 0) return false
+  if (minFilter > 0 && radiusMeter < minFilter) return false
+  if (maxFilter > 0 && radiusMeter > maxFilter) return false
+  return true
+}
+
+const resetKitchenFilters = () => {
+  showOnlyKitchens.value = false
+  showRadiusCircles.value = true
+  radiusMinMeters.value = 0
+  radiusMaxMeters.value = 0
+  render()
 }
 
 const fleetColor = (status?: string) => {
@@ -184,12 +255,32 @@ const render = () => {
   clear()
   const bounds = new gm.LatLngBounds()
   let focusPosition: { lat: number; lng: number } | null = null
+  const kitchenOnly = showOnlyKitchens.value
   const modesWithKitchens = ['overview', 'coverage', 'routes', 'serviceAreas', 'fleet']
   if (modesWithKitchens.includes(props.mode))
-    props.dataset.kitchens.forEach((p) =>
-      addMarker({ lat: p.latitude, lng: p.longitude }, p.name, '#14b8a6', 'Dapur / SPPG', bounds),
-    )
-  if (['overview', 'coverage'].includes(props.mode))
+    props.dataset.kitchens.forEach((p) => {
+      const serviceRadius = Number(p.service_radius_meter || 0)
+      if (!isKitchenRadiusVisible(serviceRadius)) return
+      const coveredSchoolCount = Number.isFinite(p.covered_school_count || 0)
+        ? p.covered_school_count || 0
+        : 0
+      addMarker(
+        { lat: p.latitude, lng: p.longitude },
+        p.name,
+        '#14b8a6',
+        buildKitchenInfo(p.name, serviceRadius, coveredSchoolCount),
+        bounds,
+      )
+      if (showRadiusCircles.value) {
+        addCoverageCircle(
+          { lat: p.latitude, lng: p.longitude },
+          serviceRadius,
+          radiusColorByCoverage(coveredSchoolCount),
+          bounds,
+        )
+      }
+    })
+  if (!kitchenOnly && ['overview', 'coverage'].includes(props.mode))
     props.dataset.schools.forEach((p) =>
       addMarker(
         { lat: p.latitude, lng: p.longitude },
@@ -199,7 +290,7 @@ const render = () => {
         bounds,
       ),
     )
-  if (props.mode === 'overview')
+  if (!kitchenOnly && props.mode === 'overview')
     (props.dataset.fleetVehicles || []).forEach((p) =>
       addMarker(
         { lat: p.latitude, lng: p.longitude },
@@ -209,14 +300,14 @@ const render = () => {
         bounds,
       ),
     )
-  if (props.mode === 'fleet')
+  if (!kitchenOnly && props.mode === 'fleet')
     (props.dataset.fleetVehicles || []).forEach((vehicle) => {
       addVehicleMarker(vehicle, bounds)
       if (props.focusVehicleId && vehicle.vehicle_id === props.focusVehicleId) {
         focusPosition = { lat: vehicle.latitude, lng: vehicle.longitude }
       }
     })
-  if (props.mode === 'risk')
+  if (!kitchenOnly && props.mode === 'risk')
     (props.dataset.riskPoints || []).forEach((p) =>
       addMarker(
         { lat: p.latitude, lng: p.longitude },
@@ -226,13 +317,13 @@ const render = () => {
         bounds,
       ),
     )
-  if (['overview', 'coverage'].includes(props.mode))
+  if (!kitchenOnly && ['overview', 'coverage'].includes(props.mode))
     addGeoJson(props.dataset.coverage, '#14b8a6', bounds)
-  if (['overview', 'unserved'].includes(props.mode))
+  if (!kitchenOnly && ['overview', 'unserved'].includes(props.mode))
     addGeoJson(props.dataset.unserved, '#f43f5e', bounds)
-  if (props.mode === 'distribution')
+  if (!kitchenOnly && props.mode === 'distribution')
     addGeoJson(props.dataset.distributionHeatmap, '#0ea5e9', bounds)
-  if (props.mode === 'serviceAreas') {
+  if (!kitchenOnly && props.mode === 'serviceAreas') {
     addGeoJson(props.dataset.serviceAreas, '#0ea5e9', bounds)
     const draft =
       props.draftServiceArea &&
@@ -244,7 +335,7 @@ const render = () => {
           }) as GeoJsonFeatureCollection | null)
     addGeoJson(draft, '#f59e0b', bounds)
   }
-  if (props.mode === 'routes')
+  if (!kitchenOnly && props.mode === 'routes')
     (props.dataset.deliveryRoutes || []).forEach((route) => {
       const path = (
         route.line?.coordinates || [
@@ -261,7 +352,7 @@ const render = () => {
       overlays.push(line)
       path.forEach((point) => bounds.extend(point))
     })
-  if (props.mode === 'fleet' && props.fleetTrail?.length) {
+  if (!kitchenOnly && props.mode === 'fleet' && props.fleetTrail?.length) {
     const path = props.fleetTrail.map((p) => ({ lat: p.latitude, lng: p.longitude }))
     overlays.push(new gm.Polyline({ map, path, strokeColor: '#f97316', strokeWeight: 4 }))
     path.forEach((point) => bounds.extend(point))
@@ -300,6 +391,10 @@ watch(
     props.fleetTrail,
     props.fleetTrailFocusIndex,
     props.focusVehicleId,
+    showOnlyKitchens,
+    showRadiusCircles,
+    radiusMinMeters,
+    radiusMaxMeters,
   ],
   render,
   { deep: true },
@@ -318,10 +413,50 @@ onBeforeUnmount(clear)
         </p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
-        <span class="legend-chip">Google Maps</span>
-        <span class="legend-chip">Live GPS</span>
-        <span class="legend-chip">ETA status</span>
+        <span class="legend-chip"><i class="legend-dot bg-teal-300"></i> Dapur terdaftar</span>
+        <span class="legend-chip"><i class="legend-dot bg-sky-300"></i> Radius layanan (lingkaran)</span>
+        <span class="legend-chip"><i class="legend-dot bg-red-400"></i> Radius belum optimal</span>
+        <span class="legend-chip"><i class="legend-dot bg-amber-400"></i> Radius sedang</span>
+        <span class="legend-chip"><i class="legend-dot bg-green-400"></i> Radius optimal</span>
+        <span class="legend-chip"><i class="legend-dot bg-sky-200"></i> Sekolah</span>
+        <span class="legend-chip"><i class="legend-dot bg-rose-200"></i> Unserved</span>
       </div>
+      <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-app-body">
+        <label class="inline-flex items-center gap-2">
+          <input v-model="showOnlyKitchens" type="checkbox" />
+          <span>Hanya Dapur + Radius</span>
+        </label>
+        <label class="inline-flex items-center gap-2">
+          <input v-model="showRadiusCircles" type="checkbox" />
+          <span>Tampilkan Radius</span>
+        </label>
+        <label class="inline-flex items-center gap-2">
+          <span>Radius min (m)</span>
+          <input
+            v-model.number="radiusMinMeters"
+            class="toolbar-input h-8 w-28 px-2"
+            min="0"
+            placeholder="0"
+            type="number"
+          />
+        </label>
+        <label class="inline-flex items-center gap-2">
+          <span>Radius max (m)</span>
+          <input
+            v-model.number="radiusMaxMeters"
+            class="toolbar-input h-8 w-28 px-2"
+            min="0"
+            placeholder="0"
+            type="number"
+          />
+        </label>
+        <button class="secondary-button" type="button" @click="resetKitchenFilters">
+          Reset layer
+        </button>
+      </div>
+      <p v-if="radiusFilterRange.minGreaterThanMax" class="text-[11px] text-rose-400">
+        Min radius tidak boleh lebih besar dari max radius.
+      </p>
     </div>
     <div class="overflow-hidden rounded-[32px] border border-[var(--app-panel-border)] bg-slate-950/10">
       <div ref="mapRef" class="h-[560px]"></div>

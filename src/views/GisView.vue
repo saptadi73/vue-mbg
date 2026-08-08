@@ -34,20 +34,13 @@ type GisMode =
   | 'serviceAreas'
   | 'routes'
 
-type GisServiceRow = {
-  id: string
-  screen: string
-  endpoint: string
-  purpose: string
-  status: string
-}
-
 const appStore = useAppStore()
 const { activeSppgId } = storeToRefs(appStore)
 const activeMode = ref<GisMode>('overview')
 const nearestRows = ref<NearestKitchenRecord[]>([])
 const assignmentResult = ref<AssignmentValidationRecord | null>(null)
 const selectedRoute = ref<DeliveryRouteRecord | null>(null)
+const selectedRouteSource = ref<'backend' | 'fallback' | null>(null)
 const toolLoading = ref(false)
 const serviceAreaSaving = ref(false)
 const serviceAreaMessage = ref('')
@@ -138,79 +131,6 @@ const routeDistanceTotal = computed(() =>
 )
 const kitchenOptions = computed(() => data.value?.kitchens || [])
 const draftServiceAreaGeometry = computed(() => parsedServiceArea.value.geometry)
-const gisServiceRows = computed<GisServiceRow[]>(() => [
-  {
-    id: 'svc-1',
-    screen: 'SPPG Map',
-    endpoint: 'GET /api/v1/gis/sppg-map',
-    purpose: 'Marker SPPG, radius layanan, dan covered school count.',
-    status: 'Active',
-  },
-  {
-    id: 'svc-2',
-    screen: 'Kitchens Layer Map',
-    endpoint: 'GET /api/v1/gis/kitchens',
-    purpose: 'GeoJSON FeatureCollection untuk layer dapur.',
-    status: 'Active',
-  },
-  {
-    id: 'svc-3',
-    screen: 'Schools Layer Map',
-    endpoint: 'GET /api/v1/gis/schools',
-    purpose: 'GeoJSON sekolah dengan filter spasial dan operasional.',
-    status: 'Active',
-  },
-  {
-    id: 'svc-4',
-    screen: 'Service Coverage Map',
-    endpoint: 'GET /api/v1/gis/service-coverage',
-    purpose: 'Ringkasan coverage dan jarak layanan sekolah.',
-    status: 'Active',
-  },
-  {
-    id: 'svc-5',
-    screen: 'Delivery Route Map',
-    endpoint: 'GET /api/v1/gis/delivery-routes',
-    purpose: 'Line geometry rute distribusi dari SPPG ke sekolah.',
-    status: 'Active',
-  },
-  {
-    id: 'svc-6',
-    screen: 'Risk Heatmap',
-    endpoint: 'GET /api/v1/gis/sppg-risk-heatmap',
-    purpose: 'Skor risiko operasional spasial per SPPG.',
-    status: 'Active',
-  },
-  {
-    id: 'svc-7',
-    screen: 'Distribution Heatmap',
-    endpoint: 'GET /api/v1/gis/heatmaps/distribution',
-    purpose: 'Heatmap distribusi per sekolah.',
-    status: 'Active',
-  },
-  {
-    id: 'svc-8',
-    screen: 'Service Area Editor',
-    endpoint: 'POST /api/v1/gis/service-areas | PUT /api/v1/gis/kitchens/{kitchen_id}/service-area',
-    purpose: 'Create dan update polygon area layanan PostGIS.',
-    status: 'Active',
-  },
-  {
-    id: 'svc-9',
-    screen: 'Nearest Kitchens Tool',
-    endpoint: 'GET /api/v1/gis/schools/{school_id}/nearest-kitchens',
-    purpose: 'Cari dapur terdekat ke sekolah.',
-    status: 'Active',
-  },
-  {
-    id: 'svc-10',
-    screen: 'Assignment Validation Tool',
-    endpoint: 'POST /api/v1/gis/assignments/validate',
-    purpose: 'Validasi kelayakan assignment sekolah ke dapur.',
-    status: 'Active',
-  },
-])
-
 const parsedServiceArea = computed<{
   valid: boolean
   message: string
@@ -342,11 +262,6 @@ const nearestKitchenSearchText = (item: unknown) => {
   return [row.kitchen_name, row.code].filter(Boolean).join(' ')
 }
 
-const gisServiceSearchText = (item: unknown) => {
-  const row = item as GisServiceRow
-  return [row.screen, row.endpoint, row.purpose, row.status].join(' ')
-}
-
 const schoolOptions = computed(() => data.value?.schools || [])
 
 const applyPreset = (preset: 'today' | 'last3days' | 'tomorrow' | 'custom') => {
@@ -386,6 +301,7 @@ const loadRouteDetail = async (deliveryId: string) => {
   toolLoading.value = true
   try {
     selectedRoute.value = await getDeliveryRouteById(deliveryId)
+    selectedRouteSource.value = selectedRoute.value ? 'backend' : null
   } finally {
     toolLoading.value = false
   }
@@ -394,10 +310,63 @@ const loadRouteDetail = async (deliveryId: string) => {
 const applySchoolToWorkspace = (schoolId: string) => {
   nearestForm.school_id = schoolId
   validationForm.school_id = schoolId
+  selectedRoute.value = null
+  selectedRouteSource.value = null
 }
 
-const useNearestKitchen = (kitchenId: string) => {
+const buildRouteCandidateFromSelection = (
+  kitchenId: string,
+  schoolId: string,
+): DeliveryRouteRecord | null => {
+  const kitchen = kitchenOptions.value.find((item) => item.id === kitchenId)
+  const school = schoolOptions.value.find((item) => item.id === schoolId)
+  if (!kitchen || !school) return null
+
+  const nearest = nearestRows.value.find((item) => item.kitchen_id === kitchenId)
+  const distanceKm = Number((Number(nearest?.distance_m || 0) / 1000).toFixed(2))
+
+  return {
+    id: `candidate-${kitchenId}-${schoolId}`,
+    kitchen_id: kitchenId,
+    school_id: schoolId,
+    delivery_number: `CANDIDATE-${kitchen.code || kitchen.id}`,
+    status: nearest?.inside_service_area ? 'CANDIDATE_INSIDE_AREA' : 'CANDIDATE_OUTSIDE_AREA',
+    distance_km: distanceKm,
+    from_coordinate: {
+      latitude: kitchen.latitude,
+      longitude: kitchen.longitude,
+    },
+    to_coordinate: {
+      latitude: school.latitude,
+      longitude: school.longitude,
+    },
+    line: {
+      type: 'LineString',
+      coordinates: [
+        [kitchen.longitude, kitchen.latitude],
+        [school.longitude, school.latitude],
+      ],
+    },
+  }
+}
+
+const useNearestKitchen = async (kitchenId: string) => {
   validationForm.kitchen_id = kitchenId
+
+  const routeCandidate =
+    routeRows.value.find(
+      (route) => route.kitchen_id === kitchenId && route.school_id === validationForm.school_id,
+    ) ||
+    routeRows.value.find((route) => route.kitchen_id === kitchenId) ||
+    routeRows.value.find((route) => route.school_id === validationForm.school_id)
+
+  if (!routeCandidate) {
+    selectedRoute.value = buildRouteCandidateFromSelection(kitchenId, validationForm.school_id)
+    selectedRouteSource.value = selectedRoute.value ? 'fallback' : null
+    return
+  }
+
+  await loadRouteDetail(routeCandidate.delivery_order_id || routeCandidate.id)
 }
 
 const runAssignmentValidation = async () => {
@@ -1089,7 +1058,15 @@ const saveServiceArea = async () => {
 
       <section class="grid gap-6 xl:grid-cols-2">
         <article class="glass-panel p-6">
-          <p class="eyebrow-text">Selected Route Detail</p>
+          <div class="flex items-center justify-between gap-3">
+            <p class="eyebrow-text">Selected Route Detail</p>
+            <span
+              v-if="selectedRouteSource"
+              class="rounded-full border border-[var(--app-panel-border)] px-3 py-1 text-xs text-app-muted"
+            >
+              Source: {{ selectedRouteSource === 'backend' ? 'Backend' : 'Fallback' }}
+            </span>
+          </div>
           <div v-if="selectedRoute" class="mt-5 grid gap-4">
             <div class="surface-subtle rounded-3xl p-4">
               <p class="text-sm text-app-muted">Delivery Number</p>
@@ -1162,37 +1139,6 @@ const saveServiceArea = async () => {
         </article>
       </section>
 
-      <DataTableCard
-        :items="gisServiceRows"
-        :page-size="6"
-        :search-text-resolver="gisServiceSearchText"
-        empty-message="Belum ada layanan GIS terdokumentasi."
-        search-placeholder="Cari screen, endpoint, atau fungsi..."
-        title="GIS Service Coverage From Documentation"
-      >
-        <template #table="{ items }">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Screen</th>
-                <th>Endpoint</th>
-                <th>Purpose</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in items" :key="(item as GisServiceRow).id">
-                <td>{{ (item as GisServiceRow).screen }}</td>
-                <td>
-                  <span class="text-xs text-app-muted">{{ (item as GisServiceRow).endpoint }}</span>
-                </td>
-                <td>{{ (item as GisServiceRow).purpose }}</td>
-                <td>{{ (item as GisServiceRow).status }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </template>
-      </DataTableCard>
     </template>
   </div>
 </template>
