@@ -715,7 +715,13 @@ body {
 
 .mobile-sidebar-panel {
   background: var(--app-bg);
-  @apply ml-auto flex h-full w-[min(88vw,340px)] flex-col;
+  @apply ml-auto flex h-full min-h-0 w-[min(88vw,340px)] flex-col overflow-hidden;
+}
+
+.mobile-sidebar-panel,
+.mobile-sidebar-panel aside,
+.mobile-sidebar-panel aside > div {
+  -webkit-overflow-scrolling: touch;
 }
 
 .mobile-close-button {

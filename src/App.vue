@@ -34,7 +34,9 @@ onMounted(() => {
           </div>
           <button class="mobile-close-button" type="button" @click="appStore.closeMobileSidebar()">Tutup</button>
         </div>
-        <AppSidebar mobile />
+        <div class="min-h-0 flex-1">
+          <AppSidebar mobile />
+        </div>
       </div>
     </div>
 

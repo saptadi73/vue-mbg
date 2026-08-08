@@ -591,7 +591,7 @@ const resolveItemTitle = (item: NavItem) => {
     class="glass-panel shrink-0 flex-col p-5 transition-[width] duration-300"
     :class="[
       props.mobile
-        ? 'flex h-full rounded-none border-l-0 border-t-0 border-b-0 w-72'
+        ? 'flex h-full min-h-0 overflow-hidden rounded-none border-l-0 border-t-0 border-b-0 w-72'
         : 'hidden lg:flex',
       !props.mobile && desktopCollapsed ? 'w-24' : !props.mobile ? 'w-72' : '',
       desktopCollapsed ? 'sidebar-collapsed' : '',
@@ -626,7 +626,7 @@ const resolveItemTitle = (item: NavItem) => {
       </button>
     </div>
 
-    <div class="space-y-3">
+    <div class="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1">
       <section v-for="section in visibleSections" :key="section.id" class="sidebar-group">
         <button
           class="sidebar-group-toggle"
