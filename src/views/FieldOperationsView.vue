@@ -3,14 +3,18 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'v
 import { LocateFixed, MapPin, QrCode, ScanLine, Thermometer } from '@lucide/vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import { getDeliveryRoutes } from '@/services/delivery'
 import { createFleetVehicleLocationPing, getFleetVehicles } from '@/services/fleet'
 import {
+  addTraceEvent,
   getFoodSafetyProfiles,
+  loadDeliveryPackage,
+  receiveDeliveryPackage,
   recordTemperatureReading,
   resolveTrace,
 } from '@/services/food-safety'
 import { useAppStore } from '@/stores/app'
-import type { FleetVehicleRecord } from '@/types/domain'
+import type { DeliveryRoutePlanRecord, FleetVehicleRecord } from '@/types/domain'
 import type { FoodSafetyProfile, TraceEntity } from '@/types/food-safety'
 
 type BarcodeResult = { rawValue: string }
@@ -23,6 +27,7 @@ const busy = ref(false)
 const message = ref('')
 const error = ref('')
 const vehicles = ref<FleetVehicleRecord[]>([])
+const deliveryRoutes = ref<DeliveryRoutePlanRecord[]>([])
 const profiles = ref<FoodSafetyProfile[]>([])
 const traceResult = ref<TraceEntity | null>(null)
 
@@ -46,6 +51,29 @@ const gpsForm = reactive({
 })
 
 const qrCode = ref('')
+const qrAction = ref<'RAW_RECEIVED' | 'RAW_ISSUED' | 'PACKAGE_DISPATCH' | 'PACKAGE_RECEIVE'>(
+  'RAW_RECEIVED',
+)
+const materialForm = reactive({
+  quantity: null as number | null,
+  uom: 'kg',
+  location_code: '',
+  notes: '',
+})
+const dispatchForm = reactive({
+  route_id: '',
+  delivery_stop_id: '',
+  destination_name: '',
+  vehicle_id: '',
+  temp_at_loading: null as number | null,
+  notes: '',
+})
+const receiveForm = reactive({
+  route_id: '',
+  temperature_c: null as number | null,
+  latitude: null as number | null,
+  longitude: null as number | null,
+})
 const cameraActive = ref(false)
 const videoElement = ref<HTMLVideoElement | null>(null)
 let cameraStream: MediaStream | null = null
@@ -53,6 +81,16 @@ let scanFrame = 0
 
 const selectedVehicle = computed(() =>
   vehicles.value.find((vehicle) => vehicle.id === gpsForm.vehicle_id),
+)
+const selectedDispatchVehicle = computed(() =>
+  vehicles.value.find((vehicle) => vehicle.id === dispatchForm.vehicle_id),
+)
+const selectedRoute = computed(() =>
+  deliveryRoutes.value.find((route) => route.id === dispatchForm.route_id),
+)
+const isRawMaterial = computed(() => traceResult.value?.entity_type === 'RAW_MATERIAL_LOT')
+const isPackage = computed(() =>
+  ['PACKAGE', 'CONTAINER', 'MEAL_BATCH'].includes(traceResult.value?.entity_type || ''),
 )
 
 const run = async (action: () => Promise<void>, success: string) => {
@@ -70,13 +108,18 @@ const run = async (action: () => Promise<void>, success: string) => {
 }
 
 const loadOptions = async () => {
-  const [fleetResult, safetyProfiles] = await Promise.all([
+  const [fleetResult, safetyProfiles, routesResult] = await Promise.all([
     getFleetVehicles(),
     getFoodSafetyProfiles().catch(() => []),
+    getDeliveryRoutes(),
   ])
   vehicles.value = fleetResult.items
   profiles.value = safetyProfiles
+  deliveryRoutes.value = routesResult.items
   gpsForm.vehicle_id ||= vehicles.value[0]?.id || ''
+  dispatchForm.vehicle_id ||= vehicles.value[0]?.id || ''
+  dispatchForm.route_id ||= deliveryRoutes.value[0]?.id || ''
+  receiveForm.route_id ||= deliveryRoutes.value[0]?.id || ''
   temperatureForm.profile_id ||= profiles.value[0]?.id || ''
 }
 
@@ -161,6 +204,115 @@ const resolveQr = () =>
     traceResult.value = await resolveTrace(value)
     stopCamera()
   }, 'QR berhasil dipindai dan data trace ditemukan.')
+
+const resetQrResult = () => {
+  traceResult.value = null
+  qrCode.value = ''
+  message.value = ''
+  error.value = ''
+}
+
+const submitMaterialMovement = () =>
+  run(
+    async () => {
+      if (!traceResult.value || !isRawMaterial.value) {
+        throw new Error('QR harus bertipe RAW_MATERIAL_LOT untuk transaksi bahan baku.')
+      }
+      const eventType = qrAction.value === 'RAW_RECEIVED' ? 'RECEIVED' : 'ISSUED'
+      await addTraceEvent(traceResult.value.trace_code, {
+        event_type: eventType,
+        notes:
+          materialForm.notes ||
+          (eventType === 'RECEIVED'
+            ? 'Bahan baku diterima melalui scan web.'
+            : 'Bahan baku dikeluarkan melalui scan web.'),
+        metadata_json: {
+          quantity: materialForm.quantity,
+          uom: materialForm.uom,
+          location_code: materialForm.location_code || null,
+          source: 'field_operations_qr',
+        },
+      })
+      materialForm.quantity = null
+      materialForm.notes = ''
+    },
+    qrAction.value === 'RAW_RECEIVED'
+      ? 'Barang masuk berhasil dicatat.'
+      : 'Barang keluar berhasil dicatat.',
+  )
+
+const submitPackageDispatch = () =>
+  run(
+    async () => {
+      if (!traceResult.value || !isPackage.value) {
+        throw new Error('QR harus bertipe PACKAGE, CONTAINER, atau MEAL_BATCH untuk pengiriman.')
+      }
+      await loadDeliveryPackage(dispatchForm.route_id, {
+        tenant_id: appStore.activeTenantId,
+        sppg_id: appStore.activeSppgId || undefined,
+        package_trace_code: traceResult.value.trace_code,
+        delivery_stop_id: dispatchForm.delivery_stop_id.trim(),
+        vehicle_id: dispatchForm.vehicle_id,
+        loaded_at: new Date().toISOString(),
+        temp_at_loading: dispatchForm.temp_at_loading,
+      })
+      await addTraceEvent(traceResult.value.trace_code, {
+        event_type: 'DISPATCHED',
+        notes: dispatchForm.notes || `Mulai dikirim ke ${dispatchForm.destination_name}.`,
+        metadata_json: {
+          route_id: dispatchForm.route_id,
+          route_code: selectedRoute.value?.route_code || null,
+          delivery_stop_id: dispatchForm.delivery_stop_id,
+          destination_name: dispatchForm.destination_name,
+          vehicle_id: dispatchForm.vehicle_id,
+          vehicle_code: selectedDispatchVehicle.value?.vehicle_code || null,
+          source: 'field_operations_qr',
+        },
+      })
+      dispatchForm.notes = ''
+    },
+    `Kemasan mulai dikirim dengan ${selectedDispatchVehicle.value?.vehicle_code || 'kendaraan terpilih'}.`,
+  )
+
+const captureReceivingGps = () => {
+  message.value = ''
+  error.value = ''
+  if (!navigator.geolocation) {
+    error.value = 'Browser ini tidak mendukung pengambilan lokasi.'
+    return
+  }
+  busy.value = true
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      receiveForm.latitude = Number(position.coords.latitude.toFixed(7))
+      receiveForm.longitude = Number(position.coords.longitude.toFixed(7))
+      message.value = 'GPS penerimaan berhasil diambil.'
+      busy.value = false
+    },
+    (cause) => {
+      error.value =
+        cause.code === 1 ? 'Izin lokasi ditolak.' : 'Lokasi penerimaan belum dapat diperoleh.'
+      busy.value = false
+    },
+    { enableHighAccuracy: true, timeout: 20000, maximumAge: 10000 },
+  )
+}
+
+const submitPackageReceive = () =>
+  run(async () => {
+    if (!traceResult.value || !isPackage.value) {
+      throw new Error('QR harus bertipe PACKAGE, CONTAINER, atau MEAL_BATCH untuk penerimaan.')
+    }
+    if (receiveForm.latitude === null || receiveForm.longitude === null) {
+      throw new Error('GPS penerimaan wajib diambil atau diisi.')
+    }
+    await receiveDeliveryPackage(receiveForm.route_id, traceResult.value.entity_id, {
+      received_at: new Date().toISOString(),
+      temperature_c: receiveForm.temperature_c,
+      latitude: receiveForm.latitude,
+      longitude: receiveForm.longitude,
+    })
+  }, 'Paket MBG berhasil ditandai diterima.')
 
 const scanCameraFrame = async (detector: BarcodeDetectorInstance) => {
   if (!cameraActive.value || !videoElement.value) return
@@ -419,6 +571,51 @@ onBeforeUnmount(stopCamera)
             <h2 class="font-display text-2xl text-app-heading">Scan QR objek</h2>
           </div>
         </div>
+        <div class="mb-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <button
+            type="button"
+            class="secondary-button justify-center"
+            :class="{ 'ring-2 ring-emerald-500': qrAction === 'RAW_RECEIVED' }"
+            @click="((qrAction = 'RAW_RECEIVED'), resetQrResult())"
+          >
+            Barang masuk
+          </button>
+          <button
+            type="button"
+            class="secondary-button justify-center"
+            :class="{ 'ring-2 ring-emerald-500': qrAction === 'RAW_ISSUED' }"
+            @click="((qrAction = 'RAW_ISSUED'), resetQrResult())"
+          >
+            Barang keluar
+          </button>
+          <button
+            type="button"
+            class="secondary-button justify-center"
+            :class="{ 'ring-2 ring-emerald-500': qrAction === 'PACKAGE_DISPATCH' }"
+            @click="((qrAction = 'PACKAGE_DISPATCH'), resetQrResult())"
+          >
+            Start delivery
+          </button>
+          <button
+            type="button"
+            class="secondary-button justify-center"
+            :class="{ 'ring-2 ring-emerald-500': qrAction === 'PACKAGE_RECEIVE' }"
+            @click="((qrAction = 'PACKAGE_RECEIVE'), resetQrResult())"
+          >
+            Paket diterima
+          </button>
+        </div>
+        <p class="mb-4 text-sm text-app-muted">
+          {{
+            qrAction === 'RAW_RECEIVED'
+              ? 'Scan QR lot bahan baku yang diterima.'
+              : qrAction === 'RAW_ISSUED'
+                ? 'Scan QR lot bahan baku yang dikeluarkan dari penyimpanan.'
+                : qrAction === 'PACKAGE_DISPATCH'
+                  ? 'Scan QR kemasan yang akan dimuat ke kendaraan dan mulai dikirim.'
+                  : 'Scan QR kemasan MBG yang sudah sampai di lokasi penerima.'
+          }}
+        </p>
         <div v-if="cameraActive" class="overflow-hidden rounded-3xl bg-black">
           <video
             ref="videoElement"
@@ -468,6 +665,215 @@ onBeforeUnmount(stopCamera)
             <p class="text-sm text-app-muted">Status</p>
             <StatusBadge class="mt-2" :status="traceResult.status" />
           </div>
+
+          <form
+            v-if="qrAction === 'RAW_RECEIVED' || qrAction === 'RAW_ISSUED'"
+            class="space-y-4 border-t border-[var(--app-panel-border)] pt-5"
+            @submit.prevent="submitMaterialMovement"
+          >
+            <p
+              v-if="!isRawMaterial"
+              class="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700"
+            >
+              QR ini bukan lot raw material. Scan QR dengan tipe RAW_MATERIAL_LOT.
+            </p>
+            <div class="grid gap-3 sm:grid-cols-2">
+              <label class="space-y-2">
+                <span class="text-sm text-app-muted">Jumlah</span>
+                <input
+                  v-model.number="materialForm.quantity"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  class="toolbar-input w-full"
+                  placeholder="25"
+                />
+              </label>
+              <label class="space-y-2">
+                <span class="text-sm text-app-muted">Satuan</span>
+                <select v-model="materialForm.uom" class="toolbar-input w-full">
+                  <option value="kg">kg</option>
+                  <option value="gram">gram</option>
+                  <option value="liter">liter</option>
+                  <option value="pcs">pcs</option>
+                </select>
+              </label>
+            </div>
+            <label class="block space-y-2">
+              <span class="text-sm text-app-muted">Lokasi gudang</span>
+              <input
+                v-model="materialForm.location_code"
+                class="toolbar-input w-full"
+                placeholder="Contoh: COLD-A atau RACK-02"
+              />
+            </label>
+            <label class="block space-y-2">
+              <span class="text-sm text-app-muted">Catatan</span>
+              <textarea
+                v-model="materialForm.notes"
+                class="toolbar-input min-h-24 w-full"
+                placeholder="Kondisi barang atau keperluan pengeluaran"
+              ></textarea>
+            </label>
+            <button class="primary-button w-full justify-center" :disabled="busy || !isRawMaterial">
+              {{
+                qrAction === 'RAW_RECEIVED' ? 'Konfirmasi barang masuk' : 'Konfirmasi barang keluar'
+              }}
+            </button>
+          </form>
+
+          <form
+            v-else-if="qrAction === 'PACKAGE_DISPATCH'"
+            class="space-y-4 border-t border-[var(--app-panel-border)] pt-5"
+            @submit.prevent="submitPackageDispatch"
+          >
+            <p
+              v-if="!isPackage"
+              class="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700"
+            >
+              QR ini bukan kemasan. Scan QR bertipe PACKAGE, CONTAINER, atau MEAL_BATCH.
+            </p>
+            <label class="block space-y-2">
+              <span class="text-sm text-app-muted">Rute pengiriman</span>
+              <select v-model="dispatchForm.route_id" required class="toolbar-input w-full">
+                <option disabled value="">Pilih rute</option>
+                <option v-for="route in deliveryRoutes" :key="route.id" :value="route.id">
+                  {{ route.route_code }} — {{ route.route_name }}
+                </option>
+              </select>
+            </label>
+            <label class="block space-y-2">
+              <span class="text-sm text-app-muted">ID tujuan / delivery stop</span>
+              <input
+                v-model="dispatchForm.delivery_stop_id"
+                required
+                class="toolbar-input w-full"
+                placeholder="UUID delivery stop"
+              />
+            </label>
+            <label class="block space-y-2">
+              <span class="text-sm text-app-muted">Nama tujuan</span>
+              <input
+                v-model="dispatchForm.destination_name"
+                required
+                class="toolbar-input w-full"
+                placeholder="Sekolah atau lokasi penerima"
+              />
+            </label>
+            <label class="block space-y-2">
+              <span class="text-sm text-app-muted">Kendaraan pengantar</span>
+              <select v-model="dispatchForm.vehicle_id" required class="toolbar-input w-full">
+                <option disabled value="">Pilih kendaraan</option>
+                <option v-for="vehicle in vehicles" :key="vehicle.id" :value="vehicle.id">
+                  {{ vehicle.vehicle_code }} — {{ vehicle.plate_number }}
+                </option>
+              </select>
+            </label>
+            <label class="block space-y-2">
+              <span class="text-sm text-app-muted">Suhu saat loading (°C)</span>
+              <input
+                v-model.number="dispatchForm.temp_at_loading"
+                type="number"
+                step="0.1"
+                class="toolbar-input w-full"
+                placeholder="65.0"
+              />
+            </label>
+            <label class="block space-y-2">
+              <span class="text-sm text-app-muted">Catatan dispatch</span>
+              <textarea
+                v-model="dispatchForm.notes"
+                class="toolbar-input min-h-24 w-full"
+                placeholder="Catatan kondisi kemasan atau perjalanan"
+              ></textarea>
+            </label>
+            <button
+              class="primary-button w-full justify-center"
+              :disabled="
+                busy ||
+                !isPackage ||
+                !dispatchForm.route_id ||
+                !dispatchForm.delivery_stop_id ||
+                !dispatchForm.vehicle_id
+              "
+            >
+              Tandai loading & mulai delivery
+            </button>
+          </form>
+
+          <form
+            v-else
+            class="space-y-4 border-t border-[var(--app-panel-border)] pt-5"
+            @submit.prevent="submitPackageReceive"
+          >
+            <p
+              v-if="!isPackage"
+              class="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700"
+            >
+              QR ini bukan kemasan. Scan QR bertipe PACKAGE, CONTAINER, atau MEAL_BATCH.
+            </p>
+            <label class="block space-y-2">
+              <span class="text-sm text-app-muted">Rute pengiriman</span>
+              <select v-model="receiveForm.route_id" required class="toolbar-input w-full">
+                <option disabled value="">Pilih rute</option>
+                <option v-for="route in deliveryRoutes" :key="route.id" :value="route.id">
+                  {{ route.route_code }} — {{ route.route_name }}
+                </option>
+              </select>
+            </label>
+            <label class="block space-y-2">
+              <span class="text-sm text-app-muted">Suhu saat diterima (°C)</span>
+              <input
+                v-model.number="receiveForm.temperature_c"
+                type="number"
+                step="0.1"
+                class="toolbar-input w-full"
+                placeholder="61.8"
+              />
+            </label>
+            <div class="grid gap-3 sm:grid-cols-2">
+              <label class="space-y-2">
+                <span class="text-sm text-app-muted">Latitude penerima</span>
+                <input
+                  v-model.number="receiveForm.latitude"
+                  required
+                  type="number"
+                  step="any"
+                  class="toolbar-input w-full"
+                />
+              </label>
+              <label class="space-y-2">
+                <span class="text-sm text-app-muted">Longitude penerima</span>
+                <input
+                  v-model.number="receiveForm.longitude"
+                  required
+                  type="number"
+                  step="any"
+                  class="toolbar-input w-full"
+                />
+              </label>
+            </div>
+            <button
+              type="button"
+              class="secondary-button w-full justify-center"
+              :disabled="busy"
+              @click="captureReceivingGps"
+            >
+              <LocateFixed :size="17" /> Ambil GPS penerima
+            </button>
+            <button
+              class="primary-button w-full justify-center"
+              :disabled="
+                busy ||
+                !isPackage ||
+                !receiveForm.route_id ||
+                receiveForm.latitude === null ||
+                receiveForm.longitude === null
+              "
+            >
+              Konfirmasi paket MBG diterima
+            </button>
+          </form>
         </div>
         <p v-else class="mt-5 text-sm text-app-muted">
           Arahkan kamera ke QR atau masukkan trace code untuk menampilkan identitas objek.

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { Search } from '@lucide/vue'
 import { formatNumber } from '@/utils/format'
 
 const props = withDefaults(
@@ -61,23 +62,27 @@ const goNext = () => {
 </script>
 
 <template>
-  <article class="glass-panel overflow-hidden">
+  <article class="table-card-shell glass-panel overflow-hidden">
     <div class="flex flex-col gap-4 px-6 pt-6 lg:flex-row lg:items-center lg:justify-between">
       <div>
-        <h2 class="font-display text-2xl text-app-heading">{{ title }}</h2>
+        <div class="flex items-center gap-2">
+          <span class="table-accent-pill" />
+          <h2 class="font-display text-2xl text-app-heading">{{ title }}</h2>
+        </div>
         <p class="mt-2 text-sm text-app-body">
           Menampilkan {{ formatNumber(paginatedItems.length) }} dari {{ formatNumber(filteredItems.length) }} data.
         </p>
       </div>
 
-      <div class="w-full lg:max-w-sm">
-        <input v-model="query" :placeholder="searchPlaceholder" class="toolbar-input w-full" type="search" />
+      <div class="table-search-shell w-full lg:max-w-sm">
+        <Search class="table-search-icon" :size="16" />
+        <input v-model="query" :placeholder="searchPlaceholder" class="toolbar-input w-full border-0 bg-transparent px-0 py-0 shadow-none" type="search" />
       </div>
     </div>
 
     <div class="overflow-x-auto p-6 pt-4">
       <slot :items="paginatedItems" name="table" />
-      <p v-if="!filteredItems.length" class="rounded-2xl border border-[var(--app-panel-border)] px-4 py-6 text-sm text-app-muted">
+      <p v-if="!filteredItems.length" class="table-empty-state">
         {{ emptyMessage }}
       </p>
     </div>

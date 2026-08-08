@@ -92,10 +92,119 @@ body {
 }
 
 .glass-panel {
+  position: relative;
+  overflow: hidden;
   border-color: var(--app-panel-border);
-  background: var(--app-panel-bg);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--app-panel-bg) 82%, rgba(255, 255, 255, 0.2) 18%), color-mix(in srgb, var(--app-panel-bg) 70%, transparent 30%));
   box-shadow: var(--app-shadow);
-  @apply rounded-[30px] border backdrop-blur-xl;
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  @apply rounded-[26px] border;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
+}
+
+.glass-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.14), transparent 38%, rgba(255, 255, 255, 0.04));
+  opacity: 0.9;
+}
+
+.glass-panel:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--app-panel-border) 78%, rgba(45, 212, 191, 0.32) 22%);
+  box-shadow: 0 26px 90px rgba(2, 6, 23, 0.54);
+}
+
+[data-theme='light'] .glass-panel {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.8));
+  box-shadow: 0 22px 64px rgba(15, 23, 42, 0.08);
+}
+
+[data-theme='light'] .glass-panel::before {
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.72), transparent 36%, rgba(45, 212, 191, 0.08));
+}
+
+.kpi-card {
+  position: relative;
+  isolation: isolate;
+}
+
+.kpi-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(45, 212, 191, 0.1), transparent 44%, rgba(96, 165, 250, 0.08));
+}
+
+.kpi-card-accent {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, #2dd4bf, #60a5fa);
+}
+
+.kpi-card-accent-info {
+  background: linear-gradient(90deg, #38bdf8, #818cf8);
+}
+
+.kpi-card-accent-success {
+  background: linear-gradient(90deg, #34d399, #10b981);
+}
+
+.kpi-card-accent-warning {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.kpi-card-accent-danger {
+  background: linear-gradient(90deg, #fb7185, #ef4444);
+}
+
+.kpi-card-accent-neutral {
+  background: linear-gradient(90deg, #94a3b8, #64748b);
+}
+
+.kpi-card-dot {
+  display: inline-flex;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #2dd4bf, #60a5fa);
+  box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.16);
+}
+
+.kpi-card-dot-info {
+  background: linear-gradient(135deg, #38bdf8, #818cf8);
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.16);
+}
+
+.kpi-card-dot-success {
+  background: linear-gradient(135deg, #34d399, #10b981);
+  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.16);
+}
+
+.kpi-card-dot-warning {
+  background: linear-gradient(135deg, #f59e0b, #fbbf24);
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.16);
+}
+
+.kpi-card-dot-danger {
+  background: linear-gradient(135deg, #fb7185, #ef4444);
+  box-shadow: 0 0 0 4px rgba(251, 113, 133, 0.16);
+}
+
+.kpi-card-dot-neutral {
+  background: linear-gradient(135deg, #94a3b8, #64748b);
+  box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.16);
 }
 
 .surface-subtle {
@@ -331,7 +440,9 @@ body {
 .status-pill {
   border-color: var(--app-subtle-border);
   color: var(--app-text);
-  @apply inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium uppercase tracking-[0.16em];
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  @apply inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em];
 }
 
 .status-pill-brand {
@@ -387,14 +498,22 @@ body {
 }
 
 .primary-button {
-  @apply inline-flex items-center justify-center rounded-2xl bg-teal-300 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-teal-200;
+  background: linear-gradient(135deg, #2dd4bf, #0ea5e9);
+  color: #042f2e;
+  box-shadow: 0 12px 30px rgba(45, 212, 191, 0.22);
+  @apply inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(45,212,191,0.28)];
 }
 
 .secondary-button {
   border: 1px solid var(--app-subtle-border);
-  background: var(--app-subtle-bg);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--app-subtle-bg) 92%, rgba(255,255,255,0.06) 8%), color-mix(in srgb, var(--app-subtle-bg) 82%, transparent 18%));
   color: var(--app-heading);
-  @apply inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold transition hover:opacity-90;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  @apply inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold transition duration-200 hover:-translate-y-0.5 hover:border-teal-300/30;
+}
+
+.secondary-button:hover {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--app-subtle-bg) 86%, rgba(45,212,191,0.12) 14%), color-mix(in srgb, var(--app-subtle-bg) 76%, rgba(96,165,250,0.1) 24%));
 }
 
 .toolbar-grid {
@@ -403,9 +522,15 @@ body {
 
 .toolbar-input {
   border-color: var(--app-subtle-border);
-  background: var(--app-subtle-bg);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--app-subtle-bg) 92%, rgba(255,255,255,0.04) 8%), color-mix(in srgb, var(--app-subtle-bg) 80%, transparent 20%));
   color: var(--app-heading);
-  @apply rounded-2xl border px-4 py-3 text-sm outline-none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  @apply rounded-2xl border px-4 py-3 text-sm outline-none transition duration-200;
+}
+
+.toolbar-input:focus {
+  border-color: rgba(45, 212, 191, 0.45);
+  box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.14);
 }
 
 .context-field select,
@@ -433,27 +558,97 @@ body {
   @apply rounded-[30px] border p-6 text-sm backdrop-blur-xl;
 }
 
+.table-card-shell {
+  position: relative;
+  border: 1px solid color-mix(in srgb, var(--app-panel-border) 88%, transparent 12%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.table-card-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, #2dd4bf, #60a5fa, #818cf8);
+  opacity: 0.95;
+}
+
+.table-accent-pill {
+  display: inline-flex;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #2dd4bf, #60a5fa);
+  box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.16);
+}
+
+.table-search-shell {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  border: 1px solid var(--app-subtle-border);
+  background: color-mix(in srgb, var(--app-subtle-bg) 78%, rgba(255, 255, 255, 0.04) 22%);
+  border-radius: 9999px;
+  padding: 0.8rem 1rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.table-search-icon {
+  color: var(--app-muted);
+  flex-shrink: 0;
+}
+
+.table-search-shell input {
+  color: var(--app-heading);
+}
+
+.table-search-shell input::placeholder {
+  color: var(--app-faint);
+}
+
 .data-table {
+  border-collapse: separate;
+  border-spacing: 0;
   @apply min-w-full text-left text-sm;
 }
 
 .data-table thead {
-  background: var(--app-table-head);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--app-table-head) 92%, rgba(45, 212, 191, 0.08) 8%), color-mix(in srgb, var(--app-table-head) 84%, rgba(96, 165, 250, 0.1) 16%));
   color: var(--app-text);
 }
 
-.data-table th {
-  @apply px-5 py-4 text-xs uppercase tracking-[0.24em];
+.data-table thead th {
+  border-bottom: 1px solid color-mix(in srgb, var(--app-panel-border) 84%, transparent 16%);
+  @apply px-5 py-4 text-[11px] font-semibold uppercase tracking-[0.24em];
+}
+
+.data-table tbody tr {
+  transition:
+    background 180ms ease,
+    transform 180ms ease;
+}
+
+.data-table tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--app-table-row-hover) 82%, rgba(255, 255, 255, 0.03) 18%);
 }
 
 .data-table td {
-  border-top-color: var(--app-panel-border);
+  border-top-color: color-mix(in srgb, var(--app-panel-border) 72%, transparent 28%);
   color: var(--app-heading);
   @apply border-t px-5 py-4 align-top;
 }
 
 .data-table tbody tr:hover {
-  background: var(--app-table-row-hover);
+  background: color-mix(in srgb, var(--app-table-row-hover) 92%, rgba(45, 212, 191, 0.12) 8%);
+  transform: translateY(-1px);
+}
+
+.table-empty-state {
+  border-color: var(--app-subtle-border);
+  background: color-mix(in srgb, var(--app-subtle-bg) 74%, transparent 26%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  color: var(--app-muted);
+  @apply rounded-[20px] border px-4 py-6 text-sm;
 }
 
 .legend-chip {
