@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { env } from '@/config/env'
 import { getCurrentProfile, switchActiveSppg } from '@/services/auth'
+import { ApiError } from '@/services/http'
 import type { ContextOption, IdentityMeResponse, UserProfile } from '@/types/domain'
 import { clearStoredSession, readStoredSession, writeStoredSession } from '@/utils/auth-storage'
 
@@ -173,9 +174,11 @@ export const useAppStore = defineStore('app', () => {
     try {
       const me = await getCurrentProfile()
       applyProfile(me)
-    } catch {
-      clearStoredSession()
-      accessToken.value = ''
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        clearStoredSession()
+        accessToken.value = ''
+      }
     } finally {
       authReady.value = true
     }

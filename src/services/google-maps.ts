@@ -80,6 +80,7 @@ export const saveRouteSnapshot = async (snapshot: RouteSnapshotInput) => {
   const payload = await apiRequest<unknown>(`/api/v1/deliveries/${route_id}/route-snapshot`, {
     method: 'POST',
     body: JSON.stringify(body),
+    clearSessionOn401: false,
   })
   return payload.data
 }

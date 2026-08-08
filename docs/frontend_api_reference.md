@@ -179,6 +179,7 @@ Aturan praktis:
 63. `GET /api/v1/fleet/vehicle-types`
 64. `POST /api/v1/fleet/vehicle-types`
 65. `GET /api/v1/fleet/vehicle-locations/live`
+65a. `GET /api/v1/fleet/vehicle-status/live`
 66. `GET /api/v1/fleet/vehicles`
 67. `GET /api/v1/fleet/vehicles/{vehicle_id}`
 68. `GET /api/v1/fleet/vehicles/{vehicle_id}/locations`
@@ -375,6 +376,7 @@ Aturan praktis:
 15. `POST /api/v1/food-safety/recalls`
 16. `POST /api/v1/temperature/readings`
 17. `GET /api/v1/temperature/entities/{entity_id}/history`
+17a. `GET /api/v1/deliveries/packages`
 18. `POST /api/v1/deliveries/{route_id}/packages/load`
 19. `POST /api/v1/deliveries/{route_id}/route-snapshot`
 20. `POST /api/v1/deliveries/{route_id}/packages/{package_id}/receive`
@@ -2102,6 +2104,62 @@ Field penting:
 - `assignment_role`
 - `status`
 - `latest_location`
+
+`GET /api/v1/fleet/vehicle-status/live`
+
+Mengembalikan armada yang memiliki delivery route aktif berstatus `IN_TRANSIT` atau `DEPARTED`. Endpoint ini menjadi sumber data frontend untuk Google Maps API. Backend tidak menghitung direction, jarak, durasi, atau ETA agar hasil tidak berbeda dengan provider routing frontend.
+
+Header scope:
+
+- `X-Tenant-ID` wajib mengikuti tenant aktif
+- `X-SPPG-ID` opsional untuk membatasi armada satu SPPG
+
+Contoh response `data`:
+
+```json
+[
+  {
+    "vehicle_id": "vehicle-uuid",
+    "vehicle_code": "VH-JKT01-01",
+    "plate_number": "B 9101 MBG",
+    "driver_id": "driver-uuid",
+    "driver_name": "Budi Santoso",
+    "movement_status": "IN_TRANSIT",
+    "current_position": {
+      "latitude": -6.1891,
+      "longitude": 106.8352
+    },
+    "speed_kph": 28.0,
+    "heading_degree": 118.0,
+    "recorded_at": "2026-07-21T05:33:00Z",
+    "active_route": {
+      "route_id": "route-uuid",
+      "route_code": "RT-DEMO-JKT01-20260721",
+      "route_name": "Rute Menteng Besok",
+      "route_status": "IN_TRANSIT",
+      "origin": {"latitude": -6.18, "longitude": 106.83},
+      "destination": {"latitude": -6.20, "longitude": 106.85},
+      "waypoints": [
+        {"latitude": -6.19, "longitude": 106.84}
+      ]
+    },
+    "path": [
+      {"latitude": -6.1816, "longitude": 106.8316},
+      {"latitude": -6.1868, "longitude": 106.8368},
+      {"latitude": -6.1916, "longitude": 106.8416}
+    ]
+  }
+]
+```
+
+Integrasi Google Maps/Routes frontend:
+
+- gunakan `current_position` sebagai request origin
+- gunakan `active_route.destination` sebagai destination
+- gunakan `active_route.waypoints` sebagai intermediate waypoints; tujuan terakhir tidak diduplikasi di array ini
+- gunakan response Google sebagai sumber direction, distance, duration, traffic-aware ETA, dan encoded polyline
+- gunakan `path` hanya untuk menggambar histori GPS aktual, bukan sebagai rute jalan hasil navigasi
+- `heading_degree` adalah heading mentah GPS dan dapat dipakai untuk rotasi marker kendaraan
 
 `GET /api/v1/fleet/vehicles`
 
@@ -5070,6 +5128,59 @@ HOLD dan release menghasilkan audit event dengan actor, timestamp, reason, befor
 Backend menjalankan forward trace dan menyimpan seluruh `affected_trace_ids`. Frontend dapat memakai forward graph untuk menampilkan cooking batch, meal batch, package, serta delivery yang terdampak.
 
 ### Package Loading dan Receiving
+
+`GET /api/v1/deliveries/packages`
+
+Mengembalikan daftar lifecycle produk kemasan sejak produksi selesai dimasak, mulai dikemas, dimuat atau mulai delivery, sampai diterima di sekolah. List mengikuti scope `X-Tenant-ID` dan opsional `X-SPPG-ID`, serta diurutkan dari waktu packaging terbaru.
+
+Contoh response `data`:
+
+```json
+[
+  {
+    "package_id": "package-uuid",
+    "trace_code": "PKG-DEMO-003",
+    "product_name": "Nasi, telur balado, tumis sayur",
+    "quantity_portions": 85,
+    "production_order_id": "production-order-uuid",
+    "production_number": "PO-DEMO-JKT01-20260721",
+    "cooking_completed_at": "2026-07-21T04:30:00Z",
+    "packaging_started_at": "2026-07-21T04:40:00Z",
+    "delivery_started_at": "2026-07-21T05:08:00Z",
+    "status": "IN_TRANSIT",
+    "status_label": "Dalam perjalanan",
+    "vehicle_id": "vehicle-uuid",
+    "vehicle_code": "VH-JKT01-01",
+    "plate_number": "B 9101 MBG",
+    "route_id": "route-uuid",
+    "route_code": "RT-DEMO-JKT01-20260721",
+    "destination_school_id": "school-uuid",
+    "destination_name": "Nama Sekolah Tujuan",
+    "destination_address": "Alamat sekolah",
+    "destination_latitude": -6.20,
+    "destination_longitude": 106.85
+  }
+]
+```
+
+Status lifecycle untuk UI:
+
+| `status` | `status_label` | Saran tampilan |
+|---|---|---|
+| `IN_WAREHOUSE` | Masih di gudang | Belum mulai delivery; `delivery_started_at` dapat `null`. |
+| `LOADED` | Sudah dimuat | Sudah berada di armada tetapi belum ditandai berangkat. |
+| `SENT` | Sudah dikirim | Delivery sudah dimulai. |
+| `IN_TRANSIT` | Dalam perjalanan | Tampilkan CTA buka tracking armada/rute. |
+| `RECEIVED` | Sudah diterima | Lifecycle pengiriman selesai. |
+| `HOLD` | Ditahan | Tampilkan warning dan blok aksi distribusi terkait. |
+| nilai lain | Lainnya | Gunakan fallback badge netral. |
+
+Catatan frontend:
+
+- tampilkan timestamp ISO 8601 dalam timezone pengguna
+- jangan menghitung waktu mulai delivery dari `route.planned_departure`; gunakan `delivery_started_at`
+- field kendaraan, rute, atau tujuan dapat `null` selama paket belum dialokasikan
+- gunakan `trace_code` untuk membuka layar traceability package
 
 Sebelum loading, package harus memiliki trace identity dengan `entity_type` `PACKAGE`, `CONTAINER`, atau `MEAL_BATCH`.
 

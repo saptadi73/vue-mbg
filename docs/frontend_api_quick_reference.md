@@ -153,6 +153,7 @@ Detail payload, response, QR lineage, alert, recall, package loading, dan Google
 | `POST` | `/api/v1/food-safety/recalls` | Yes | Ops/QA | Recall melalui forward trace |
 | `POST` | `/api/v1/temperature/readings` | Yes | Ops/QA | Catat suhu manual/IoT |
 | `GET` | `/api/v1/temperature/entities/{entity_id}/history` | No | - | Riwayat suhu objek |
+| `GET` | `/api/v1/deliveries/packages` | No | - | Timeline produk kemasan sejak selesai dimasak sampai delivery/receiving |
 | `POST` | `/api/v1/deliveries/{route_id}/packages/load` | Yes | Ops/QA | Scan package ke armada/stop |
 | `POST` | `/api/v1/deliveries/{route_id}/route-snapshot` | Yes | Ops/QA | Simpan distance/duration/ETA |
 | `POST` | `/api/v1/deliveries/{route_id}/packages/{package_id}/receive` | Yes | Ops/QA | Catat receiving dan suhu |
@@ -234,6 +235,7 @@ Detail payload, response, QR lineage, alert, recall, package loading, dan Google
 | `GET` | `/api/v1/fleet/vehicle-types` | No | - | List tipe kendaraan |
 | `POST` | `/api/v1/fleet/vehicle-types` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Buat tipe kendaraan |
 | `GET` | `/api/v1/fleet/vehicle-locations/live` | No | - | Posisi terbaru seluruh armada untuk map |
+| `GET` | `/api/v1/fleet/vehicle-status/live` | No | - | Armada dalam perjalanan beserta current position, origin, destination, waypoint, dan GPS path untuk Google Maps |
 | `GET` | `/api/v1/fleet/vehicles` | No | - | List kendaraan |
 | `GET` | `/api/v1/fleet/vehicles/{vehicle_id}` | No | - | Detail kendaraan, assignment, maintenance, termasuk `driver_name` pada assignment |
 | `GET` | `/api/v1/fleet/vehicles/{vehicle_id}/locations` | No | - | Histori GPS kendaraan |

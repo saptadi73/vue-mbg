@@ -17,6 +17,7 @@ export class ApiError extends Error {
 interface RequestOptions extends RequestInit {
   query?: Record<string, string | number | boolean | undefined>
   headers?: HeadersInit
+  clearSessionOn401?: boolean
 }
 
 const buildQuery = (query?: RequestOptions['query']) => {
@@ -35,7 +36,7 @@ const buildQuery = (query?: RequestOptions['query']) => {
 
 export const apiRequest = async <T>(
   path: string,
-  { query, headers, ...init }: RequestOptions = {},
+  { query, headers, clearSessionOn401 = true, ...init }: RequestOptions = {},
 ): Promise<ApiEnvelope<T>> => {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), env.apiTimeout)
@@ -70,7 +71,7 @@ export const apiRequest = async <T>(
     const payload = (await response.json().catch(() => null)) as ApiEnvelope<T> | null
 
     if (!response.ok) {
-      if (response.status === 401) {
+      if (response.status === 401 && clearSessionOn401) {
         clearStoredSession()
       }
       throw new ApiError(
