@@ -104,6 +104,9 @@ const buildRoute = async () => {
     return
   }
 
+  const origin = props.origin
+  const destination = props.destination
+
   loading.value = true
   error.value = ''
   try {
@@ -113,8 +116,8 @@ const buildRoute = async () => {
     const result = await new Promise<any>((resolve, reject) => {
       directionsService.route(
         {
-          origin: toLatLng(props.origin),
-          destination: toLatLng(props.destination),
+          origin: toLatLng(origin),
+          destination: toLatLng(destination),
           waypoints: waypointList,
           optimizeWaypoints: false,
           travelMode: maps.TravelMode.DRIVING,
