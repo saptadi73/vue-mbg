@@ -181,7 +181,7 @@ Detail payload, response, QR lineage, alert, recall, package loading, dan Google
 | `POST` | `/api/v1/ai/media/analyze-image` | Yes | `super_admin`, `tenant_admin`, `quality_officer`, `operations_manager` | Analisa foto dengan Google AI |
 | `POST` | `/api/v1/ai/media/analyze-video` | Yes | `super_admin`, `tenant_admin`, `quality_officer`, `operations_manager` | Analisa video dengan Google AI |
 | `GET` | `/api/v1/gis/sppg-map` | No | - | Marker dan radius layanan SPPG |
-| `GET` | `/api/v1/gis/kitchens` | No | - | Layer GeoJSON dapur dalam bbox |
+| `GET` | `/api/v1/gis/kitchens` | No | - | Layer GeoJSON dapur; `bbox` opsional untuk membatasi viewport |
 | `GET` | `/api/v1/gis/schools` | No | - | Layer GeoJSON sekolah dengan filter spasial dan operasional |
 | `GET` | `/api/v1/gis/service-coverage` | No | - | Analisa coverage sekolah terhadap radius layanan SPPG |
 | `GET` | `/api/v1/gis/delivery-routes` | No | - | Garis rute delivery dari SPPG ke sekolah |
@@ -194,8 +194,8 @@ Detail payload, response, QR lineage, alert, recall, package loading, dan Google
 | `GET` | `/api/v1/gis/kitchens/{kitchen_id}/service-area` | No | - | Ambil service area terbaru dapur |
 | `POST` | `/api/v1/gis/service-areas` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Buat polygon area layanan |
 | `PUT` | `/api/v1/gis/kitchens/{kitchen_id}/service-area` | Yes | `super_admin`, `tenant_admin`, `operations_manager` | Simpan service area `MultiPolygon` dapur |
-| `GET` | `/api/v1/gis/schools/{school_id}/nearest-kitchens` | No | - | Cari dapur terdekat |
-| `POST` | `/api/v1/gis/assignments/validate` | No | - | Validasi spasial assignment sekolah ke dapur |
+| `GET` | `/api/v1/gis/schools/{school_id}/nearest-kitchens` | No | - | Cari dapur terdekat; `school_id` wajib UUID |
+| `POST` | `/api/v1/gis/assignments/validate` | No | - | Validasi assignment; `school_id` dan `kitchen_id` wajib UUID |
 | `GET` | `/api/v1/tenants/` | No | - | List tenant |
 | `GET` | `/api/v1/sppg/` | No | - | List SPPG |
 | `GET` | `/api/v1/programs/` | No | - | List program |

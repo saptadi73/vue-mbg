@@ -719,11 +719,13 @@ Contoh struktur `data`:
 
 `GET /api/v1/gis/kitchens`
 
-Mengembalikan `GeoJSON FeatureCollection` untuk layer dapur dalam area `bbox`.
+Mengembalikan `GeoJSON FeatureCollection` untuk layer dapur dalam scope tenant aktif. Query `bbox` bersifat opsional: jika dikirim, hasil dibatasi ke viewport tersebut; jika tidak dikirim, API mengembalikan dapur tenant sampai batas `limit`.
+
+Header `X-Tenant-ID` tetap wajib. Membuka URL langsung melalui address bar browser tanpa header tenant bukan cara pemanggilan yang valid.
 
 Query utama:
 
-- `bbox=106.800,-6.200,106.900,-6.100`
+- `bbox=106.800,-6.200,106.900,-6.100` (opsional; urutan `minLng,minLat,maxLng,maxLat`)
 - `snapshot_date=2026-07-20`
 - `status=active`
 - `metric=performance_score`
@@ -952,16 +954,20 @@ Mengembalikan daftar dapur terdekat untuk sekolah, termasuk:
 - `inside_service_area`
 - `service_radius_meter`
 
+Path parameter `school_id` wajib berupa UUID database yang valid. Jangan mengirim kode sekolah, string kosong, `null`, atau `undefined`; input tidak valid dikembalikan sebagai HTTP `422`.
+
 `POST /api/v1/gis/assignments/validate`
 
 Memvalidasi apakah sekolah layak di-assign ke dapur tertentu.
+
+Field `kitchen_id` dan `school_id` wajib berupa UUID database yang valid. Validasi dilakukan pada batas API sehingga UUID tidak valid dikembalikan sebagai HTTP `422`, bukan error internal `500`.
 
 Payload:
 
 ```json
 {
-  "kitchen_id": "uuid",
-  "school_id": "uuid",
+  "kitchen_id": "550e8400-e29b-41d4-a716-446655440001",
+  "school_id": "550e8400-e29b-41d4-a716-446655440000",
   "planned_portions": 120
 }
 ```
