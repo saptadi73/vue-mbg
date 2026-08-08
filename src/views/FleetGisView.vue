@@ -19,13 +19,6 @@ import type {
 } from '@/types/domain'
 import { formatDateTimeLocal, formatNumber } from '@/utils/format'
 
-type FleetGisServiceRow = {
-  id: string
-  endpoint: string
-  purpose: string
-  status: string
-}
-
 type DirectionWarningCode = 'ON_TRACK' | 'WARNING' | 'LATE' | 'UNKNOWN'
 
 type DirectionInsight = {
@@ -234,45 +227,6 @@ const getEtaStatusLabel = (item: FleetVehicleLocationRecord | null | undefined) 
   return 'Terlambat'
 }
 
-const documentationRows = computed<FleetGisServiceRow[]>(() => [
-  {
-    id: 'fleet-doc-1',
-    endpoint: 'GET /api/v1/fleet/vehicle-status/live',
-    purpose: 'Armada aktif IN_TRANSIT/DEPARTED lengkap current position, destination, waypoint, dan path.',
-    status: 'Active',
-  },
-  {
-    id: 'fleet-doc-2',
-    endpoint: 'GET /api/v1/fleet/vehicle-locations/live',
-    purpose: 'Posisi terbaru seluruh armada untuk layer peta dan marker fleet.',
-    status: 'Active',
-  },
-  {
-    id: 'fleet-doc-3',
-    endpoint: 'GET /api/v1/deliveries/packages',
-    purpose: 'Lifecycle daftar kemasan dari packaging sampai receiving dengan destination koordinat.',
-    status: 'Active',
-  },
-  {
-    id: 'fleet-doc-4',
-    endpoint: 'GET /api/v1/fleet/vehicles/{vehicle_id}/locations',
-    purpose: 'Mengambil histori GPS kendaraan terpilih untuk trail perjalanan.',
-    status: 'Active',
-  },
-  {
-    id: 'fleet-doc-5',
-    endpoint: 'POST /api/v1/fleet/vehicles/{vehicle_id}/locations',
-    purpose: 'Mencatat atau meng-update lokasi GPS kendaraan dari operasi lapangan.',
-    status: 'Active',
-  },
-  {
-    id: 'fleet-doc-6',
-    endpoint: 'POST /api/v1/deliveries/{route_id}/route-snapshot',
-    purpose: 'Menyimpan snapshot distance, duration, ETA, dan encoded polyline dari provider route.',
-    status: 'Active',
-  },
-])
-
 const fleetSearchText = (item: unknown) => {
   const row = item as FleetVehicleLocationRecord
   return [
@@ -286,11 +240,6 @@ const fleetSearchText = (item: unknown) => {
   ]
     .filter(Boolean)
     .join(' ')
-}
-
-const documentationSearchText = (item: unknown) => {
-  const row = item as FleetGisServiceRow
-  return [row.endpoint, row.purpose, row.status].join(' ')
 }
 
 const historySearchText = (item: unknown) => {
@@ -965,14 +914,6 @@ onUnmounted(() => {
                 type="range"
               />
             </div>
-            <div class="surface-subtle rounded-3xl p-4">
-              <p class="text-sm text-app-muted">Tracking notes</p>
-              <p class="mt-2 text-sm text-app-body">
-                Jejak historis memakai endpoint `GET /api/v1/fleet/vehicles/{vehicle_id}/locations`.
-                Di fallback mock, trail dibentuk dari posisi live terakhir agar UI tetap terbaca
-                saat backend belum memberi histori.
-              </p>
-            </div>
           </div>
         </article>
       </section>
@@ -1097,37 +1038,6 @@ onUnmounted(() => {
         </template>
       </DataTableCard>
 
-      <DataTableCard
-        :items="documentationRows"
-        :page-size="5"
-        :search-text-resolver="documentationSearchText"
-        empty-message="Belum ada endpoint fleet GIS terdokumentasi."
-        search-placeholder="Cari endpoint atau fungsi..."
-        title="Fleet GIS Endpoints"
-      >
-        <template #table="{ items }">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Endpoint</th>
-                <th>Purpose</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in items" :key="(item as FleetGisServiceRow).id">
-                <td>
-                  <span class="text-xs text-app-muted">{{
-                    (item as FleetGisServiceRow).endpoint
-                  }}</span>
-                </td>
-                <td>{{ (item as FleetGisServiceRow).purpose }}</td>
-                <td>{{ (item as FleetGisServiceRow).status }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </template>
-      </DataTableCard>
     </template>
   </div>
 </template>
