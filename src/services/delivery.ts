@@ -1,4 +1,5 @@
 import { apiRequest } from '@/services/http'
+import type { ApiRequestContext } from '@/services/http'
 import {
   mockDeliveryIncidents,
   mockDeliveryOrderDetails,
@@ -97,6 +98,52 @@ const normalizeDeliveryPackages = (data: unknown): DeliveryPackageLifecycleRecor
     .filter(Boolean) as DeliveryPackageLifecycleRecord[]
 }
 
+const enrichDeliveryPackageTrace = async (
+  item: DeliveryPackageLifecycleRecord,
+  context?: ApiRequestContext,
+) => {
+  const encodedTraceCode = encodeURIComponent(item.trace_code)
+  const graphRequest = apiRequest<unknown>(
+    `/api/v1/traceability/${encodedTraceCode}/backward`,
+    { context },
+  )
+  const timelineRequest = item.status === 'RECEIVED' && !item.received_at
+    ? apiRequest<unknown>(`/api/v1/traceability/${encodedTraceCode}/timeline`, { context })
+    : null
+  const [graphResult, timelineResult] = await Promise.allSettled([
+    graphRequest,
+    timelineRequest,
+  ])
+
+  if (graphResult.status === 'fulfilled') {
+    const graph = asRecord(graphResult.value.data)
+    const entities = Array.isArray(graph?.entities) ? graph.entities : []
+    const traceEntities = entities.map(asRecord).filter(Boolean) as Record<string, unknown>[]
+    const productionOutput = traceEntities.find((entity) => entity.entity_type === 'PRODUCTION_OUTPUT')
+    const rawMaterials = traceEntities.filter((entity) => entity.entity_type === 'RAW_MATERIAL_BATCH')
+    item.production_trace_code ||= productionOutput?.trace_code ? String(productionOutput.trace_code) : null
+    if (!item.raw_material_trace_codes?.length) {
+      item.raw_material_trace_codes = rawMaterials
+        .map((entity) => String(entity.trace_code || ''))
+        .filter(Boolean)
+    }
+  }
+
+  if (timelineResult?.status === 'fulfilled' && timelineResult.value) {
+    const timeline = asRecord(timelineResult.value.data)
+    const events = Array.isArray(timeline?.events) ? timeline.events : []
+    const receivedEvent = events
+      .map(asRecord)
+      .filter((event) => event?.event_type === 'RECEIVED')
+      .at(-1)
+    const metadata = asRecord(receivedEvent?.metadata_json)
+    const receivedAt = metadata?.received_at ?? receivedEvent?.event_at ?? receivedEvent?.created_at
+    item.received_at = receivedAt ? String(receivedAt) : null
+  }
+
+  return item
+}
+
 const buildDeliveryPackagesFallback = (): DeliveryPackageLifecycleRecord[] => {
   const now = Date.now()
   return mockDeliveryOrders.slice(0, 8).map((delivery, index) => {
@@ -161,10 +208,16 @@ export const getDeliveryOrders = async () => {
   }
 }
 
-export const getDeliveryPackages = async () => {
+export const getDeliveryPackages = async (
+  context?: ApiRequestContext,
+  options: { enrichTrace?: boolean } = {},
+) => {
   try {
-    const payload = await apiRequest<unknown>('/api/v1/deliveries/packages')
+    const payload = await apiRequest<unknown>('/api/v1/deliveries/packages', { context })
     const items = normalizeDeliveryPackages(payload.data)
+    if (options.enrichTrace) {
+      await Promise.all(items.map((item) => enrichDeliveryPackageTrace(item, context)))
+    }
     return { items, total: totalFromEnvelope(payload, items.length) }
   } catch {
     const items = buildDeliveryPackagesFallback()
@@ -172,9 +225,9 @@ export const getDeliveryPackages = async () => {
   }
 }
 
-export const getDeliveryRoutes = async () => {
+export const getDeliveryRoutes = async (context?: ApiRequestContext) => {
   try {
-    const payload = await apiRequest<DeliveryRoutePlanRecord[]>('/api/v1/delivery-orders/routes')
+    const payload = await apiRequest<DeliveryRoutePlanRecord[]>('/api/v1/delivery-orders/routes', { context })
     return { items: payload.data || [], total: totalFromEnvelope(payload, payload.data?.length || 0) }
   } catch {
     return { items: mockDeliveryRoutes, total: mockDeliveryRoutes.length }

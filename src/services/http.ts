@@ -15,10 +15,16 @@ export class ApiError extends Error {
   }
 }
 
+export interface ApiRequestContext {
+  tenantId: string
+  sppgId: string
+}
+
 interface RequestOptions extends RequestInit {
   query?: Record<string, string | number | boolean | undefined>
   headers?: HeadersInit
   clearSessionOn401?: boolean
+  context?: ApiRequestContext
 }
 
 const buildQuery = (query?: RequestOptions['query']) => {
@@ -37,17 +43,20 @@ const buildQuery = (query?: RequestOptions['query']) => {
 
 export const apiRequest = async <T>(
   path: string,
-  { query, headers, clearSessionOn401 = true, ...init }: RequestOptions = {},
+  { query, headers, clearSessionOn401 = true, context, ...init }: RequestOptions = {},
 ): Promise<ApiEnvelope<T>> => {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), env.apiTimeout)
 
   try {
     const session = readStoredSession()
-    const tenantId = session?.accessToken ? session.tenantId : session?.tenantId || env.devTenantId
-    const sppgId = session?.accessToken
+    if (context && (!isUuid(context.tenantId) || !isUuid(context.sppgId))) {
+      throw new ApiError('Context tenant dan SPPG workflow wajib berupa UUID valid.', 400, 'INVALID_REQUEST_CONTEXT')
+    }
+    const tenantId = context ? context.tenantId : (session?.accessToken ? session.tenantId : session?.tenantId || env.devTenantId)
+    const sppgId = context ? context.sppgId : (session?.accessToken
       ? session.activeSppgId
-      : session?.activeSppgId || env.devSppgId
+      : session?.activeSppgId || env.devSppgId)
     const tenantHeader = isUuid(tenantId) ? tenantId : undefined
     const sppgHeader = isUuid(sppgId) ? sppgId : undefined
     let response: Response

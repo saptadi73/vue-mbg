@@ -1,4 +1,5 @@
 import { apiRequest } from '@/services/http'
+import type { ApiRequestContext } from '@/services/http'
 import type {
   FoodSafetyAlert,
   FoodSafetyCheckResult,
@@ -14,8 +15,8 @@ import type {
 } from '@/types/food-safety'
 import type { DeliveryPackageLifecycleRecord } from '@/types/domain'
 
-const list = <T>(payload: T[] | { items?: T[] }) =>
-  Array.isArray(payload) ? payload : payload.items || []
+const list = <T>(payload: T[] | { items?: T[]; events?: T[] }) =>
+  Array.isArray(payload) ? payload : payload.items || payload.events || []
 export const createTraceEntity = async (input: {
   tenant_id: string
   sppg_id?: string
@@ -37,7 +38,7 @@ export const getTraceLabel = async (code: string) =>
 export const getTraceTimeline = async (code: string) =>
   list(
     (
-      await apiRequest<TraceEvent[] | { items?: TraceEvent[] }>(
+      await apiRequest<TraceEvent[] | { items?: TraceEvent[]; events?: TraceEvent[] }>(
         `/api/v1/traceability/${encodeURIComponent(code)}/timeline`,
       )
     ).data,
@@ -142,29 +143,37 @@ export const recordTemperatureReading = async (input: Record<string, unknown>) =
   ).data
 export const getTemperatureHistory = async (id: string) =>
   (await apiRequest<unknown>(`/api/v1/temperature/entities/${id}/history`)).data
-export const createDeliveryPackage = async (input: DeliveryPackageCreateInput) =>
+export const createDeliveryPackage = async (input: DeliveryPackageCreateInput, context: ApiRequestContext) =>
   (
     await apiRequest<DeliveryPackageLifecycleRecord>('/api/v1/deliveries/packages', {
       method: 'POST',
       body: JSON.stringify(input),
+      context,
     })
   ).data
-export const loadDeliveryPackage = async (routeId: string, input: DeliveryPackageLoadInput) =>
+export const loadDeliveryPackage = async (
+  routeId: string,
+  input: DeliveryPackageLoadInput,
+  context: ApiRequestContext,
+) =>
   (
     await apiRequest<DeliveryPackageLifecycleRecord>(`/api/v1/deliveries/${routeId}/packages/load`, {
       method: 'POST',
       body: JSON.stringify(input),
+      context,
     })
   ).data
 export const receiveDeliveryPackage = async (
   routeId: string,
   packageId: string,
   input: DeliveryPackageReceiveInput,
+  context: ApiRequestContext,
 ) =>
   (
     await apiRequest<DeliveryPackageLifecycleRecord>(`/api/v1/deliveries/${routeId}/packages/${packageId}/receive`, {
       method: 'POST',
       body: JSON.stringify(input),
+      context,
     })
   ).data
 export const postRouteVehicleTemperature = async (routeId: string, input: Record<string, unknown>) =>

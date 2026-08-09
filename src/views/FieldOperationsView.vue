@@ -5,6 +5,7 @@ import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { getDeliveryRoutes } from '@/services/delivery'
 import { getDeliveryPackages } from '@/services/delivery'
+import type { ApiRequestContext } from '@/services/http'
 import { createFleetVehicleLocationPing, getFleetVehicles } from '@/services/fleet'
 import {
   addTraceEvent,
@@ -38,6 +39,10 @@ type BarcodeDetectorInstance = { detect: (source: HTMLVideoElement) => Promise<B
 type BarcodeDetectorConstructor = new (options?: { formats?: string[] }) => BarcodeDetectorInstance
 
 const appStore = useAppStore()
+const workflowContext: Readonly<ApiRequestContext> = Object.freeze({
+  tenantId: appStore.activeTenantId,
+  sppgId: appStore.activeSppgId || '',
+})
 const activePanel = ref<'temperature' | 'gps' | 'qr'>(
   props.workspace === 'raw-material' ? 'qr' : 'temperature',
 )
@@ -255,8 +260,8 @@ const loadOptions = async () => {
   const [fleetResult, safetyProfiles, routesResult, packagesResult] = await Promise.all([
     getFleetVehicles(),
     getFoodSafetyProfiles().catch(() => []),
-    getDeliveryRoutes(),
-    getDeliveryPackages().catch(() => ({ items: [], total: 0 })),
+    getDeliveryRoutes(workflowContext),
+    getDeliveryPackages(workflowContext).catch(() => ({ items: [], total: 0 })),
   ])
   vehicles.value = fleetResult.items
   profiles.value = safetyProfiles
@@ -416,7 +421,7 @@ const submitPackageDispatch = () =>
         vehicle_id: dispatchForm.vehicle_id,
         loaded_at: new Date().toISOString(),
         temp_at_loading: dispatchForm.temp_at_loading,
-      })
+      }, workflowContext)
       await addTraceEvent(traceResult.value.trace_code, {
         event_type: 'DISPATCHED',
         notes: dispatchForm.notes || `Mulai dikirim ke ${dispatchForm.destination_name}.`,
@@ -483,7 +488,7 @@ const submitPackageReceive = () =>
       temperature_c: receiveForm.temperature_c,
       latitude: receiveForm.latitude,
       longitude: receiveForm.longitude,
-    })
+    }, workflowContext)
     await printTraceWithOptionalLabel(traceResult.value.trace_code, 'Paket diterima')
   }, 'Paket MBG berhasil ditandai diterima.')
 

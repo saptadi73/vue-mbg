@@ -32,6 +32,7 @@ import { getDeliveryPackages, getDeliveryRoutes } from '@/services/delivery'
 import { getProductionOrders } from '@/services/erp-ops'
 import { getFleetVehicles } from '@/services/fleet'
 import { ApiError } from '@/services/http'
+import type { ApiRequestContext } from '@/services/http'
 import type {
   FoodSafetyAlert,
   FoodSafetyCheckResult,
@@ -58,6 +59,7 @@ const route = useRoute()
 const session = readStoredSession()
 const tenantId = session?.tenantId || env.devTenantId
 const sppgId = session?.activeSppgId || env.devSppgId
+const workflowContext: Readonly<ApiRequestContext> = Object.freeze({ tenantId, sppgId })
 const isFoodSecurityWorkspace = computed(() => props.workspace === 'food-security')
 const resolveInitialTab = (): Tab => {
   const requestedTab = String(route.query.tab || '')
@@ -508,7 +510,7 @@ const loadPackages = async () => {
   packageLoading.value = true
   error.value = ''
   try {
-    const payload = await getDeliveryPackages()
+    const payload = await getDeliveryPackages(workflowContext, { enrichTrace: true })
     packages.value = payload.items
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Gagal memuat package lifecycle.'
@@ -521,9 +523,9 @@ const loadPackageWorkspace = async () => {
   error.value = ''
   try {
     const [packagePayload, productionPayload, routePayload, vehiclePayload] = await Promise.all([
-      getDeliveryPackages(),
-      getProductionOrders(),
-      getDeliveryRoutes(),
+      getDeliveryPackages(workflowContext, { enrichTrace: true }),
+      getProductionOrders(workflowContext),
+      getDeliveryRoutes(workflowContext),
       getFleetVehicles(),
     ])
     packages.value = packagePayload.items
@@ -589,7 +591,7 @@ const submitPackageCreate = () =>
         : new Date().toISOString(),
       trace_code: packageCreateForm.trace_code.trim() || undefined,
       product_name: packageCreateForm.product_name.trim() || undefined,
-    })
+    }, workflowContext)
     packageCreateForm.quantity_portions = null
     packageCreateForm.trace_code = ''
   }, 'Kemasan produksi berhasil dibuat dan daftar diperbarui.')
@@ -605,7 +607,7 @@ const submitPackageLoad = () =>
       vehicle_id: packageLoadForm.vehicle_id,
       loaded_at: new Date().toISOString(),
       temp_at_loading: packageLoadForm.temp_at_loading,
-    })
+    }, workflowContext)
   }, 'Kemasan berhasil dimuat ke rute pengiriman.')
 
 const submitPackageReceive = () =>
@@ -619,7 +621,7 @@ const submitPackageReceive = () =>
       temperature_c,
       latitude,
       longitude,
-    })
+    }, workflowContext)
   }, 'Kemasan berhasil dikonfirmasi diterima.')
 
 const preparePackageLoad = (item: DeliveryPackageLifecycleRecord) => {

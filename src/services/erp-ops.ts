@@ -1,4 +1,5 @@
 import { apiRequest } from '@/services/http'
+import type { ApiRequestContext } from '@/services/http'
 import {
   mockActualExpenses,
   mockAccounts,
@@ -584,9 +585,9 @@ export const decideApprovalRequest = async (
   }
 }
 
-export const getProductionOrders = async () => {
+export const getProductionOrders = async (context?: ApiRequestContext) => {
   try {
-    const payload = await apiRequest<unknown>('/api/v1/production-orders/')
+    const payload = await apiRequest<unknown>('/api/v1/production-orders/', { context })
     const items = ensureArray<ProductionOrderRecord>(payload.data)
     return { items: items.length ? items : mockProductionOrders, total: totalFromEnvelope(payload, items.length || mockProductionOrders.length) }
   } catch {
