@@ -59,7 +59,14 @@ const session = readStoredSession()
 const tenantId = session?.tenantId || env.devTenantId
 const sppgId = session?.activeSppgId || env.devSppgId
 const isFoodSecurityWorkspace = computed(() => props.workspace === 'food-security')
-const activeTab = ref<Tab>(props.workspace === 'food-security' ? 'packages' : 'trace')
+const resolveInitialTab = (): Tab => {
+  const requestedTab = String(route.query.tab || '')
+  if (['trace', 'safety', 'alerts', 'packages', 'reports'].includes(requestedTab)) {
+    return requestedTab as Tab
+  }
+  return props.workspace === 'food-security' ? 'packages' : 'trace'
+}
+const activeTab = ref<Tab>(resolveInitialTab())
 const visibleTabs = computed<Tab[]>(() =>
   isFoodSecurityWorkspace.value
     ? ['packages', 'reports', 'trace', 'safety', 'alerts']
@@ -793,6 +800,16 @@ watch(
     void findTrace()
   },
   { immediate: true },
+)
+
+watch(
+  () => route.query.tab,
+  (value) => {
+    const requestedTab = String(value || '')
+    if (['trace', 'safety', 'alerts', 'packages', 'reports'].includes(requestedTab)) {
+      activeTab.value = requestedTab as Tab
+    }
+  },
 )
 </script>
 

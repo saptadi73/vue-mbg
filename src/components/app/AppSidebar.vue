@@ -60,6 +60,7 @@ type NavItem = {
   icon: Component
   roles?: string[]
   matchPrefixes?: string[]
+  matchQuery?: Record<string, string>
   badge?: 'workflowPending' | 'procurementOpen' | 'inventoryAttention'
 }
 
@@ -232,11 +233,23 @@ const sections: NavSection[] = [
     icon: ShieldCheck,
     items: [
       {
-        label: 'Traceability, Inventory & Food Security',
-        to: '/traceability-security',
-        icon: ShieldCheck,
-        matchPrefixes: ['/traceability-security'],
+        label: 'Traceability Bahan Baku',
+        to: '/traceability-security?workspace=raw-material',
+        icon: ScanLine,
+        matchQuery: { workspace: 'raw-material', tab: '' },
         badge: 'inventoryAttention',
+      },
+      {
+        label: 'Food Security',
+        to: '/traceability-security?workspace=food-security&tab=packages',
+        icon: ShieldCheck,
+        matchQuery: { workspace: 'food-security', tab: 'packages' },
+      },
+      {
+        label: 'Report Traceability & Food Security',
+        to: '/traceability-security?workspace=food-security&tab=reports',
+        icon: BarChart3,
+        matchQuery: { workspace: 'food-security', tab: 'reports' },
       },
     ],
   },
@@ -453,15 +466,20 @@ const visibleSections = computed(() =>
 )
 
 const isItemActive = (item: NavItem) => {
-  if (item.to === '/') {
+  const targetPath = item.to.split('?')[0] || item.to
+  const queryMatches = !item.matchQuery || Object.entries(item.matchQuery).every(
+    ([key, value]) => String(route.query[key] || '') === value,
+  )
+
+  if (targetPath === '/') {
     return route.path === '/'
   }
 
-  if (route.path === item.to) {
-    return true
+  if (route.path === targetPath) {
+    return queryMatches
   }
 
-  return (item.matchPrefixes || [item.to]).some(
+  return queryMatches && (item.matchPrefixes || [targetPath]).some(
     (prefix) => prefix !== '/' && route.path.startsWith(prefix),
   )
 }
