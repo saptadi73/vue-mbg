@@ -47,7 +47,7 @@ const normalizeDeliveryPackages = (data: unknown): DeliveryPackageLifecycleRecor
       const record = asRecord(item)
       if (!record) return null
 
-      const packageId = String(record.package_id ?? '').trim()
+      const packageId = String(record.package_id ?? record.id ?? '').trim()
       if (!packageId) return null
 
       return {
@@ -55,6 +55,7 @@ const normalizeDeliveryPackages = (data: unknown): DeliveryPackageLifecycleRecor
         trace_code: String(record.trace_code ?? `PKG-${index + 1}`),
         product_name: String(record.product_name ?? '-'),
         quantity_portions: Math.max(0, Number(record.quantity_portions ?? 0)),
+        package_trace_entity_id: record.package_trace_entity_id ? String(record.package_trace_entity_id) : null,
         production_order_id: record.production_order_id ? String(record.production_order_id) : null,
         production_number: record.production_number ? String(record.production_number) : null,
         cooking_completed_at: record.cooking_completed_at ? String(record.cooking_completed_at) : null,
@@ -67,6 +68,7 @@ const normalizeDeliveryPackages = (data: unknown): DeliveryPackageLifecycleRecor
         plate_number: record.plate_number ? String(record.plate_number) : null,
         route_id: record.route_id ? String(record.route_id) : null,
         route_code: record.route_code ? String(record.route_code) : null,
+        delivery_stop_id: record.delivery_stop_id ? String(record.delivery_stop_id) : null,
         destination_school_id: record.destination_school_id ? String(record.destination_school_id) : null,
         destination_name: record.destination_name ? String(record.destination_name) : null,
         destination_address: record.destination_address ? String(record.destination_address) : null,
@@ -130,7 +132,7 @@ export const getDeliveryOrders = async () => {
 
 export const getDeliveryPackages = async () => {
   try {
-    const payload = await apiRequest<unknown>('/api/v1/food-safety/deliveries/packages')
+    const payload = await apiRequest<unknown>('/api/v1/deliveries/packages')
     const items = normalizeDeliveryPackages(payload.data)
     return { items, total: totalFromEnvelope(payload, items.length) }
   } catch {

@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import DocumentActionCard from '@/components/common/DocumentActionCard.vue'
+import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { useAsyncState } from '@/composables/useAsyncState'
@@ -71,6 +72,29 @@ const printGoodsReceiptLabel = async () => {
   }
 }
 
+const printBatchLabel = async (traceCode: string) => {
+  printLoading.value = true
+  printError.value = ''
+  printMessage.value = ''
+  try {
+    const traceLabel = await getTraceLabel(traceCode)
+    const value = traceLabel?.label?.content
+      ? `${traceCode} - ${traceLabel.label.content}`
+      : traceCode
+    if (await isQzReady()) {
+      await printQrLabel({ value })
+      printMessage.value = `Label ${traceCode} dikirim ke printer thermal.`
+    } else {
+      browserPrintQr(value, traceCode)
+      printMessage.value = `Fallback browser print untuk ${traceCode} dipanggil.`
+    }
+  } catch (err) {
+    printError.value = err instanceof Error ? err.message : 'Gagal mencetak label batch.'
+  } finally {
+    printLoading.value = false
+  }
+}
+
 const handleCreateInvoice = async () => {
   actionLoading.value = true
   actionError.value = ''
@@ -94,7 +118,7 @@ const handleCreateInvoice = async () => {
       :badges="[goodsReceiptId || 'goods-receipt', 'GR', 'Committed Budget']"
     />
 
-    <div v-if="loading" class="loading-panel">Memuat detail goods receipt...</div>
+    <LoadingSkeleton v-if="loading" variant="detail" label="Memuat detail goods receipt" />
     <div v-else-if="error" class="error-panel"><p>{{ error }}</p><button class="primary-button mt-3" @click="execute">Muat ulang</button></div>
     <template v-else-if="detail && header">
       <section class="grid gap-4 xl:grid-cols-3">
@@ -123,7 +147,7 @@ const handleCreateInvoice = async () => {
             title="Lanjut ke Supplier Invoice"
             @action="handleCreateInvoice"
           >
-            <div class="mt-4 flex items-center justify-between rounded-3xl border border-[var(--app-panel-border)] px-4 py-3 text-sm">
+            <div class="mt-4 flex items-center justify-between rounded-3xl border border-(--app-panel-border) px-4 py-3 text-sm">
               <span class="text-app-muted">GR status</span>
               <StatusBadge :status="header.status" />
             </div>
@@ -158,6 +182,47 @@ const handleCreateInvoice = async () => {
                 <td>{{ line.uom_id }}</td>
                 <td>{{ formatCurrency(line.unit_price) }}</td>
                 <td>{{ formatCurrency(line.total_amount) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section v-if="detail.inventory_batches?.length" class="glass-panel overflow-hidden">
+        <div class="px-6 pt-6">
+          <p class="eyebrow-text">Received Batch Traceability</p>
+          <h3 class="mt-2 font-display text-2xl text-app-heading">Batch, expiry, quality, dan QR lineage</h3>
+        </div>
+        <div class="overflow-x-auto p-6 pt-4">
+          <table class="data-table">
+            <thead>
+              <tr><th>Batch / Trace</th><th>Product</th><th>Received / Expiry</th><th>Quality</th><th>Available</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="batch in detail.inventory_batches" :key="batch.id">
+                <td>
+                  <p class="font-medium text-app-heading">{{ batch.batch_number }}</p>
+                  <p class="mt-1 font-mono text-xs text-app-muted">{{ batch.trace_code || '-' }}</p>
+                </td>
+                <td>{{ batch.product_name }}</td>
+                <td>
+                  <p>{{ batch.received_date ? formatDate(batch.received_date) : '-' }}</p>
+                  <p class="mt-1 text-xs text-app-muted">Exp. {{ formatDate(batch.expiry_date) }}</p>
+                </td>
+                <td>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <StatusBadge :status="batch.quality_status" />
+                    <StatusBadge v-if="batch.is_blocked || batch.blocked" status="BLOCKED" />
+                  </div>
+                </td>
+                <td>{{ formatNumber(batch.quantity_available) }}</td>
+                <td>
+                  <div v-if="batch.trace_code" class="flex flex-wrap gap-2">
+                    <button class="secondary-button" :disabled="printLoading" @click="printBatchLabel(batch.trace_code)">Print QR</button>
+                    <RouterLink class="secondary-button" :to="{ path: '/quality/food-safety', query: { trace: batch.trace_code, direction: 'forward' } }">Forward Trace</RouterLink>
+                  </div>
+                  <span v-else class="text-xs text-app-muted">Trace unavailable</span>
+                </td>
               </tr>
             </tbody>
           </table>

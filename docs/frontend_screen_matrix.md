@@ -35,6 +35,8 @@ Kolom:
 | Dashboard | Tenant Dashboard | dashboard | `tenant_admin`, `super_admin` | Ringkasan lintas SPPG dan modul | `GET /api/v1/reporting/dashboard/tenant` |
 | Dashboard | SPPG Dashboard | dashboard | `operations_manager` | Ringkasan operasional per SPPG | `GET /api/v1/reporting/dashboard/sppg` |
 | Dashboard | Finance Dashboard | dashboard | `finance_manager`, `tenant_admin` | Ringkasan finance dan funding | `GET /api/v1/reporting/dashboard/finance` |
+| Dashboard | Profit Loss Report | report | `finance_manager`, `tenant_admin` | Laporan laba rugi per periode dan opsional per SPPG | `GET /api/v1/reporting/finance/profit-loss` |
+| Dashboard | Balance Sheet Report | report | `finance_manager`, `tenant_admin` | Laporan neraca per tanggal untuk scope tenant | `GET /api/v1/reporting/finance/balance-sheet` |
 
 ## 4. Identity & Access Screens
 
@@ -105,6 +107,8 @@ Kolom:
 | Production | Create from Meal Plan | action | `operations_manager` | Buat production order | `POST /api/v1/production-orders/from-meal-plan/{meal_plan_id}` |
 | Production | Complete Production | modal | `operations_manager` | Tutup produksi dan posting biaya | `POST /api/v1/production-orders/{production_order_id}/complete` |
 | Production | Cost Sheet | detail | `operations_manager`, `finance_manager` | Rincian biaya aktual | `GET /api/v1/production-orders/{production_order_id}/cost-sheet` |
+| Production | Material Batch Trace | tab/detail | `operations_manager`, `quality_officer` | Lihat batch bahan, waktu issue, quantity, dan porsi output | `GET /api/v1/production-orders/{production_order_id}`, `GET /api/v1/traceability/{batch_trace_code}/forward` |
+| Production | Package Allocation | form/list | `operations_manager`, `quality_officer` | Bagi accepted portions menjadi beberapa kemasan | `POST /api/v1/deliveries/packages`, `GET /api/v1/deliveries/packages` |
 
 ## 8. Supply Chain Screens
 
@@ -154,6 +158,9 @@ Kolom:
 | Delivery | Route Create | form | `delivery_officer`, `operations_manager` | Buat route | `POST /api/v1/delivery-orders/routes` |
 | Delivery | Delivery Proof | form | `delivery_officer` | Rekam proof of delivery | `POST /api/v1/delivery-orders/{delivery_order_id}/proof` |
 | Delivery | Delivery Incident | form | `delivery_officer`, `quality_officer` | Catat incident delivery | `POST /api/v1/delivery-orders/{delivery_order_id}/incidents` |
+| Delivery | Package Loading | scan/form | `delivery_officer`, `operations_manager`, `quality_officer` | Scan dan tetapkan satu kemasan ke stop/armada | `POST /api/v1/deliveries/{route_id}/packages/load` |
+| Delivery | Package Receiving | scan/form | `delivery_officer`, `quality_officer` | Rekam suhu dan penerimaan tiap kemasan | `POST /api/v1/deliveries/{route_id}/packages/{package_id}/receive` |
+| Traceability | Batch-to-Delivery Graph | graph/timeline | `operations_manager`, `quality_officer`, `delivery_officer` | Telusuri bahan ke seluruh package/tujuan atau package ke sumber bahan | `GET /api/v1/traceability/{trace_code}/forward`, `GET /api/v1/traceability/{trace_code}/backward` |
 | Fleet | Vehicle Type List | list | `operations_manager`, `tenant_admin` | Lihat tipe kendaraan | `GET /api/v1/fleet/vehicle-types` |
 | Fleet | Vehicle List | list | `operations_manager` | Lihat kendaraan | `GET /api/v1/fleet/vehicles` |
 | Fleet | Vehicle Detail | detail | `operations_manager` | Detail kendaraan | `GET /api/v1/fleet/vehicles/{vehicle_id}` |

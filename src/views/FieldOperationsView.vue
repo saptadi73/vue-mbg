@@ -402,9 +402,15 @@ const submitPackageDispatch = () =>
       if (!traceResult.value || !isPackage.value) {
         throw new Error('QR harus bertipe PACKAGE, CONTAINER, atau MEAL_BATCH untuk pengiriman.')
       }
+      if (!appStore.activeSppgId) {
+        throw new Error('Pilih konteks SPPG sebelum memuat paket ke pengiriman.')
+      }
+      if (dispatchForm.temp_at_loading === null) {
+        throw new Error('Suhu saat loading wajib diisi.')
+      }
       await loadDeliveryPackage(dispatchForm.route_id, {
         tenant_id: appStore.activeTenantId,
-        sppg_id: appStore.activeSppgId || undefined,
+        sppg_id: appStore.activeSppgId,
         package_trace_code: traceResult.value.trace_code,
         delivery_stop_id: dispatchForm.delivery_stop_id.trim(),
         vehicle_id: dispatchForm.vehicle_id,
@@ -468,6 +474,9 @@ const submitPackageReceive = () =>
     }
     if (receiveForm.latitude === null || receiveForm.longitude === null) {
       throw new Error('GPS penerimaan wajib diambil atau diisi.')
+    }
+    if (receiveForm.temperature_c === null) {
+      throw new Error('Suhu saat paket diterima wajib diisi.')
     }
     await receiveDeliveryPackage(receiveForm.route_id, resolvedPackageId.value, {
       received_at: new Date().toISOString(),
@@ -1002,7 +1011,8 @@ onBeforeUnmount(stopCamera)
                 !isPackage ||
                 !dispatchForm.route_id ||
                 !dispatchForm.delivery_stop_id ||
-                !dispatchForm.vehicle_id
+                !dispatchForm.vehicle_id ||
+                dispatchForm.temp_at_loading === null
               "
             >
               Tandai loading & mulai delivery
@@ -1075,6 +1085,7 @@ onBeforeUnmount(stopCamera)
                 busy ||
                 !isPackage ||
                 !receiveForm.route_id ||
+                receiveForm.temperature_c === null ||
                 receiveForm.latitude === null ||
                 receiveForm.longitude === null
               "

@@ -328,13 +328,19 @@ Format blok:
 | Header: Production Order Detail                                                  |
 | Meta: Order Number | SPPG | Status | Meal Plan Link                              |
 +----------------------------------------------------------------------------------+
-| Action Bar: [Complete Production] [View Cost Sheet] [Create Delivery Order]      |
+| Action Bar: [Complete Production] [Create Packages] [View Cost Sheet]            |
 +----------------------------------------------------------------------------------+
 | Summary Cards                                                                    |
 | [Actual Portions] [Accepted Portions] [Rejected Portions] [Actual Cost/Portion]  |
 +----------------------------------------------------------------------------------+
 | Tabs                                                                             |
-| [Summary] [Materials] [Cost Sheet] [Related Meal Plan]                           |
+| [Summary] [Material Batches] [Packages] [Cost Sheet] [Related Meal Plan]         |
++----------------------------------------------------------------------------------+
+| Material Batches: Batch No | Received | Expiry | Issue Time | Qty | Trace        |
++----------------------------------------------------------------------------------+
+| Packages: Packaged/Accepted progress | Trace | Portions | Status | Destination   |
++----------------------------------------------------------------------------------+
+| Package CTA: [Add Package] [Print Label] [View Trace]                            |
 +----------------------------------------------------------------------------------+
 ```
 
@@ -361,10 +367,10 @@ Format blok:
 | Header: Delivery Order Detail                                                    |
 | Meta: Delivery Number | School | Status | Receiver | Planned Arrival             |
 +----------------------------------------------------------------------------------+
-| Action Bar: [Record Proof] [Record Incident] [Open Route]                        |
+| Action Bar: [Load Package] [Record Proof] [Record Incident] [Open Route]         |
 +----------------------------------------------------------------------------------+
 | Tabs                                                                             |
-| [Summary] [Route] [Proof] [Incidents] [Related Production]                       |
+| [Summary] [Packages] [Route] [Proof] [Incidents] [Related Production]            |
 +----------------------------------------------------------------------------------+
 | Proof Tab                                                                        |
 | photos                                                                           |

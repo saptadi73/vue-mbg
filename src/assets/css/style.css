@@ -233,21 +233,70 @@ body {
   @apply text-xs uppercase tracking-[0.3em];
 }
 
+.sidebar-shell {
+  isolation: isolate;
+  max-height: calc(100vh - 2rem);
+  position: sticky;
+  top: 1rem;
+}
+
+.sidebar-shell::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  pointer-events: none;
+  background: linear-gradient(90deg, #2dd4bf, #38bdf8 58%, transparent);
+  opacity: 0.9;
+}
+
+.sidebar-brand {
+  position: relative;
+  z-index: 1;
+  border-bottom: 1px solid var(--app-panel-border);
+  @apply px-1 pb-5 pt-1;
+}
+
+.sidebar-brand-logo {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(226, 232, 240, 0.84));
+  border: 1px solid color-mix(in srgb, var(--app-panel-border) 60%, rgba(94, 234, 212, 0.42) 40%);
+  box-shadow:
+    0 12px 28px rgba(15, 23, 42, 0.16),
+    0 0 0 4px rgba(45, 212, 191, 0.06);
+  @apply overflow-hidden rounded-2xl;
+}
+
+.sidebar-menu-scroll {
+  scrollbar-color: color-mix(in srgb, #2dd4bf 40%, transparent) transparent;
+  scrollbar-width: thin;
+}
+
+.sidebar-menu-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-menu-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, #2dd4bf 40%, transparent);
+  border-radius: 9999px;
+}
+
 .nav-link {
   color: var(--app-text);
-  @apply relative flex items-center justify-between rounded-2xl border border-transparent px-4 py-3 text-sm transition duration-200;
+  @apply relative flex items-center justify-between rounded-xl border border-transparent px-3 py-2.5 text-sm transition duration-200;
 }
 
 .nav-link:hover {
-  border-color: var(--app-panel-border);
-  background: var(--app-table-row-hover);
+  border-color: color-mix(in srgb, var(--app-panel-border) 78%, #2dd4bf 22%);
+  background: color-mix(in srgb, var(--app-table-row-hover) 82%, rgba(45, 212, 191, 0.08) 18%);
   color: var(--app-heading);
+  transform: translateX(2px);
 }
 
 .nav-link-active {
   border-color: rgba(94, 234, 212, 0.22);
-  background: rgba(94, 234, 212, 0.12);
+  background: linear-gradient(90deg, rgba(45, 212, 191, 0.17), rgba(56, 189, 248, 0.06));
   color: #f8fafc;
+  box-shadow: inset 3px 0 0 #2dd4bf;
 }
 
 [data-theme='light'] .nav-link-active {
@@ -304,19 +353,28 @@ body {
 }
 
 .sidebar-group {
-  border: 1px solid var(--app-panel-border);
-  background: color-mix(in srgb, var(--app-subtle-bg) 78%, transparent 22%);
-  @apply rounded-3xl p-2;
+  border: 1px solid transparent;
+  background: transparent;
+  @apply rounded-2xl p-1.5 transition duration-200;
+}
+
+.sidebar-group-open {
+  border-color: var(--app-panel-border);
+  background: color-mix(in srgb, var(--app-subtle-bg) 72%, transparent 28%);
+}
+
+.sidebar-group-active {
+  border-color: color-mix(in srgb, var(--app-panel-border) 72%, rgba(45, 212, 191, 0.34) 28%);
 }
 
 .sidebar-group-toggle {
   color: var(--app-heading);
-  @apply flex w-full items-center justify-between rounded-2xl px-3 py-3 text-left transition duration-200 hover:bg-white/5;
+  @apply flex w-full items-center justify-between rounded-xl px-2.5 py-2.5 text-left transition duration-200 hover:bg-white/5;
 }
 
 .sidebar-group-label {
   color: var(--app-muted);
-  @apply text-xs uppercase tracking-[0.24em];
+  @apply text-[11px] font-semibold uppercase tracking-[0.18em];
 }
 
 .sidebar-group-icon {
@@ -329,14 +387,29 @@ body {
 }
 
 .sidebar-group-body {
-  @apply mt-2 space-y-2 px-1 pb-1;
+  position: relative;
+  @apply mt-1.5 space-y-1 pl-2 pb-1;
+}
+
+.sidebar-group-body::before {
+  content: '';
+  position: absolute;
+  left: 1.25rem;
+  top: 0.35rem;
+  bottom: 0.35rem;
+  width: 1px;
+  background: color-mix(in srgb, var(--app-panel-border) 76%, transparent 24%);
 }
 
 .sidebar-item-icon {
   color: var(--app-heading);
   background: color-mix(in srgb, var(--app-subtle-bg) 72%, white 8%);
   border: 1px solid var(--app-panel-border);
-  @apply inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl transition duration-200;
+  @apply relative z-[1] inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition duration-200;
+}
+
+.sidebar-item-label {
+  @apply font-medium;
 }
 
 .sidebar-collapsed .sidebar-item-icon {
@@ -398,6 +471,23 @@ body {
   background: var(--app-subtle-bg);
   color: var(--app-heading);
   @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl transition duration-200 hover:scale-[1.03];
+}
+
+.sidebar-collapse-button:hover {
+  border-color: rgba(45, 212, 191, 0.42);
+  color: #5eead4;
+}
+
+.sidebar-status {
+  border: 1px solid var(--app-panel-border);
+  background: color-mix(in srgb, var(--app-subtle-bg) 76%, transparent 24%);
+  @apply flex items-center gap-3 rounded-2xl px-3 py-3;
+}
+
+.sidebar-status-dot {
+  background: #34d399;
+  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.12), 0 0 16px rgba(52, 211, 153, 0.32);
+  @apply h-2.5 w-2.5 shrink-0 rounded-full;
 }
 
 .sidebar-item-badge {
@@ -556,6 +646,63 @@ body {
   color: var(--app-text);
   box-shadow: var(--app-shadow);
   @apply rounded-[30px] border p-6 text-sm backdrop-blur-xl;
+}
+
+.skeleton-shell {
+  border: 1px solid var(--app-panel-border);
+  background: color-mix(in srgb, var(--app-panel-bg) 92%, transparent 8%);
+  box-shadow: var(--app-shadow);
+  @apply overflow-hidden rounded-[26px] p-5 backdrop-blur-xl sm:p-6;
+}
+
+.skeleton-surface,
+.skeleton-table {
+  border: 1px solid var(--app-panel-border);
+  background: color-mix(in srgb, var(--app-subtle-bg) 78%, transparent 22%);
+  @apply rounded-2xl p-4;
+}
+
+.skeleton-block {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--app-muted) 15%, var(--app-subtle-bg) 85%);
+  @apply rounded-lg;
+}
+
+.skeleton-block::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 20%, rgba(94, 234, 212, 0.16) 46%, rgba(125, 211, 252, 0.18) 52%, transparent 78%);
+  transform: translateX(-100%);
+  animation: skeleton-shimmer 1.55s ease-in-out infinite;
+}
+
+.skeleton-pulse-dot {
+  background: #2dd4bf;
+  box-shadow: 0 0 0 5px rgba(45, 212, 191, 0.12);
+  animation: skeleton-pulse 1.45s ease-in-out infinite;
+  @apply h-3 w-3 shrink-0 rounded-full;
+}
+
+@keyframes skeleton-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-block::after,
+  .skeleton-pulse-dot {
+    animation: none;
+  }
 }
 
 .table-card-shell {

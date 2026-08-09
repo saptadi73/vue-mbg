@@ -76,3 +76,30 @@ export interface FoodSafetyHold {
   status?: string
   reason: string
 }
+
+export interface DeliveryPackageCreateInput {
+  tenant_id: string
+  sppg_id: string
+  production_order_id: string
+  quantity_portions: number
+  packaging_started_at: string
+  trace_code?: string
+  product_name?: string
+}
+
+export interface DeliveryPackageLoadInput {
+  tenant_id: string
+  sppg_id: string
+  package_trace_code: string
+  delivery_stop_id: string
+  vehicle_id: string
+  loaded_at: string
+  temp_at_loading: number
+}
+
+export interface DeliveryPackageReceiveInput {
+  received_at: string
+  temperature_c: number
+  latitude: number
+  longitude: number
+}

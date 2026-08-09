@@ -1,6 +1,6 @@
 # Frontend Gap Todo
 
-Dokumen ini mencatat gap antara implementasi frontend ERP MBG saat ini dengan acuan dokumentasi per **Senin, 20 Juli 2026**.
+Dokumen ini mencatat gap antara implementasi frontend ERP MBG saat ini dengan acuan dokumentasi per **Minggu, 9 Agustus 2026**.
 
 Dokumen ini melengkapi:
 
@@ -18,7 +18,7 @@ Dokumen ini melengkapi:
 ## 2. Status Ringkas
 
 | Tier | Arti | Kondisi |
-|---|---|---|
+| --- | --- | --- |
 | `T1` | Belum ada sama sekali | Perlu screen, service, route, dan navigasi baru |
 | `T2` | Sudah ada tapi parsial | Sudah ada workspace dasar, belum memenuhi screen matrix |
 | `T3` | Sudah ada, perlu polishing | Perlu pemisahan layar, UX, atau penyempurnaan reusable component |
@@ -209,13 +209,22 @@ Todo implementasi:
 
 Status: `PARSIAL`
 
+Sudah tersedia:
+
+- `Meal Plan List`
+- `Production Order Detail`
+- `Production Cost Sheet Detail`
+- `Material Batch Trace` berisi batch, received/expiry, issued time, quantity, output portions, dan forward trace
+- `Package Allocation` dengan progress accepted/packaged/remaining
+- deep-link production batch ke QR lineage forward graph
+
 Belum lengkap:
 
 - `Meal Plan Detail`
 - `Create Meal Plan`
 - `Requirements Preview`
 - `Cost Preview`
-- `Production Order List`
+- `Production Order List` sebagai route terpisah
 - `Create from Meal Plan`
 - `Complete Production`
 
@@ -223,27 +232,56 @@ Todo implementasi:
 
 - perjelas linked documents meal plan -> PR -> production
 - buat action nyata dari meal plan ke production order
+- pindahkan atau tampilkan package allocation langsung sebagai tab pada production detail
+- tambahkan invalidation/query refresh formal setelah complete production dan create package
 
 ### 4.4 `T2` Inventory Core Completion
 
-Status: `PARSIAL`
+Status: `WORKSPACE CORE TERPASANG`
 
-Belum lengkap:
+Sudah tersedia dalam `InventoryView`:
 
-- `Warehouse List/Detail/Form`
+- `Warehouse List/Form`
 - `Stock Location List/Form`
 - `Batch List/Form`
 - `Transaction List/Form`
 - `Balance List`
 - `Expiry Alert`
 - `FEFO Preview`
+- edit/delete untuk warehouse, location, batch, dan transaction
+- quality status, blocked state, available quantity, dan expiry monitoring
 
-Todo implementasi:
+Gap tersisa:
 
-- pecah inventory workspace menjadi screen inti
-- buat table reusable untuk balances, batches, expiry, transactions
+- pecah workspace menjadi route list/detail bila volume dan kebutuhan deep-link meningkat
+- tambahkan `Warehouse Detail` dan `Batch Detail` khusus
+- tambahkan filter `near expiry`, `blocked only`, product, warehouse, dan location yang sinkron ke query backend
+- tambahkan aksi kontekstual `Review Batch`, `View Reason`, dan `Open Expiry Alert` sesuai status/CTA matrix
 
-### 4.5 `T2` Quality Completion
+### 4.5 `T2` Food Safety & End-to-End Traceability
+
+Status: `WORKFLOW UTAMA TERPASANG`
+
+Sudah tersedia:
+
+- create/resolve QR identity, timeline, backward/forward graph, dan print label
+- safety check, temperature reading, alert acknowledgement, HOLD, dan recall
+- package create, load, receive, GPS, suhu, serta lifecycle status
+- progress `packaged / accepted / remaining` dari refresh data package backend
+- goods receipt batch table dengan expiry, quality, blocked state, print QR, dan forward trace
+- QR scanner dengan `BarcodeDetector` dan fallback `jsQR`
+- error handling package berdasarkan `response.code`
+
+Gap tersisa:
+
+- validasi mutation end-to-end terhadap backend aktif; pengujian lokal terakhir masih menerima `502`
+- ganti input manual `delivery_stop_id` dengan selector stop yang difilter berdasarkan production/delivery order
+- tampilkan kapasitas tujuan `assigned / planned` sebelum load package
+- tambahkan visual graph relation/edge, bukan hanya entity cards
+- tampilkan detail hasil recall dan daftar package/delivery order terdampak
+- tambahkan automated component/E2E test untuk create package, double-submit prevention, HOLD blocking, dan receiving
+
+### 4.6 `T2` Quality Completion
 
 Status: `PARSIAL`
 
@@ -259,7 +297,7 @@ Todo implementasi:
 - buat editable inspection lines
 - buat finalize action dengan hasil `PASS` / `FAIL`
 
-### 4.6 `T2` Funding & Accounting Completion
+### 4.7 `T2` Funding & Accounting Completion
 
 Status: `PARSIAL`
 
@@ -276,7 +314,7 @@ Todo implementasi:
 - buat form CRUD dasar untuk accounting/funding
 - perkuat funding agreement detail dengan tab
 
-### 4.7 `T2` Workflow Engine Admin
+### 4.8 `T2` Workflow Engine Admin
 
 Status: `PARSIAL`
 
@@ -348,15 +386,34 @@ Todo berikutnya:
 
 - jika line input budget sangat banyak, buat editor line yang lebih scalable
 
+### 5.5 `T3` Loading & Async UX
+
+Status: `SKELETON DASAR TERPASANG`
+
+Sudah tersedia:
+
+- reusable `LoadingSkeleton` dengan varian `detail`, `table`, dan `workspace`
+- shimmer adaptif dengan dukungan `prefers-reduced-motion`
+- skeleton pada Production Order Detail, Goods Receipt Detail, dan Food Security package workspace
+- loading mutation yang mencegah double-submit pada package action
+
+Gap tersisa:
+
+- migrasikan screen yang masih memakai `.loading-panel` teks polos ke `LoadingSkeleton`
+- tambahkan skeleton langsung pada reusable list/table agar layout tidak bergeser saat initial fetch
+- standardisasi spinner/progress kecil pada tombol mutation tanpa mengganti label secara mendadak
+- bedakan initial loading, background refresh, dan pagination loading
+- pertahankan data lama saat background refresh dan tampilkan indikator non-blocking
+
 ## 6. Urutan Implementasi yang Direkomendasikan
 
-1. `Workforce`
-2. `Inventory Core`
-3. `Identity & Access Completion`
-4. `Workflow Engine Admin`
-5. `Asset`
-6. `Program`
-7. `Penerima Manfaat`
+1. `Food Safety & Traceability Backend Validation`
+2. `Meal Plan & Production Completion`
+3. `Loading Skeleton Rollout`
+4. `Workforce Completion`
+5. `Identity & Access Completion`
+6. `Workflow Engine Admin`
+7. `Inventory Detail Routes`
 8. `Integration & Platform Ops`
 9. `AI & Analytics`
 
@@ -366,6 +423,8 @@ Todo berikutnya:
 - semua screen operasional wajib menjaga context `tenant` dan `SPPG`
 - semua action utama sebaiknya menampilkan status bisnis dan langkah berikutnya
 - untuk modul baru, utamakan pola: `list -> detail -> form/action`
+- gunakan `LoadingSkeleton` untuk initial fetch dan indikator ringan untuk background refresh
+- mutation wajib mencegah double-submit dan mempertahankan pesan error berdasarkan `response.code` bila tersedia
 
 ## 8. Definition of Done Backlog
 
@@ -375,7 +434,8 @@ Sebuah item todo dianggap selesai bila:
 2. halaman list/detail/form tersedia sesuai kebutuhan
 3. service layer terhubung ke API atau fallback mock
 4. role gating sesuai dokumentasi
-5. loading, empty, error state tersedia
+5. skeleton initial loading, background refresh, empty, dan error state tersedia tanpa layout shift besar
 6. tabel panjang memakai search dan pagination
 7. `npm run type-check` lulus
-8. `npm run build` lulus
+8. mutation utama memiliki disabled/loading state dan perlindungan double-submit
+9. `npm run build` lulus

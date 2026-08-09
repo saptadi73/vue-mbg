@@ -1,6 +1,6 @@
 # Frontend API Reference
 
-Dokumentasi ini merangkum endpoint backend ERP MBG FastAPI yang aktif per 8 Agustus 2026, dengan fokus kebutuhan integrasi frontend. Versi ini mencakup Food Safety & End-to-End Traceability v2.1.
+Dokumentasi ini merangkum endpoint backend ERP MBG FastAPI yang aktif per 9 Agustus 2026, dengan fokus kebutuhan integrasi frontend. Versi ini mencakup tracing batch bahan baku, output produksi, kemasan, dan pengiriman.
 
 ## Base URL
 
@@ -379,12 +379,13 @@ Aturan praktis:
 15. `POST /api/v1/food-safety/recalls`
 16. `POST /api/v1/temperature/readings`
 17. `GET /api/v1/temperature/entities/{entity_id}/history`
-17a. `GET /api/v1/food-safety/deliveries/packages`
-18. `POST /api/v1/food-safety/deliveries/{route_id}/packages/load`
-19. `POST /api/v1/food-safety/deliveries/{route_id}/route-snapshot`
-20. `POST /api/v1/food-safety/deliveries/{route_id}/vehicle-temperature`
+17a. `GET /api/v1/deliveries/packages`
+17b. `POST /api/v1/deliveries/packages`
+18. `POST /api/v1/deliveries/{route_id}/packages/load`
+19. `POST /api/v1/deliveries/{route_id}/route-snapshot`
+20. `POST /api/v1/deliveries/{route_id}/vehicle-temperature`
 21. `POST /api/v1/food-safety/vehicles/{vehicle_id}/temperature`
-22. `POST /api/v1/food-safety/deliveries/{route_id}/packages/{package_id}/receive`
+22. `POST /api/v1/deliveries/{route_id}/packages/{package_id}/receive`
 
 ## Status Review Backend untuk Kebutuhan Operasional 14 Poin
 
@@ -418,7 +419,7 @@ Checklist implementasi backend vs kebutuhan Anda:
 9. Suhu armada: **OK**
  - Tersedia endpoint baku untuk suhu armada berbasis `vehicle_id`:
    `POST /api/v1/food-safety/vehicles/{vehicle_id}/temperature`, serta endpoint per-trip
-   (`/api/v1/food-safety/deliveries/{route_id}/vehicle-temperature`) dan snapshot route.
+   (`/api/v1/deliveries/{route_id}/vehicle-temperature`) dan snapshot route.
    Penerapan warning kini lengkap dengan `warning_reason` dan varians durasi pada snapshot route.
 
 10. Jarak/waktu + warning SLA: **OK**
@@ -428,7 +429,7 @@ Checklist implementasi backend vs kebutuhan Anda:
    - `POST /api/v1/fleet/vehicles/{vehicle_id}/locations`
 
 12. Penerimaan paket makanan: **OK**
-   - `POST /api/v1/delivery-orders/{delivery_order_id}/proof`, `POST /api/v1/food-safety/deliveries/{route_id}/packages/{package_id}/receive`.
+   - `POST /api/v1/delivery-orders/{delivery_order_id}/proof`, `POST /api/v1/deliveries/{route_id}/packages/{package_id}/receive`.
 
 13. Tagihan pemerintah: **OK**
    - Endpoint pemerintah claim lengkap.
@@ -4942,8 +4943,8 @@ Backend menghasilkan `trace_code` dan token opaque. Frontend bertanggung jawab m
 Alur lineage utama:
 
 ```text
-RAW_MATERIAL_LOT -> COOKING_BATCH -> MEAL_BATCH -> PACKAGE/CONTAINER
-                 -> VEHICLE/DELIVERY ROUTE -> DELIVERY STOP -> RECEIVED
+RAW_MATERIAL_BATCH -> PRODUCTION_MATERIAL -> PRODUCTION_OUTPUT
+                    -> PACKAGE -> DELIVERY_ORDER -> RECEIVED
 ```
 
 ### Membuat Trace Identity
@@ -5199,7 +5200,7 @@ Backend menjalankan forward trace dan menyimpan seluruh `affected_trace_ids`. Fr
 
 ### Package Loading dan Receiving
 
-`GET /api/v1/food-safety/deliveries/packages`
+`GET /api/v1/deliveries/packages`
 
 Mengembalikan daftar lifecycle produk kemasan sejak produksi selesai dimasak, mulai dikemas, dimuat atau mulai delivery, sampai diterima di sekolah. List mengikuti scope `X-Tenant-ID` dan opsional `X-SPPG-ID`, serta diurutkan dari waktu packaging terbaru.
 
@@ -5252,9 +5253,9 @@ Catatan frontend:
 - field kendaraan, rute, atau tujuan dapat `null` selama paket belum dialokasikan
 - gunakan `trace_code` untuk membuka layar traceability package
 
-Sebelum loading, package harus memiliki trace identity dengan `entity_type` `PACKAGE`, `CONTAINER`, atau `MEAL_BATCH`.
+Package baru dibuat dari output produksi melalui `POST /api/v1/deliveries/packages`. Backend membuat identity `PACKAGE` dan relasi kuantitatif `PRODUCTION_OUTPUT -> PACKAGE`. Kontrak lengkap tersedia di [frontend_batch_package_traceability.md](C:/projek/fastapi-mbg/docs/frontend_batch_package_traceability.md).
 
-`POST /api/v1/food-safety/deliveries/{route_id}/packages/load`
+`POST /api/v1/deliveries/{route_id}/packages/load`
 
 ```json
 {
@@ -5270,7 +5271,7 @@ Sebelum loading, package harus memiliki trace identity dengan `entity_type` `PAC
 
 Receiving package:
 
-`POST /api/v1/food-safety/deliveries/{route_id}/packages/{package_id}/receive`
+`POST /api/v1/deliveries/{route_id}/packages/{package_id}/receive`
 
 ```json
 {
@@ -5285,7 +5286,7 @@ Receiving package:
 
 Frontend dapat menghitung route memakai Google Maps Platform, lalu mengirim snapshot penting ke backend:
 
-`POST /api/v1/food-safety/deliveries/{route_id}/route-snapshot`
+`POST /api/v1/deliveries/{route_id}/route-snapshot`
 
 ```json
 {

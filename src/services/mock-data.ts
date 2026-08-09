@@ -2146,10 +2146,10 @@ export const mockProductionOrderDetails: ProductionOrderDetailRecord[] = [
       status: 'SUBMITTED',
     },
     materials: [
-      { id: 'pm-1', product_code: 'KHG-01', product_name: 'Kacang Hijau', planned_quantity: 84, actual_quantity: 82, uom_id: 'kg', unit_cost: 22000, total_cost: 1804000 },
-      { id: 'pm-2', product_code: 'SUSU-01', product_name: 'Susu UHT', planned_quantity: 145, actual_quantity: 148, uom_id: 'box', unit_cost: 6900, total_cost: 1021200 },
-      { id: 'pm-3', product_code: 'GULA-01', product_name: 'Gula Pasir', planned_quantity: 52, actual_quantity: 50, uom_id: 'kg', unit_cost: 12800, total_cost: 640000 },
-      { id: 'pm-4', product_code: 'KURMA-01', product_name: 'Kurma Blend', planned_quantity: 23, actual_quantity: 21, uom_id: 'kg', unit_cost: 54800, total_cost: 1150800 },
+      { id: 'pm-1', product_code: 'KHG-01', product_name: 'Kacang Hijau', planned_quantity: 84, actual_quantity: 82, uom_id: 'kg', unit_cost: 22000, total_cost: 1804000, inventory_batch_id: 'batch-khg-0809', batch_number: 'BATCH-KHG-0809', batch_trace_code: 'TRC-RAW-KHG-0809', batch_received_date: '2026-07-12', batch_expiry_date: '2026-11-12', issued_at: '2026-07-20T04:20:00Z', produced_portions: 990, accepted_portions: 972, trace_code: 'TRC-PRO-KHG-001' },
+      { id: 'pm-2', product_code: 'SUSU-01', product_name: 'Susu UHT', planned_quantity: 145, actual_quantity: 148, uom_id: 'box', unit_cost: 6900, total_cost: 1021200, inventory_batch_id: 'batch-susu-0718', batch_number: 'BATCH-SUSU-0718', batch_trace_code: 'TRC-RAW-SUSU-0718', batch_received_date: '2026-07-18', batch_expiry_date: '2026-10-18', issued_at: '2026-07-20T04:24:00Z', produced_portions: 990, accepted_portions: 972, trace_code: 'TRC-PRO-SUSU-002' },
+      { id: 'pm-3', product_code: 'GULA-01', product_name: 'Gula Pasir', planned_quantity: 52, actual_quantity: 50, uom_id: 'kg', unit_cost: 12800, total_cost: 640000, inventory_batch_id: 'batch-gula-0705', batch_number: 'BATCH-GULA-0705', batch_trace_code: 'TRC-RAW-GULA-0705', batch_received_date: '2026-07-05', batch_expiry_date: '2027-01-05', issued_at: '2026-07-20T04:26:00Z', produced_portions: 990, accepted_portions: 972, trace_code: 'TRC-PRO-GULA-003' },
+      { id: 'pm-4', product_code: 'KURMA-01', product_name: 'Kurma Blend', planned_quantity: 23, actual_quantity: 21, uom_id: 'kg', unit_cost: 54800, total_cost: 1150800, inventory_batch_id: 'batch-kurma-0710', batch_number: 'BATCH-KURMA-0710', batch_trace_code: 'TRC-RAW-KURMA-0710', batch_received_date: '2026-07-10', batch_expiry_date: '2026-12-10', issued_at: '2026-07-20T04:28:00Z', produced_portions: 990, accepted_portions: 972, trace_code: 'TRC-PRO-KURMA-004' },
     ],
   },
   {
@@ -2814,6 +2814,10 @@ export const mockGoodsReceiptDetails: GoodsReceiptDetailRecord[] = [
       { id: 'gr1-ln2', product_code: 'SUSU-01', product_name: 'Susu UHT', quantity: 148, uom_id: 'box', unit_price: 6900, total_amount: 1021200 },
       { id: 'gr1-ln3', product_code: 'KURMA-01', product_name: 'Kurma Blend', quantity: 21, uom_id: 'kg', unit_price: 54800, total_amount: 1150800 },
     ],
+    inventory_batches: [
+      { id: 'batch-gr-khg', warehouse_id: 'wh-main-1', warehouse_name: 'Gudang Kering Utama', location_name: 'Receiving Dock A', product_name: 'Kacang Hijau', batch_number: 'BATCH-KHG-0809', trace_code: 'TRC-RAW-KHG-0809', received_date: '2026-07-19', expiry_date: '2026-11-12', quality_status: 'PASSED', is_blocked: false, quantity_available: 82, quantity_on_hand: 82 },
+      { id: 'batch-gr-susu', warehouse_id: 'wh-main-1', warehouse_name: 'Gudang Kering Utama', location_name: 'Receiving Dock A', product_name: 'Susu UHT', batch_number: 'BATCH-SUSU-0718', trace_code: 'TRC-RAW-SUSU-0718', received_date: '2026-07-19', expiry_date: '2026-10-18', quality_status: 'PASSED', is_blocked: false, quantity_available: 148, quantity_on_hand: 148 },
+    ],
   },
   {
     goods_receipt: {
@@ -2830,6 +2834,9 @@ export const mockGoodsReceiptDetails: GoodsReceiptDetailRecord[] = [
     },
     lines: [
       { id: 'gr2-ln1', product_code: 'AYAM-01', product_name: 'Ayam Fillet', quantity: 96, uom_id: 'kg', unit_price: 38200, total_amount: 3667200 },
+    ],
+    inventory_batches: [
+      { id: 'batch-gr-ayam', warehouse_id: 'wh-cold-1', warehouse_name: 'Cold Storage', location_name: 'Inbound Rack B', product_name: 'Ayam Fillet', batch_number: 'BATCH-AYAM-0720', trace_code: 'TRC-RAW-AYAM-0720', received_date: '2026-07-20', expiry_date: '2026-07-26', quality_status: 'PENDING', is_blocked: true, quantity_available: 96, quantity_on_hand: 96 },
     ],
   },
 ]

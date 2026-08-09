@@ -124,7 +124,17 @@ Aturan umum:
 | Current Status | Badge | Primary CTA | Secondary CTA | Allowed Roles | Next Status | Notes |
 |---|---|---|---|---|---|---|
 | `PLANNED` atau awal | info | `Complete Production` | `View Materials`, `Open Meal Plan` | `super_admin`, `tenant_admin`, `operations_manager` | `COMPLETED` | Gunakan label final sesuai data backend |
-| `COMPLETED` | success | `Create Delivery Order` | `View Cost Sheet`, `View Materials` | `super_admin`, `tenant_admin`, `operations_manager` | ke delivery | CTA berikutnya pindah modul |
+| `COMPLETED` | success | `Create Packages` | `Create Delivery Order`, `View Cost Sheet`, `View Material Batches` | `super_admin`, `tenant_admin`, `operations_manager`, `quality_officer` | packaging/delivery | Tampilkan progress packaged portions terhadap accepted portions |
+
+### Package Lifecycle Matrix
+
+| Status | Badge | CTA utama | CTA sekunder | Role | Catatan |
+|---|---|---|---|---|---|
+| `IN_WAREHOUSE` | info | `Load Package` | `Print Label`, `View Backward Trace` | operations, quality, delivery | Belum boleh memiliki tujuan kedua setelah berhasil dimuat |
+| `LOADED` | info | `Open Route` | `View Trace`, `Record Incident` | operations, quality, delivery | Package sudah terikat ke stop, delivery order, vehicle, dan route |
+| `SENT` / `IN_TRANSIT` | warning | `Open Tracking` | `Record Incident` | operations, quality, delivery | Jangan tawarkan reassignment package |
+| `RECEIVED` | success | `View Timeline` | `View Backward Trace` | semua role baca | Final lifecycle normal |
+| `HOLD` | danger | `Open QA Review` | `View Alert` | quality, operations | Semua CTA loading/distribusi harus disabled |
 
 ## 14. Delivery Order Matrix
 

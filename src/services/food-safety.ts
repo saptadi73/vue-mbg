@@ -4,11 +4,15 @@ import type {
   FoodSafetyCheckResult,
   FoodSafetyHold,
   FoodSafetyProfile,
+  DeliveryPackageCreateInput,
+  DeliveryPackageLoadInput,
+  DeliveryPackageReceiveInput,
   TraceLabel,
   TraceEntity,
   TraceEvent,
   TraceGraph,
 } from '@/types/food-safety'
+import type { DeliveryPackageLifecycleRecord } from '@/types/domain'
 
 const list = <T>(payload: T[] | { items?: T[] }) =>
   Array.isArray(payload) ? payload : payload.items || []
@@ -138,9 +142,16 @@ export const recordTemperatureReading = async (input: Record<string, unknown>) =
   ).data
 export const getTemperatureHistory = async (id: string) =>
   (await apiRequest<unknown>(`/api/v1/temperature/entities/${id}/history`)).data
-export const loadDeliveryPackage = async (routeId: string, input: Record<string, unknown>) =>
+export const createDeliveryPackage = async (input: DeliveryPackageCreateInput) =>
   (
-    await apiRequest<unknown>(`/api/v1/food-safety/deliveries/${routeId}/packages/load`, {
+    await apiRequest<DeliveryPackageLifecycleRecord>('/api/v1/deliveries/packages', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+  ).data
+export const loadDeliveryPackage = async (routeId: string, input: DeliveryPackageLoadInput) =>
+  (
+    await apiRequest<DeliveryPackageLifecycleRecord>(`/api/v1/deliveries/${routeId}/packages/load`, {
       method: 'POST',
       body: JSON.stringify(input),
     })
@@ -148,10 +159,10 @@ export const loadDeliveryPackage = async (routeId: string, input: Record<string,
 export const receiveDeliveryPackage = async (
   routeId: string,
   packageId: string,
-  input: Record<string, unknown>,
+  input: DeliveryPackageReceiveInput,
 ) =>
   (
-    await apiRequest<unknown>(`/api/v1/food-safety/deliveries/${routeId}/packages/${packageId}/receive`, {
+    await apiRequest<DeliveryPackageLifecycleRecord>(`/api/v1/deliveries/${routeId}/packages/${packageId}/receive`, {
       method: 'POST',
       body: JSON.stringify(input),
     })

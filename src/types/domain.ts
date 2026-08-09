@@ -456,6 +456,7 @@ export interface InventoryBatchRecord {
   location_id?: string
   product_name: string
   batch_number: string
+  trace_code?: string | null
   production_date?: string
   received_date?: string
   expiry_date: string
@@ -1467,6 +1468,15 @@ export interface ProductionMaterialRecord {
   uom_id: string
   unit_cost: number
   total_cost: number
+  inventory_batch_id?: string | null
+  batch_number?: string | null
+  batch_trace_code?: string | null
+  batch_received_date?: string | null
+  batch_expiry_date?: string | null
+  issued_at?: string | null
+  produced_portions?: number | null
+  accepted_portions?: number | null
+  trace_code?: string | null
 }
 
 export interface ProductionOrderDetailRecord {
@@ -1539,6 +1549,8 @@ export interface GoodsReceiptDetailRecord {
     committed_amount?: number
   }
   lines: ProcurementLineRecord[]
+  inventory_batches?: InventoryBatchRecord[]
+  inventory_transactions?: InventoryTransactionRecord[]
 }
 
 export interface SupplierInvoiceRecord {
@@ -1991,6 +2003,7 @@ export interface DeliveryPackageLifecycleRecord {
   trace_code: string
   product_name: string
   quantity_portions: number
+  package_trace_entity_id?: string | null
   production_order_id?: string | null
   production_number?: string | null
   cooking_completed_at?: string | null
@@ -2003,6 +2016,7 @@ export interface DeliveryPackageLifecycleRecord {
   plate_number?: string | null
   route_id?: string | null
   route_code?: string | null
+  delivery_stop_id?: string | null
   destination_school_id?: string | null
   destination_name?: string | null
   destination_address?: string | null

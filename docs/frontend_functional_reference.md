@@ -654,11 +654,15 @@ Output:
 - Production Order List
 - Production Order Detail
 - Production Cost Sheet
+- Production Package Allocation
+- Batch-to-Output Trace
 
 #### Detail Tabs yang Disarankan
 
 - summary
 - material consumption
+- material batches
+- packages
 - cost sheet
 - related meal plan
 
@@ -666,11 +670,16 @@ Output:
 
 - create from meal plan
 - complete production
+- split accepted portions into packages
+- print/open package trace label
 
 #### UX Notes
 
 - tampilkan accepted vs rejected portions
 - tampilkan material lines yang terkonsumsi
+- tampilkan nomor batch, waktu issue, quantity, dan porsi output pada setiap material trace
+- tampilkan progress packaged portions terhadap accepted portions
+- izinkan satu output produksi dibagi menjadi banyak package tanpa melebihi accepted portions
 - tampilkan cost per portion aktual
 
 ### 9.6 Delivery & Distribution
@@ -683,6 +692,9 @@ Output:
 - Delivery Route Detail
 - Delivery Incident Form
 - Delivery Proof Form
+- Package Loading Scanner
+- Package Receiving Form
+- Batch-to-Delivery Trace Graph
 
 #### Delivery Status UI
 
@@ -702,6 +714,7 @@ Output:
 - proof
 - incidents
 - related production order
+- packages
 
 #### Proof of Delivery UX
 
@@ -717,6 +730,14 @@ Field penting:
 - linked incidents
 
 Frontend mobile/tablet sebaiknya menjadikan proof form ini prioritas tinggi.
+
+#### Package UX
+
+- filter package yang dapat dipilih berdasarkan production order delivery
+- hanya status `IN_WAREHOUSE` yang boleh menawarkan CTA loading
+- tampilkan quantity portions, trace code, destination, vehicle, dan lifecycle status
+- setelah loading berhasil, package tidak boleh ditawarkan untuk route atau tujuan lain
+- sediakan backward trace dari package dan forward trace dari batch bahan baku
 
 ### 9.7 Quality
 

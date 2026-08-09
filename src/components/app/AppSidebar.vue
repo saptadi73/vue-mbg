@@ -466,6 +466,8 @@ const isItemActive = (item: NavItem) => {
   )
 }
 
+const isSectionActive = (section: NavSection) => section.items.some((item) => isItemActive(item))
+
 const getDefaultOpenState = () =>
   Object.fromEntries(
     sections.map((section, index) => [
@@ -598,7 +600,7 @@ const resolveItemTitle = (item: NavItem) => {
 
 <template>
   <aside
-    class="glass-panel shrink-0 flex-col p-5 transition-[width] duration-300"
+    class="glass-panel sidebar-shell shrink-0 flex-col p-4 transition-[width] duration-300"
     :class="[
       props.mobile
         ? 'flex h-full min-h-0 overflow-hidden rounded-none border-l-0 border-t-0 border-b-0 w-72'
@@ -608,18 +610,16 @@ const resolveItemTitle = (item: NavItem) => {
     ]"
   >
     <div
-      class="mb-8 flex items-center gap-3"
+      class="sidebar-brand mb-5 flex items-center gap-3"
       :class="desktopCollapsed ? 'flex-col justify-center' : 'justify-between'"
     >
       <div class="flex min-w-0 items-center gap-3" :class="{ 'justify-center': desktopCollapsed }">
-        <div
-          class="overflow-hidden rounded-2xl border border-[var(--app-panel-border)] bg-white/80 shadow-[0_12px_30px_rgba(15,23,42,0.12)]"
-        >
+        <div class="sidebar-brand-logo">
           <img :src="logoSrc" alt="ERP MBG logo" class="h-14 w-14 object-cover" />
         </div>
-        <div v-if="!desktopCollapsed">
+        <div v-if="!desktopCollapsed" class="min-w-0">
           <p class="eyebrow-text tracking-[0.34em]">ERP MBG</p>
-          <h1 v-if="!props.mobile" class="font-display text-xl text-app-heading">Menu Utama</h1>
+          <h1 class="font-display truncate text-xl text-app-heading">Pusat Operasi</h1>
         </div>
       </div>
 
@@ -636,8 +636,16 @@ const resolveItemTitle = (item: NavItem) => {
       </button>
     </div>
 
-    <div class="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1">
-      <section v-for="section in visibleSections" :key="section.id" class="sidebar-group">
+    <div class="sidebar-menu-scroll min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1">
+      <section
+        v-for="section in visibleSections"
+        :key="section.id"
+        class="sidebar-group"
+        :class="{
+          'sidebar-group-open': openGroups[section.id],
+          'sidebar-group-active': isSectionActive(section),
+        }"
+      >
         <button
           class="sidebar-group-toggle"
           type="button"
@@ -674,7 +682,7 @@ const resolveItemTitle = (item: NavItem) => {
               <span class="sidebar-item-icon">
                 <component :is="item.icon" class="sidebar-svg-icon" :size="17" stroke-width="2" />
               </span>
-              <span v-if="!desktopCollapsed">{{ item.label }}</span>
+              <span v-if="!desktopCollapsed" class="sidebar-item-label">{{ item.label }}</span>
             </span>
             <span
               v-if="resolveBadge(item)"
@@ -688,14 +696,12 @@ const resolveItemTitle = (item: NavItem) => {
       </section>
     </div>
 
-    <div v-if="!desktopCollapsed" class="surface-subtle mt-auto rounded-3xl p-4">
-      <p class="eyebrow-text tracking-[0.24em]">Backend Dev</p>
-      <p class="mt-2 text-sm text-app-heading">
-        Terhubung via `.env.development` ke `127.0.0.1:8000`.
-      </p>
-      <p class="mt-3 text-xs text-app-muted">
-        Service layer akan fallback ke mock state saat backend belum siap.
-      </p>
+    <div v-if="!desktopCollapsed" class="sidebar-status mt-4">
+      <span class="sidebar-status-dot" aria-hidden="true"></span>
+      <div class="min-w-0">
+        <p class="text-xs font-semibold text-app-heading">Development service</p>
+        <p class="mt-0.5 truncate text-[11px] text-app-muted">API lokal - fallback mock aktif</p>
+      </div>
     </div>
   </aside>
 </template>

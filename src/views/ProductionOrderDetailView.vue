@@ -2,10 +2,11 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
+import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { useAsyncState } from '@/composables/useAsyncState'
 import { getProductionOrderById } from '@/services/erp-ops'
-import { formatCurrency, formatDate, formatNumber } from '@/utils/format'
+import { formatCurrency, formatDate, formatDateTime, formatNumber } from '@/utils/format'
 
 const route = useRoute()
 const productionOrderId = computed(() => String(route.params.productionOrderId || ''))
@@ -22,7 +23,7 @@ const productionOrder = computed(() => detail.value?.production_order ?? null)
       :badges="[productionOrderId || 'production-order', 'Production', 'Materials']"
     />
 
-    <div v-if="loading" class="loading-panel">Memuat detail production order...</div>
+    <LoadingSkeleton v-if="loading" variant="detail" label="Memuat detail production order" />
     <div v-else-if="error" class="error-panel">
       <p>{{ error }}</p>
       <button class="primary-button mt-3" @click="execute">Muat ulang</button>
@@ -100,8 +101,11 @@ const productionOrder = computed(() => detail.value?.production_order ?? null)
       <section class="glass-panel overflow-hidden">
         <div class="flex items-center justify-between gap-3 px-6 pt-6">
           <div>
-            <p class="eyebrow-text">Material Consumption</p>
-            <h3 class="mt-2 font-display text-2xl text-app-heading">Bahan aktual produksi</h3>
+            <p class="eyebrow-text">Batch Materials Used</p>
+            <h3 class="mt-2 font-display text-2xl text-app-heading">Lineage bahan ke output produksi</h3>
+            <p class="mt-2 max-w-3xl text-sm text-app-muted">
+              Porsi output menunjukkan lineage batch ke hasil produksi yang sama dan tidak dijumlahkan antarbaris.
+            </p>
           </div>
         </div>
         <div class="overflow-x-auto p-6 pt-4">
@@ -109,21 +113,41 @@ const productionOrder = computed(() => detail.value?.production_order ?? null)
             <thead>
               <tr>
                 <th>Product</th>
-                <th>Planned Qty</th>
+                <th>Batch / Trace</th>
+                <th>Received / Expiry</th>
                 <th>Actual Qty</th>
-                <th>UoM</th>
-                <th>Unit Cost</th>
-                <th>Total Cost</th>
+                <th>Issued At</th>
+                <th>Output Portions</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="item in detail.materials" :key="item.id">
                 <td>{{ item.product_code }} - {{ item.product_name }}</td>
-                <td>{{ formatNumber(item.planned_quantity) }}</td>
-                <td>{{ formatNumber(item.actual_quantity) }}</td>
-                <td>{{ item.uom_id }}</td>
-                <td>{{ formatCurrency(item.unit_cost) }}</td>
-                <td>{{ formatCurrency(item.total_cost) }}</td>
+                <td>
+                  <p class="font-medium text-app-heading">{{ item.batch_number || '-' }}</p>
+                  <p class="mt-1 font-mono text-xs text-app-muted">{{ item.batch_trace_code || item.trace_code || '-' }}</p>
+                </td>
+                <td>
+                  <p>{{ item.batch_received_date ? formatDate(item.batch_received_date) : '-' }}</p>
+                  <p class="mt-1 text-xs text-app-muted">Exp. {{ item.batch_expiry_date ? formatDate(item.batch_expiry_date) : '-' }}</p>
+                </td>
+                <td>{{ formatNumber(item.actual_quantity) }} {{ item.uom_id }}</td>
+                <td>{{ item.issued_at ? formatDateTime(item.issued_at) : '-' }}</td>
+                <td>
+                  <p>{{ formatNumber(item.produced_portions || 0) }} produced</p>
+                  <p class="mt-1 text-xs text-app-muted">{{ formatNumber(item.accepted_portions || 0) }} accepted</p>
+                </td>
+                <td>
+                  <RouterLink
+                    v-if="item.batch_trace_code"
+                    class="secondary-button whitespace-nowrap"
+                    :to="{ path: '/quality/food-safety', query: { trace: item.batch_trace_code, direction: 'forward' } }"
+                  >
+                    Forward Trace
+                  </RouterLink>
+                  <span v-else class="text-xs text-app-muted">Trace unavailable</span>
+                </td>
               </tr>
             </tbody>
           </table>

@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import QRCode from 'qrcode'
 import PageHeader from '@/components/common/PageHeader.vue'
+import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { env } from '@/config/env'
 import { isQzReady, printQrLabel } from '@/services/thermal-printer'
 import {
   acknowledgeFoodSafetyAlert,
   addTraceEvent,
+  createDeliveryPackage,
   createFoodSafetyHold,
   createFoodSafetyRecall,
   createTraceEntity,
@@ -17,11 +20,16 @@ import {
   getFoodSafetyProfiles,
   getTraceGraph,
   getTraceTimeline,
+  loadDeliveryPackage,
+  receiveDeliveryPackage,
   recordTemperatureReading,
   resolveTrace,
   runFoodSafetyCheck,
 } from '@/services/food-safety'
-import { getDeliveryPackages } from '@/services/delivery'
+import { getDeliveryPackages, getDeliveryRoutes } from '@/services/delivery'
+import { getProductionOrders } from '@/services/erp-ops'
+import { getFleetVehicles } from '@/services/fleet'
+import { ApiError } from '@/services/http'
 import type {
   FoodSafetyAlert,
   FoodSafetyCheckResult,
@@ -31,7 +39,12 @@ import type {
   TraceGraph,
   TraceLabel,
 } from '@/types/food-safety'
-import type { DeliveryPackageLifecycleRecord } from '@/types/domain'
+import type {
+  DeliveryPackageLifecycleRecord,
+  DeliveryRoutePlanRecord,
+  FleetVehicleRecord,
+  ProductionOrderRecord,
+} from '@/types/domain'
 import { readStoredSession } from '@/utils/auth-storage'
 import { formatDateTime } from '@/utils/format'
 
@@ -39,6 +52,7 @@ type Tab = 'trace' | 'safety' | 'alerts' | 'packages'
 const props = withDefaults(defineProps<{ workspace?: 'all' | 'food-security' }>(), {
   workspace: 'all',
 })
+const route = useRoute()
 const session = readStoredSession()
 const tenantId = session?.tenantId || env.devTenantId
 const sppgId = session?.activeSppgId || env.devSppgId
@@ -67,6 +81,10 @@ const printError = ref('')
 const packageLoading = ref(false)
 const cameraSupportMessage = ref('')
 const packages = ref<DeliveryPackageLifecycleRecord[]>([])
+const productionOrders = ref<ProductionOrderRecord[]>([])
+const deliveryRoutes = ref<DeliveryRoutePlanRecord[]>([])
+const fleetVehicles = ref<FleetVehicleRecord[]>([])
+const packageActionLoading = ref(false)
 const videoElement = ref<HTMLVideoElement | null>(null)
 const cameraActive = ref(false)
 let cameraStream: MediaStream | null = null
@@ -181,6 +199,51 @@ const recallForm = reactive({
   reason: 'Objek terindikasi tidak aman',
   severity: 'CRITICAL',
 })
+const packageCreateForm = reactive({
+  production_order_id: '',
+  quantity_portions: null as number | null,
+  packaging_started_at: '',
+  trace_code: '',
+  product_name: '',
+})
+const packageLoadForm = reactive({
+  route_id: '',
+  package_trace_code: '',
+  delivery_stop_id: '',
+  vehicle_id: '',
+  temp_at_loading: null as number | null,
+})
+const packageReceiveForm = reactive({
+  route_id: '',
+  package_id: '',
+  temperature_c: null as number | null,
+  latitude: null as number | null,
+  longitude: null as number | null,
+})
+
+const selectedProduction = computed(() =>
+  productionOrders.value.find((item) => item.id === packageCreateForm.production_order_id),
+)
+const packagedPortions = computed(() =>
+  packages.value
+    .filter((item) => item.production_order_id === packageCreateForm.production_order_id)
+    .reduce((total, item) => total + item.quantity_portions, 0),
+)
+const acceptedPortions = computed(() => selectedProduction.value?.accepted_portions || 0)
+const remainingPortions = computed(() =>
+  Math.max(0, acceptedPortions.value - packagedPortions.value),
+)
+const packagingProgress = computed(() =>
+  acceptedPortions.value
+    ? Math.min(100, Math.round((packagedPortions.value / acceptedPortions.value) * 100))
+    : 0,
+)
+const loadablePackages = computed(() =>
+  packages.value.filter((item) => item.status === 'IN_WAREHOUSE'),
+)
+const receivablePackages = computed(() =>
+  packages.value.filter((item) => !['IN_WAREHOUSE', 'HOLD', 'RECEIVED'].includes(item.status)),
+)
 
 const canContinue = computed(
   () => !checkResult.value || ['PASS', 'WARNING'].includes(checkResult.value.gate),
@@ -351,6 +414,139 @@ const loadPackages = async () => {
     packageLoading.value = false
   }
 }
+const loadPackageWorkspace = async () => {
+  packageLoading.value = true
+  error.value = ''
+  try {
+    const [packagePayload, productionPayload, routePayload, vehiclePayload] = await Promise.all([
+      getDeliveryPackages(),
+      getProductionOrders(),
+      getDeliveryRoutes(),
+      getFleetVehicles(),
+    ])
+    packages.value = packagePayload.items
+    productionOrders.value = productionPayload.items.filter((item) => item.status === 'COMPLETED')
+    deliveryRoutes.value = routePayload.items
+    fleetVehicles.value = vehiclePayload.items
+    packageCreateForm.production_order_id ||= productionOrders.value[0]?.id || ''
+    packageLoadForm.route_id ||= deliveryRoutes.value[0]?.id || ''
+    packageReceiveForm.route_id ||= deliveryRoutes.value[0]?.id || ''
+    packageLoadForm.vehicle_id ||= fleetVehicles.value[0]?.id || ''
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Gagal memuat workspace kemasan.'
+  } finally {
+    packageLoading.value = false
+  }
+}
+
+const packageErrorMessage = (cause: unknown) => {
+  if (!(cause instanceof ApiError)) {
+    return cause instanceof Error ? cause.message : 'Operasi kemasan gagal.'
+  }
+
+  const messages: Record<string, string> = {
+    PRODUCTION_NOT_COMPLETED: 'Produksi belum selesai. Selesaikan production order sebelum membuat kemasan.',
+    PACKAGE_PORTIONS_EXCEED_PRODUCTION_OUTPUT: `Jumlah melebihi output. Sisa terbaru ${remainingPortions.value} porsi.`,
+    PACKAGE_ALREADY_ASSIGNED: 'Kemasan sudah ditetapkan ke pengiriman. Daftar kemasan telah diperbarui.',
+    PACKAGE_DELIVERY_PRODUCTION_MISMATCH: 'Production order kemasan tidak sama dengan delivery order tujuan.',
+    PACKAGE_PORTIONS_EXCEED_DELIVERY_ORDER: 'Jumlah kemasan melebihi kapasitas porsi tujuan.',
+    INSUFFICIENT_BATCH_STOCK_FOR_PRODUCTION: 'Stok batch tidak cukup. Periksa inventory dan reservasi batch.',
+    PRODUCTION_OUTPUT_TRACE_NOT_FOUND: 'Trace output produksi belum tersedia. Lakukan sinkronisasi data produksi.',
+  }
+  return (cause.code && messages[cause.code]) || cause.message
+}
+
+const runPackageAction = async (action: () => Promise<void>, success: string) => {
+  packageActionLoading.value = true
+  message.value = ''
+  error.value = ''
+  try {
+    await action()
+    await loadPackages()
+    message.value = success
+  } catch (cause) {
+    error.value = packageErrorMessage(cause)
+    await loadPackages()
+  } finally {
+    packageActionLoading.value = false
+  }
+}
+
+const submitPackageCreate = () =>
+  runPackageAction(async () => {
+    if (!packageCreateForm.quantity_portions || packageCreateForm.quantity_portions < 1) {
+      throw new Error('Jumlah porsi kemasan wajib lebih dari nol.')
+    }
+    await createDeliveryPackage({
+      tenant_id: tenantId,
+      sppg_id: sppgId,
+      production_order_id: packageCreateForm.production_order_id,
+      quantity_portions: packageCreateForm.quantity_portions,
+      packaging_started_at: packageCreateForm.packaging_started_at
+        ? new Date(packageCreateForm.packaging_started_at).toISOString()
+        : new Date().toISOString(),
+      trace_code: packageCreateForm.trace_code.trim() || undefined,
+      product_name: packageCreateForm.product_name.trim() || undefined,
+    })
+    packageCreateForm.quantity_portions = null
+    packageCreateForm.trace_code = ''
+  }, 'Kemasan produksi berhasil dibuat dan daftar diperbarui.')
+
+const submitPackageLoad = () =>
+  runPackageAction(async () => {
+    if (packageLoadForm.temp_at_loading === null) throw new Error('Suhu loading wajib diisi.')
+    await loadDeliveryPackage(packageLoadForm.route_id, {
+      tenant_id: tenantId,
+      sppg_id: sppgId,
+      package_trace_code: packageLoadForm.package_trace_code.trim(),
+      delivery_stop_id: packageLoadForm.delivery_stop_id.trim(),
+      vehicle_id: packageLoadForm.vehicle_id,
+      loaded_at: new Date().toISOString(),
+      temp_at_loading: packageLoadForm.temp_at_loading,
+    })
+  }, 'Kemasan berhasil dimuat ke rute pengiriman.')
+
+const submitPackageReceive = () =>
+  runPackageAction(async () => {
+    const { temperature_c, latitude, longitude } = packageReceiveForm
+    if (temperature_c === null || latitude === null || longitude === null) {
+      throw new Error('Suhu dan koordinat penerimaan wajib diisi.')
+    }
+    await receiveDeliveryPackage(packageReceiveForm.route_id, packageReceiveForm.package_id, {
+      received_at: new Date().toISOString(),
+      temperature_c,
+      latitude,
+      longitude,
+    })
+  }, 'Kemasan berhasil dikonfirmasi diterima.')
+
+const preparePackageLoad = (item: DeliveryPackageLifecycleRecord) => {
+  packageLoadForm.package_trace_code = item.trace_code
+}
+
+const preparePackageReceive = (item: DeliveryPackageLifecycleRecord) => {
+  packageReceiveForm.package_id = item.package_id
+  packageReceiveForm.route_id = item.route_id || packageReceiveForm.route_id
+}
+
+const capturePackageReceivingGps = () => {
+  error.value = ''
+  if (!navigator.geolocation) {
+    error.value = 'Browser tidak mendukung pengambilan lokasi.'
+    return
+  }
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      packageReceiveForm.latitude = Number(position.coords.latitude.toFixed(7))
+      packageReceiveForm.longitude = Number(position.coords.longitude.toFixed(7))
+      message.value = 'Koordinat penerimaan berhasil diambil.'
+    },
+    () => {
+      error.value = 'Lokasi penerimaan belum dapat diperoleh.'
+    },
+    { enableHighAccuracy: true, timeout: 20000, maximumAge: 10000 },
+  )
+}
 const pickPackage = async (traceCode: string) => {
   if (!traceCode) return
   activeTab.value = 'trace'
@@ -478,7 +674,19 @@ watch(
   activeTab,
   (tab) => {
     if ((tab === 'safety' || tab === 'alerts') && !profiles.value.length) loadSafety()
-    if (tab === 'packages' && !packages.value.length) loadPackages()
+    if (tab === 'packages' && !productionOrders.value.length) loadPackageWorkspace()
+  },
+  { immediate: true },
+)
+
+watch(
+  () => route.query.trace,
+  (value) => {
+    if (typeof value !== 'string' || !value.trim()) return
+    activeTab.value = 'trace'
+    graphDirection.value = route.query.direction === 'forward' ? 'forward' : 'backward'
+    traceForm.trace_code = value.trim()
+    void findTrace()
   },
   { immediate: true },
 )
@@ -867,16 +1075,117 @@ watch(
       </div>
     </section>
 
-    <section v-else class="glass-panel">
-      <div class="border-b border-white/10 p-6">
-        <p class="eyebrow-text">Package Lifecycle</p>
-        <p class="mt-2 text-sm text-app-muted">
-          Menampilkan paket aktif dari endpoint delivery packages untuk aksi loading/receive.
-        </p>
+    <section v-else class="space-y-6">
+      <LoadingSkeleton v-if="packageLoading" variant="workspace" label="Memuat workspace kemasan dan pengiriman" />
+      <article v-show="!packageLoading" class="glass-panel p-6">
+        <div class="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+          <div>
+            <p class="eyebrow-text">Packaging Progress</p>
+            <h2 class="mt-2 font-display text-2xl text-app-heading">Output produksi ke kemasan</h2>
+            <p class="mt-2 text-sm text-app-muted">Progress selalu dihitung ulang dari daftar package backend.</p>
+          </div>
+          <select v-model="packageCreateForm.production_order_id" class="toolbar-input md:min-w-72">
+            <option disabled value="">Pilih production order</option>
+            <option v-for="item in productionOrders" :key="item.id" :value="item.id">
+              {{ item.order_number }} - {{ item.accepted_portions || 0 }} porsi
+            </option>
+          </select>
+        </div>
+        <div class="mt-5 grid gap-4 sm:grid-cols-3">
+          <div class="surface-subtle rounded-2xl p-4">
+            <p class="text-xs uppercase tracking-[0.18em] text-app-muted">Accepted</p>
+            <p class="mt-2 text-xl font-semibold text-app-heading">{{ acceptedPortions }} porsi</p>
+          </div>
+          <div class="surface-subtle rounded-2xl p-4">
+            <p class="text-xs uppercase tracking-[0.18em] text-app-muted">Packaged</p>
+            <p class="mt-2 text-xl font-semibold text-app-heading">{{ packagedPortions }} porsi</p>
+          </div>
+          <div class="surface-subtle rounded-2xl p-4">
+            <p class="text-xs uppercase tracking-[0.18em] text-app-muted">Remaining</p>
+            <p class="mt-2 text-xl font-semibold text-app-heading">{{ remainingPortions }} porsi</p>
+          </div>
+        </div>
+        <div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-500/15">
+          <div class="h-full rounded-full bg-teal-400 transition-[width]" :style="{ width: `${packagingProgress}%` }"></div>
+        </div>
+      </article>
+
+      <div v-show="!packageLoading" class="grid gap-6 xl:grid-cols-3">
+        <form class="glass-panel space-y-4 p-5" @submit.prevent="submitPackageCreate">
+          <div>
+            <p class="eyebrow-text">Create Package</p>
+            <h3 class="mt-2 font-display text-lg text-app-heading">Bagi output produksi</h3>
+          </div>
+          <label class="form-field">
+            <span>Jumlah porsi</span>
+            <input v-model.number="packageCreateForm.quantity_portions" class="toolbar-input" type="number" min="1" :max="remainingPortions || undefined" required />
+          </label>
+          <label class="form-field">
+            <span>Mulai packaging</span>
+            <input v-model="packageCreateForm.packaging_started_at" class="toolbar-input" type="datetime-local" />
+          </label>
+          <input v-model="packageCreateForm.product_name" class="toolbar-input" placeholder="Nama produk (opsional)" />
+          <input v-model="packageCreateForm.trace_code" class="toolbar-input" placeholder="Trace code (otomatis bila kosong)" />
+          <button class="primary-button w-full justify-center" :disabled="packageActionLoading || !packageCreateForm.production_order_id || !remainingPortions">
+            {{ packageActionLoading ? 'Memproses...' : 'Buat Kemasan' }}
+          </button>
+        </form>
+
+        <form class="glass-panel space-y-4 p-5" @submit.prevent="submitPackageLoad">
+          <div>
+            <p class="eyebrow-text">Load Package</p>
+            <h3 class="mt-2 font-display text-lg text-app-heading">Tetapkan ke pengiriman</h3>
+          </div>
+          <select v-model="packageLoadForm.package_trace_code" class="toolbar-input" required>
+            <option disabled value="">Pilih package IN_WAREHOUSE</option>
+            <option v-for="item in loadablePackages" :key="item.package_id" :value="item.trace_code">{{ item.trace_code }} - {{ item.quantity_portions }} porsi</option>
+          </select>
+          <select v-model="packageLoadForm.route_id" class="toolbar-input" required>
+            <option disabled value="">Pilih rute</option>
+            <option v-for="item in deliveryRoutes" :key="item.id" :value="item.id">{{ item.route_code }} - {{ item.route_name }}</option>
+          </select>
+          <input v-model="packageLoadForm.delivery_stop_id" class="toolbar-input" placeholder="Delivery stop ID" required />
+          <select v-model="packageLoadForm.vehicle_id" class="toolbar-input" required>
+            <option disabled value="">Pilih kendaraan</option>
+            <option v-for="item in fleetVehicles" :key="item.id" :value="item.id">{{ item.vehicle_code }} - {{ item.plate_number }}</option>
+          </select>
+          <input v-model.number="packageLoadForm.temp_at_loading" class="toolbar-input" type="number" step="0.1" placeholder="Suhu loading (C)" required />
+          <button class="primary-button w-full justify-center" :disabled="packageActionLoading || !packageLoadForm.package_trace_code || packageLoadForm.temp_at_loading === null">Load Package</button>
+        </form>
+
+        <form class="glass-panel space-y-4 p-5" @submit.prevent="submitPackageReceive">
+          <div>
+            <p class="eyebrow-text">Receiving</p>
+            <h3 class="mt-2 font-display text-lg text-app-heading">Konfirmasi penerimaan</h3>
+          </div>
+          <select v-model="packageReceiveForm.package_id" class="toolbar-input" required>
+            <option disabled value="">Pilih package terkirim</option>
+            <option v-for="item in receivablePackages" :key="item.package_id" :value="item.package_id">{{ item.trace_code }} - {{ item.status }}</option>
+          </select>
+          <select v-model="packageReceiveForm.route_id" class="toolbar-input" required>
+            <option disabled value="">Pilih rute</option>
+            <option v-for="item in deliveryRoutes" :key="item.id" :value="item.id">{{ item.route_code }} - {{ item.route_name }}</option>
+          </select>
+          <input v-model.number="packageReceiveForm.temperature_c" class="toolbar-input" type="number" step="0.1" placeholder="Suhu diterima (C)" required />
+          <div class="grid grid-cols-2 gap-3">
+            <input v-model.number="packageReceiveForm.latitude" class="toolbar-input min-w-0" type="number" step="any" placeholder="Latitude" required />
+            <input v-model.number="packageReceiveForm.longitude" class="toolbar-input min-w-0" type="number" step="any" placeholder="Longitude" required />
+          </div>
+          <button type="button" class="secondary-button w-full justify-center" @click="capturePackageReceivingGps">Ambil GPS</button>
+          <button class="primary-button w-full justify-center" :disabled="packageActionLoading || !packageReceiveForm.package_id || packageReceiveForm.temperature_c === null || packageReceiveForm.latitude === null || packageReceiveForm.longitude === null">Konfirmasi Diterima</button>
+        </form>
       </div>
-      <div class="space-y-4 p-6">
-        <p v-if="packageLoading" class="text-sm text-app-muted">Memuat data paket...</p>
-        <div v-else>
+
+      <article v-show="!packageLoading" class="glass-panel overflow-hidden">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 p-6">
+          <div>
+            <p class="eyebrow-text">Package Lifecycle</p>
+            <p class="mt-2 text-sm text-app-muted">QR, status, rute, tujuan, dan tindakan trace setiap kemasan.</p>
+          </div>
+          <button class="secondary-button" :disabled="packageLoading" @click="loadPackageWorkspace">Refresh</button>
+        </div>
+        <div class="space-y-4 p-6">
+        <div>
           <div
             v-for="item in packages"
             :key="item.package_id"
@@ -884,13 +1193,17 @@ watch(
           >
             <div class="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p class="font-semibold text-app-heading">{{ item.trace_code }}</p>
+                <div class="flex flex-wrap items-center gap-2">
+                  <p class="font-semibold text-app-heading">{{ item.trace_code }}</p>
+                  <StatusBadge :status="item.status" />
+                </div>
                 <p class="mt-1 text-sm text-app-body">
-                  {{ item.product_name }} | {{ item.status_label || item.status }} | Porsi
-                  {{ item.quantity_portions }}
+                  {{ item.product_name }} | {{ item.quantity_portions }} porsi
                 </p>
               </div>
-              <div class="flex gap-2">
+              <div class="flex flex-wrap gap-2">
+                <button v-if="item.status === 'IN_WAREHOUSE'" class="secondary-button" @click="preparePackageLoad(item)">Load</button>
+                <button v-if="!['IN_WAREHOUSE', 'HOLD', 'RECEIVED'].includes(item.status)" class="secondary-button" @click="preparePackageReceive(item)">Receive</button>
                 <button
                   class="secondary-button"
                   :disabled="printLoading"
@@ -913,6 +1226,7 @@ watch(
           </p>
         </div>
       </div>
+      </article>
     </section>
   </div>
 </template>

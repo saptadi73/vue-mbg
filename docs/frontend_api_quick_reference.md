@@ -90,9 +90,9 @@ Kode fleet demo yang aman dipakai frontend:
 ## Food Safety & Traceability Quick Flow
 
 ```text
-Create trace identity -> render/scan QR -> add lineage/event
--> run safety check -> PASS/WARNING/HOLD/BLOCK/REJECT
--> load package -> save route snapshot -> receive package
+Complete production -> inspect material batches -> create one or more packages
+-> render/scan package QR -> assign each package to a delivery stop
+-> load package -> save route snapshot -> receive package -> inspect trace graph
 ```
 
 Header wajib untuk seluruh flow:
@@ -154,11 +154,12 @@ Detail payload, response, QR lineage, alert, recall, package loading, dan Google
 | `POST` | `/api/v1/food-safety/recalls` | Yes | Ops/QA | Recall melalui forward trace |
 | `POST` | `/api/v1/temperature/readings` | Yes | Ops/QA | Catat suhu manual/IoT |
 | `GET` | `/api/v1/temperature/entities/{entity_id}/history` | No | - | Riwayat suhu objek |
-| `GET` | `/api/v1/food-safety/deliveries/packages` | No | - | Timeline produk kemasan sejak selesai dimasak sampai delivery/receiving |
-| `POST` | `/api/v1/food-safety/deliveries/{route_id}/packages/load` | Yes | Ops/QA | Scan package ke armada/stop |
-| `POST` | `/api/v1/food-safety/deliveries/{route_id}/route-snapshot` | Yes | Ops/QA | Simpan distance/duration/ETA |
-| `POST` | `/api/v1/food-safety/deliveries/{route_id}/vehicle-temperature` | Yes | Ops/QA | Simpan snapshot suhu armada untuk trip |
-| `POST` | `/api/v1/food-safety/deliveries/{route_id}/packages/{package_id}/receive` | Yes | Ops/QA | Catat receiving dan suhu |
+| `GET` | `/api/v1/deliveries/packages` | No | - | Timeline produk kemasan sejak selesai dimasak sampai delivery/receiving |
+| `POST` | `/api/v1/deliveries/packages` | Yes | Ops/QA | Alokasikan sebagian output produksi menjadi satu kemasan |
+| `POST` | `/api/v1/deliveries/{route_id}/packages/load` | Yes | Ops/QA | Scan package ke armada/stop |
+| `POST` | `/api/v1/deliveries/{route_id}/route-snapshot` | Yes | Ops/QA | Simpan distance/duration/ETA |
+| `POST` | `/api/v1/deliveries/{route_id}/vehicle-temperature` | Yes | Ops/QA | Simpan snapshot suhu armada untuk trip |
+| `POST` | `/api/v1/deliveries/{route_id}/packages/{package_id}/receive` | Yes | Ops/QA | Catat receiving dan suhu |
 | `POST` | `/api/v1/food-safety/vehicles/{vehicle_id}/temperature` | Yes | Ops/QA | Catat suhu armada (format baku) |
 | `POST` | `/api/v1/identity/login` | No | - | Login JWT |
 | `GET` | `/api/v1/identity/me` | Yes | Any | Profil user aktif |
@@ -542,7 +543,7 @@ Detail payload, response, QR lineage, alert, recall, package loading, dan Google
    Route, stop, proof siap dipakai.
 
 9. Suhu armada : **OK**
-Endpoint standar (`/api/v1/food-safety/vehicles/{vehicle_id}/temperature`) dan endpoint per-trip (`/api/v1/food-safety/deliveries/{route_id}/vehicle-temperature`) sudah tersedia, sinkronisasi payload dan warning_reason sudah distandarisasi.
+Endpoint standar (`/api/v1/food-safety/vehicles/{vehicle_id}/temperature`) dan endpoint per-trip (`/api/v1/deliveries/{route_id}/vehicle-temperature`) sudah tersedia, sinkronisasi payload dan warning_reason sudah distandarisasi.
 
 10. Distance/time + SLA warning : **OK**
 Sudah ada distance/duration/ETA dari frontend dan auto-rule warning (late + durasi) dari `route-snapshot` sudah aktif.
@@ -603,12 +604,12 @@ Sudah ada distance/duration/ETA dari frontend dan auto-rule warning (late + dura
    - Output: `route_id`, `delivery_order_id`, status delivery.
 
 9. Suhu armada
-   - Endpoint: `POST /api/v1/food-safety/vehicles/{vehicle_id}/temperature`, `POST /api/v1/food-safety/deliveries/{route_id}/vehicle-temperature`, `POST /api/v1/food-safety/deliveries/{route_id}/route-snapshot`
+   - Endpoint: `POST /api/v1/food-safety/vehicles/{vehicle_id}/temperature`, `POST /api/v1/deliveries/{route_id}/vehicle-temperature`, `POST /api/v1/deliveries/{route_id}/route-snapshot`
    - Input kunci: `temperature_c` (vehicle temp), `measured_at`, `profile_id`, `vehicle_id`
    - Output: `is_warning`, `warning_reason`.
 
 10. Jarak/waktu + warning SLA
-   - Endpoint: `POST /api/v1/food-safety/deliveries/{route_id}/route-snapshot`
+   - Endpoint: `POST /api/v1/deliveries/{route_id}/route-snapshot`
 - Input kunci: `distance_meters`, `duration_seconds`, `estimated_arrival_at`, `warning_buffer_minutes`, `distribution_cost_total` (opsional)
 - Output: `is_warning`, `warning_level`, `time_to_deadline_minutes`, `distribution_cost_total`.
 - Output tambahan: `warning_reason`, `duration_variance_minutes`, `expected_duration_minutes`.
@@ -619,7 +620,7 @@ Sudah ada distance/duration/ETA dari frontend dan auto-rule warning (late + dura
    - Output: histori lokasi dan latest status posisi.
 
 12. Penerimaan paket makanan
-   - Endpoint: `POST /api/v1/delivery-orders/{delivery_order_id}/proof`, `POST /api/v1/food-safety/deliveries/{route_id}/packages/{package_id}/receive`
+   - Endpoint: `POST /api/v1/delivery-orders/{delivery_order_id}/proof`, `POST /api/v1/deliveries/{route_id}/packages/{package_id}/receive`
    - Input kunci: untuk proof paket (`delivery-orders`): `received_at`, `receiver_name`, `received_portions`, `temperature_c`, `route_stop_id` (opsional);
      untuk food-safety package receive: `received_at`, `temperature_c`, `latitude`, `longitude` (opsional).
    - Output: status delivery/order berubah menjadi received.
@@ -647,14 +648,14 @@ Sudah ada distance/duration/ETA dari frontend dan auto-rule warning (late + dura
 
 ### PR-02: Delivery SLA Warning Engine
 - Scope: food safety, delivery
-- Target: `POST /api/v1/food-safety/deliveries/{route_id}/route-snapshot`
+- Target: `POST /api/v1/deliveries/{route_id}/route-snapshot`
 - Acceptance:
   - `warning_buffer_minutes` memicu `warning_level`/`warning_message`.
   - Nilai `time_to_deadline_minutes` tersedia di response.
 
 ### PR-03: Standarisasi Input Suhu Armada
 - Scope: food safety, delivery
-- Target: `POST /api/v1/food-safety/vehicles/{vehicle_id}/temperature`, `POST /api/v1/food-safety/deliveries/{route_id}/vehicle-temperature`
+- Target: `POST /api/v1/food-safety/vehicles/{vehicle_id}/temperature`, `POST /api/v1/deliveries/{route_id}/vehicle-temperature`
 - Acceptance:
 - Konsistensi payload frontend (`vehicle_id`, `profile_id`, `temperature_c`, `measured_at`, `measurement_method`).
 - Response tetap memberi `alert` bila threshold dilampaui.
@@ -742,8 +743,8 @@ Sudah ada distance/duration/ETA dari frontend dan auto-rule warning (late + dura
 ### C. Delivery End-to-End
 1. `POST /api/v1/delivery-orders/routes`
 2. `POST /api/v1/delivery-orders/from-production-order/{production_order_id}`
-3. `POST /api/v1/food-safety/deliveries/{route_id}/route-snapshot` (distance/time/SLA)
-4. `POST /api/v1/delivery-orders/{delivery_order_id}/proof` lalu `POST /api/v1/food-safety/deliveries/{route_id}/packages/{package_id}/receive`
+3. `POST /api/v1/deliveries/{route_id}/route-snapshot` (distance/time/SLA)
+4. `POST /api/v1/delivery-orders/{delivery_order_id}/proof` lalu `POST /api/v1/deliveries/{route_id}/packages/{package_id}/receive`
 5. Verifikasi status order/package menjadi `received` dan catatan suhu tersimpan.
 
 ## Risiko & Dependency per Poin

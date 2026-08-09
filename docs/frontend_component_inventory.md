@@ -524,6 +524,35 @@ Kolom:
 - actual cost
 - variance
 
+### 10.4 `MaterialBatchTraceTable`
+
+Fungsi:
+
+- menampilkan batch bahan yang benar-benar masuk produksi
+- membuka forward trace dari `batch_trace_code`
+
+Kolom minimal:
+
+- batch number
+- received/expiry date
+- issued at
+- actual quantity
+- produced/accepted portions
+- trace action
+
+### 10.5 `PackageAllocationPanel`
+
+Fungsi:
+
+- membagi accepted portions menjadi beberapa package
+- menampilkan progress `packaged / accepted / remaining`
+
+Rules:
+
+- quantity wajib positif dan tidak boleh melewati remaining portions
+- frontend tetap menangani error backend `PACKAGE_PORTIONS_EXCEED_PRODUCTION_OUTPUT`
+- disable submit selama mutation berlangsung
+
 ## 11. Distribution Components
 
 ### 11.1 `RouteMapPanel`
@@ -591,6 +620,23 @@ Isi per card:
 - reported at
 - description
 - linked proof
+
+### 11.7 `PackageScannerPanel`
+
+Fungsi:
+
+- scan/input package trace code
+- memilih delivery stop dan vehicle
+- menampilkan quantity dan production source sebelum konfirmasi loading
+
+### 11.8 `TraceLineageGraph`
+
+Fungsi:
+
+- visualisasi `RAW_MATERIAL_BATCH -> PRODUCTION_OUTPUT -> PACKAGE -> DELIVERY_ORDER`
+- mendukung mode backward dari package dan forward dari material batch
+
+Gunakan entity ID untuk node key dan relation parent/child ID untuk edge. Jangan mengandalkan urutan array response.
 
 ## 12. Finance Components
 
