@@ -1282,7 +1282,7 @@ watch(
                         :to="{ path: '/quality/food-safety', query: { trace: code, direction: 'forward' } }"
                       >{{ code }}</RouterLink>
                     </div>
-                    <span v-else class="text-xs text-app-muted">Belum tersedia</span>
+                    <span v-else class="text-xs text-amber-500">Lineage bahan belum tercatat</span>
                   </td>
                   <td>
                     <RouterLink
@@ -1345,7 +1345,10 @@ watch(
                     <p class="font-mono text-xs font-semibold text-app-heading">{{ item.trace_code }}</p>
                     <p class="mt-1 text-xs text-app-muted">{{ item.quantity_portions }} porsi</p>
                   </td>
-                  <td>{{ item.raw_material_trace_codes?.join(', ') || '-' }}</td>
+                  <td>
+                    <span v-if="item.raw_material_trace_codes?.length">{{ item.raw_material_trace_codes.join(', ') }}</span>
+                    <span v-else class="text-xs text-amber-500">Lineage bahan belum tercatat</span>
+                  </td>
                   <td>{{ item.production_trace_code || item.production_number || '-' }}</td>
                   <td>{{ item.vehicle_code || item.plate_number || '-' }}</td>
                   <td>{{ item.destination_name || '-' }}</td>

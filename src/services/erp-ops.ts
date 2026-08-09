@@ -81,6 +81,13 @@ const totalFromEnvelope = (payload: { meta?: { total?: number } }, fallback: num
   payload.meta?.total ?? fallback
 
 const ensureArray = <T>(data: unknown): T[] => (Array.isArray(data) ? (data as T[]) : [])
+const normalizeProductionOrder = (item: ProductionOrderRecord) => {
+  const apiRecord = item as ProductionOrderRecord & { production_number?: string }
+  return {
+    ...item,
+    order_number: item.order_number || apiRecord.production_number || item.id,
+  }
+}
 const ensureRecord = <T>(value: T | undefined, message: string): T => {
   if (!value) {
     throw new Error(message)
@@ -588,7 +595,7 @@ export const decideApprovalRequest = async (
 export const getProductionOrders = async (context?: ApiRequestContext) => {
   try {
     const payload = await apiRequest<unknown>('/api/v1/production-orders/', { context })
-    const items = ensureArray<ProductionOrderRecord>(payload.data)
+    const items = ensureArray<ProductionOrderRecord>(payload.data).map(normalizeProductionOrder)
     return { items: items.length ? items : mockProductionOrders, total: totalFromEnvelope(payload, items.length || mockProductionOrders.length) }
   } catch {
     return { items: mockProductionOrders, total: mockProductionOrders.length }
@@ -607,7 +614,10 @@ export const getProductionCostSheet = async (productionOrderId: string) => {
 export const getProductionOrderById = async (productionOrderId: string) => {
   try {
     const payload = await apiRequest<ProductionOrderDetailRecord>(`/api/v1/production-orders/${productionOrderId}`)
-    return payload.data
+    return {
+      ...payload.data,
+      production_order: normalizeProductionOrder(payload.data.production_order),
+    }
   } catch {
     return (
       mockProductionOrderDetails.find((item) => item.production_order.id === productionOrderId) ||
