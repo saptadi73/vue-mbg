@@ -268,6 +268,8 @@ Sudah tersedia:
 - safety check, temperature reading, alert acknowledgement, HOLD, dan recall
 - package create, load, receive, GPS, suhu, serta lifecycle status
 - progress `packaged / accepted / remaining` dari refresh data package backend
+- report package aktif dan selesai dengan lineage raw material, produksi, package, armada, tujuan, deadline, dan sisa waktu live
+- donut status package dan bar chart distribusi porsi per tahap lifecycle
 - goods receipt batch table dengan expiry, quality, blocked state, print QR, dan forward trace
 - QR scanner dengan `BarcodeDetector` dan fallback `jsQR`
 - error handling package berdasarkan `response.code`
@@ -277,6 +279,8 @@ Gap tersisa:
 - validasi mutation end-to-end terhadap backend aktif; pengujian lokal terakhir masih menerima `502`
 - ganti input manual `delivery_stop_id` dengan selector stop yang difilter berdasarkan production/delivery order
 - tampilkan kapasitas tujuan `assigned / planned` sebelum load package
+- pastikan backend lifecycle mengirim `raw_material_trace_codes`, `production_trace_code`, `receive_deadline_at`, `received_at`, dan `max_time_to_recipient_minutes`
+- tambahkan filter report berdasarkan SPPG, rentang waktu, status, armada, dan tujuan ketika query backend tersedia
 - tambahkan visual graph relation/edge, bukan hanya entity cards
 - tampilkan detail hasil recall dan daftar package/delivery order terdampak
 - tambahkan automated component/E2E test untuk create package, double-submit prevention, HOLD blocking, dan receiving

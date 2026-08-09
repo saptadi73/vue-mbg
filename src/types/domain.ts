@@ -2004,11 +2004,16 @@ export interface DeliveryPackageLifecycleRecord {
   product_name: string
   quantity_portions: number
   package_trace_entity_id?: string | null
+  raw_material_trace_codes?: string[]
+  production_trace_code?: string | null
   production_order_id?: string | null
   production_number?: string | null
   cooking_completed_at?: string | null
   packaging_started_at?: string | null
   delivery_started_at?: string | null
+  received_at?: string | null
+  receive_deadline_at?: string | null
+  max_time_to_recipient_minutes?: number | null
   status: string
   status_label?: string | null
   vehicle_id?: string | null

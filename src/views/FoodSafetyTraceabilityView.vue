@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import type { ApexOptions } from 'apexcharts'
 import QRCode from 'qrcode'
+import ChartPanel from '@/components/charts/ChartPanel.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
@@ -48,7 +50,7 @@ import type {
 import { readStoredSession } from '@/utils/auth-storage'
 import { formatDateTime } from '@/utils/format'
 
-type Tab = 'trace' | 'safety' | 'alerts' | 'packages'
+type Tab = 'trace' | 'safety' | 'alerts' | 'packages' | 'reports'
 const props = withDefaults(defineProps<{ workspace?: 'all' | 'food-security' }>(), {
   workspace: 'all',
 })
@@ -60,8 +62,8 @@ const isFoodSecurityWorkspace = computed(() => props.workspace === 'food-securit
 const activeTab = ref<Tab>(props.workspace === 'food-security' ? 'packages' : 'trace')
 const visibleTabs = computed<Tab[]>(() =>
   isFoodSecurityWorkspace.value
-    ? ['packages', 'trace', 'safety', 'alerts']
-    : ['trace', 'safety', 'alerts', 'packages'],
+    ? ['packages', 'reports', 'trace', 'safety', 'alerts']
+    : ['trace', 'safety', 'alerts', 'packages', 'reports'],
 )
 const busy = ref(false)
 const message = ref('')
@@ -85,12 +87,14 @@ const productionOrders = ref<ProductionOrderRecord[]>([])
 const deliveryRoutes = ref<DeliveryRoutePlanRecord[]>([])
 const fleetVehicles = ref<FleetVehicleRecord[]>([])
 const packageActionLoading = ref(false)
+const reportNow = ref(Date.now())
 const videoElement = ref<HTMLVideoElement | null>(null)
 const cameraActive = ref(false)
 let cameraStream: MediaStream | null = null
 let scanFrame = 0
 let jsQrDecoder: JsQrDecoder | null = null
 let jsQrLoading: Promise<JsQrDecoder | null> | null = null
+let reportClock = 0
 
 type BarcodeResult = { rawValue: string }
 type JsQrDecodeResult = { data?: string }
@@ -244,6 +248,97 @@ const loadablePackages = computed(() =>
 const receivablePackages = computed(() =>
   packages.value.filter((item) => !['IN_WAREHOUSE', 'HOLD', 'RECEIVED'].includes(item.status)),
 )
+const completedStatuses = new Set(['RECEIVED', 'DONE', 'COMPLETED'])
+const reportActivePackages = computed(() =>
+  packages.value
+    .filter((item) => !completedStatuses.has(item.status))
+    .sort((left, right) => {
+      const leftDeadline = left.receive_deadline_at ? new Date(left.receive_deadline_at).getTime() : Infinity
+      const rightDeadline = right.receive_deadline_at ? new Date(right.receive_deadline_at).getTime() : Infinity
+      return leftDeadline - rightDeadline
+    }),
+)
+const reportDonePackages = computed(() =>
+  packages.value
+    .filter((item) => completedStatuses.has(item.status))
+    .sort((left, right) => String(right.received_at || '').localeCompare(String(left.received_at || ''))),
+)
+const reportStatusRows = computed(() => {
+  const counts = new Map<string, number>()
+  for (const item of packages.value) counts.set(item.status, (counts.get(item.status) || 0) + 1)
+  return [...counts.entries()].map(([status, count]) => ({ status, count }))
+})
+const statusChartOptions = computed<ApexOptions>(() => ({
+  chart: { toolbar: { show: false }, background: 'transparent' },
+  labels: reportStatusRows.value.map((item) => item.status),
+  colors: ['#2dd4bf', '#38bdf8', '#f59e0b', '#34d399', '#fb7185', '#94a3b8'],
+  dataLabels: { enabled: true },
+  legend: { position: 'bottom', labels: { colors: '#94a3b8' } },
+  stroke: { colors: ['transparent'] },
+}))
+const statusChartSeries = computed(() => reportStatusRows.value.map((item) => item.count))
+const stageRows = computed(() => [
+  {
+    label: 'Di Gudang',
+    portions: packages.value
+      .filter((item) => item.status === 'IN_WAREHOUSE')
+      .reduce((total, item) => total + item.quantity_portions, 0),
+  },
+  {
+    label: 'Dalam Proses Kirim',
+    portions: packages.value
+      .filter((item) => ['LOADED', 'SENT', 'IN_TRANSIT', 'ARRIVED'].includes(item.status))
+      .reduce((total, item) => total + item.quantity_portions, 0),
+  },
+  {
+    label: 'HOLD',
+    portions: packages.value
+      .filter((item) => item.status === 'HOLD')
+      .reduce((total, item) => total + item.quantity_portions, 0),
+  },
+  {
+    label: 'Diterima',
+    portions: reportDonePackages.value.reduce((total, item) => total + item.quantity_portions, 0),
+  },
+])
+const stageChartOptions = computed<ApexOptions>(() => ({
+  chart: { toolbar: { show: false }, background: 'transparent' },
+  colors: ['#2dd4bf'],
+  plotOptions: { bar: { borderRadius: 5, columnWidth: '52%' } },
+  dataLabels: { enabled: false },
+  grid: { borderColor: 'rgba(148, 163, 184, 0.12)' },
+  xaxis: {
+    categories: stageRows.value.map((item) => item.label),
+    labels: { style: { colors: '#94a3b8' } },
+  },
+  yaxis: { labels: { style: { colors: '#94a3b8' } } },
+}))
+const stageChartSeries = computed(() => [
+  { name: 'Porsi', data: stageRows.value.map((item) => item.portions) },
+])
+
+const remainingMilliseconds = (item: DeliveryPackageLifecycleRecord) => {
+  if (!item.receive_deadline_at) return null
+  return new Date(item.receive_deadline_at).getTime() - reportNow.value
+}
+const formatDuration = (milliseconds: number | null) => {
+  if (milliseconds === null) return 'Belum tersedia'
+  const absoluteMinutes = Math.floor(Math.abs(milliseconds) / 60_000)
+  const hours = Math.floor(absoluteMinutes / 60)
+  const minutes = absoluteMinutes % 60
+  const duration = `${hours}j ${minutes}m`
+  return milliseconds < 0 ? `Terlambat ${duration}` : duration
+}
+const formatMaximumTime = (minutes?: number | null) =>
+  minutes ? formatDuration(minutes * 60_000) : 'Belum tersedia'
+const isPackageOverdue = (item: DeliveryPackageLifecycleRecord) => {
+  const remaining = remainingMilliseconds(item)
+  return remaining !== null && remaining < 0
+}
+const actualDeliveryDuration = (item: DeliveryPackageLifecycleRecord) => {
+  if (!item.cooking_completed_at || !item.received_at) return null
+  return new Date(item.received_at).getTime() - new Date(item.cooking_completed_at).getTime()
+}
 
 const canContinue = computed(
   () => !checkResult.value || ['PASS', 'WARNING'].includes(checkResult.value.gate),
@@ -668,13 +763,22 @@ const stopCamera = () => {
   if (videoElement.value) videoElement.value.srcObject = null
 }
 
-onBeforeUnmount(stopCamera)
+onMounted(() => {
+  reportClock = window.setInterval(() => {
+    reportNow.value = Date.now()
+  }, 30_000)
+})
+
+onBeforeUnmount(() => {
+  stopCamera()
+  window.clearInterval(reportClock)
+})
 
 watch(
   activeTab,
   (tab) => {
     if ((tab === 'safety' || tab === 'alerts') && !profiles.value.length) loadSafety()
-    if (tab === 'packages' && !productionOrders.value.length) loadPackageWorkspace()
+    if ((tab === 'packages' || tab === 'reports') && !productionOrders.value.length) loadPackageWorkspace()
   },
   { immediate: true },
 )
@@ -720,7 +824,9 @@ watch(
               ? 'Safety Check'
               : tab === 'alerts'
                 ? 'Alerts & Actions'
-                : 'Kemasan & Pengiriman'
+                : tab === 'reports'
+                  ? 'Report'
+                  : 'Kemasan & Pengiriman'
         }}
       </button>
     </div>
@@ -1073,6 +1179,166 @@ watch(
           </button>
         </article>
       </div>
+    </section>
+
+    <section v-else-if="activeTab === 'reports'" class="space-y-6">
+      <LoadingSkeleton v-if="packageLoading" variant="workspace" label="Memuat report traceability dan food security" />
+
+      <template v-else>
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <article class="glass-panel p-5">
+            <p class="text-xs uppercase tracking-[0.18em] text-app-muted">Masih Proses</p>
+            <p class="mt-2 font-display text-3xl text-app-heading">{{ reportActivePackages.length }}</p>
+            <p class="mt-1 text-sm text-app-body">package belum diterima</p>
+          </article>
+          <article class="glass-panel p-5">
+            <p class="text-xs uppercase tracking-[0.18em] text-app-muted">Sudah Done</p>
+            <p class="mt-2 font-display text-3xl text-app-heading">{{ reportDonePackages.length }}</p>
+            <p class="mt-1 text-sm text-app-body">package selesai diterima</p>
+          </article>
+          <article class="glass-panel p-5">
+            <p class="text-xs uppercase tracking-[0.18em] text-app-muted">Porsi Dalam Proses</p>
+            <p class="mt-2 font-display text-3xl text-app-heading">{{ reportActivePackages.reduce((total, item) => total + item.quantity_portions, 0) }}</p>
+            <p class="mt-1 text-sm text-app-body">porsi sedang diamankan</p>
+          </article>
+          <article class="glass-panel p-5">
+            <p class="text-xs uppercase tracking-[0.18em] text-app-muted">Melewati Batas</p>
+            <p class="mt-2 font-display text-3xl text-rose-400">{{ reportActivePackages.filter(isPackageOverdue).length }}</p>
+            <p class="mt-1 text-sm text-app-body">package perlu eskalasi</p>
+          </article>
+        </div>
+
+        <div class="grid gap-6 xl:grid-cols-2">
+          <ChartPanel
+            title="Komposisi Status Paket"
+            subtitle="Jumlah package pada setiap status lifecycle."
+            type="donut"
+            :options="statusChartOptions"
+            :series="statusChartSeries"
+            :height="320"
+          />
+          <ChartPanel
+            title="Distribusi Porsi per Tahap"
+            subtitle="Porsi di gudang, proses kirim, HOLD, dan diterima."
+            type="bar"
+            :options="stageChartOptions"
+            :series="stageChartSeries"
+            :height="320"
+          />
+        </div>
+
+        <article class="glass-panel overflow-hidden">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 p-6">
+            <div>
+              <p class="eyebrow-text">Paket Masih Proses</p>
+              <h2 class="mt-2 font-display text-2xl text-app-heading">Trace aktif dan safety clock</h2>
+              <p class="mt-2 text-sm text-app-muted">Diurutkan berdasarkan deadline penerimaan paling dekat.</p>
+            </div>
+            <button class="secondary-button" :disabled="packageLoading" @click="loadPackageWorkspace">Refresh Report</button>
+          </div>
+          <div class="overflow-x-auto p-6 pt-4">
+            <table class="data-table min-w-7xl">
+              <thead>
+                <tr>
+                  <th>Batch Raw Material</th>
+                  <th>Batch Masak / Produksi</th>
+                  <th>Paket Kiriman</th>
+                  <th>Armada / Route</th>
+                  <th>Tujuan</th>
+                  <th>Mulai Masak</th>
+                  <th>Maks. Diterima</th>
+                  <th>Sisa Waktu</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in reportActivePackages" :key="item.package_id">
+                  <td>
+                    <div v-if="item.raw_material_trace_codes?.length" class="flex max-w-52 flex-wrap gap-1.5">
+                      <RouterLink
+                        v-for="code in item.raw_material_trace_codes"
+                        :key="code"
+                        class="rounded-lg bg-teal-400/10 px-2 py-1 font-mono text-[11px] text-teal-300"
+                        :to="{ path: '/quality/food-safety', query: { trace: code, direction: 'forward' } }"
+                      >{{ code }}</RouterLink>
+                    </div>
+                    <span v-else class="text-xs text-app-muted">Belum tersedia</span>
+                  </td>
+                  <td>
+                    <RouterLink
+                      v-if="item.production_trace_code"
+                      class="font-mono text-xs text-sky-400"
+                      :to="{ path: '/quality/food-safety', query: { trace: item.production_trace_code, direction: 'backward' } }"
+                    >{{ item.production_trace_code }}</RouterLink>
+                    <p class="mt-1 text-xs text-app-muted">{{ item.production_number || item.production_order_id || '-' }}</p>
+                  </td>
+                  <td>
+                    <p class="font-mono text-xs font-semibold text-app-heading">{{ item.trace_code }}</p>
+                    <p class="mt-1 text-xs text-app-muted">{{ item.product_name }} · {{ item.quantity_portions }} porsi</p>
+                  </td>
+                  <td>
+                    <p>{{ item.vehicle_code || 'Belum ditetapkan' }}</p>
+                    <p class="mt-1 text-xs text-app-muted">{{ item.plate_number || item.route_code || '-' }}</p>
+                  </td>
+                  <td>{{ item.destination_name || 'Belum ditetapkan' }}</td>
+                  <td>{{ item.cooking_completed_at ? formatDateTime(item.cooking_completed_at) : '-' }}</td>
+                  <td>
+                    <p>{{ item.receive_deadline_at ? formatDateTime(item.receive_deadline_at) : 'Belum tersedia' }}</p>
+                    <p class="mt-1 text-xs text-app-muted">Batas {{ formatMaximumTime(item.max_time_to_recipient_minutes) }}</p>
+                  </td>
+                  <td>
+                    <span
+                      class="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
+                      :class="isPackageOverdue(item) ? 'bg-rose-500/15 text-rose-400' : 'bg-emerald-500/15 text-emerald-400'"
+                    >{{ formatDuration(remainingMilliseconds(item)) }}</span>
+                  </td>
+                  <td><StatusBadge :status="item.status" /></td>
+                </tr>
+              </tbody>
+            </table>
+            <p v-if="!reportActivePackages.length" class="py-8 text-center text-sm text-app-muted">Tidak ada package yang masih diproses.</p>
+          </div>
+        </article>
+
+        <article class="glass-panel overflow-hidden">
+          <div class="border-b border-white/10 p-6">
+            <p class="eyebrow-text">Paket Sudah Done</p>
+            <h2 class="mt-2 font-display text-2xl text-app-heading">Riwayat package diterima</h2>
+          </div>
+          <div class="overflow-x-auto p-6 pt-4">
+            <table class="data-table min-w-275">
+              <thead>
+                <tr>
+                  <th>Paket</th>
+                  <th>Batch Raw Material</th>
+                  <th>Produksi</th>
+                  <th>Armada</th>
+                  <th>Tujuan</th>
+                  <th>Waktu Diterima</th>
+                  <th>Durasi Aktual</th>
+                  <th>Hasil</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in reportDonePackages" :key="item.package_id">
+                  <td>
+                    <p class="font-mono text-xs font-semibold text-app-heading">{{ item.trace_code }}</p>
+                    <p class="mt-1 text-xs text-app-muted">{{ item.quantity_portions }} porsi</p>
+                  </td>
+                  <td>{{ item.raw_material_trace_codes?.join(', ') || '-' }}</td>
+                  <td>{{ item.production_trace_code || item.production_number || '-' }}</td>
+                  <td>{{ item.vehicle_code || item.plate_number || '-' }}</td>
+                  <td>{{ item.destination_name || '-' }}</td>
+                  <td>{{ item.received_at ? formatDateTime(item.received_at) : '-' }}</td>
+                  <td>{{ formatDuration(actualDeliveryDuration(item)) }}</td>
+                  <td><StatusBadge :status="item.status" /></td>
+                </tr>
+              </tbody>
+            </table>
+            <p v-if="!reportDonePackages.length" class="py-8 text-center text-sm text-app-muted">Belum ada package selesai diterima.</p>
+          </div>
+        </article>
+      </template>
     </section>
 
     <section v-else class="space-y-6">
