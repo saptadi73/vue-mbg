@@ -21,15 +21,27 @@ import type { DeliveryRoutePlanRecord, FleetVehicleRecord } from '@/types/domain
 import type { FoodSafetyProfile, TraceEntity } from '@/types/food-safety'
 import type { DeliveryPackageLifecycleRecord } from '@/types/domain'
 
+const props = withDefaults(defineProps<{ workspace?: 'all' | 'raw-material' }>(), {
+  workspace: 'all',
+})
+
 type BarcodeResult = { rawValue: string }
 type JsQrDecodeResult = { data?: string }
-type JsQrDecoder = (data: Uint8ClampedArray, width: number, height: number, options?: unknown) => JsQrDecodeResult | null
+type JsQrDecoder = (
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  options?: unknown,
+) => JsQrDecodeResult | null
 type WindowWithJsQr = Window & { jsQR?: JsQrDecoder }
 type BarcodeDetectorInstance = { detect: (source: HTMLVideoElement) => Promise<BarcodeResult[]> }
 type BarcodeDetectorConstructor = new (options?: { formats?: string[] }) => BarcodeDetectorInstance
 
 const appStore = useAppStore()
-const activePanel = ref<'temperature' | 'gps' | 'qr'>('temperature')
+const activePanel = ref<'temperature' | 'gps' | 'qr'>(
+  props.workspace === 'raw-material' ? 'qr' : 'temperature',
+)
+const isRawMaterialWorkspace = computed(() => props.workspace === 'raw-material')
 const busy = ref(false)
 const message = ref('')
 const error = ref('')
@@ -127,7 +139,8 @@ const loadJsQr = async () => {
 
 const readQrFromVideo = async (): Promise<string | null> => {
   const video = videoElement.value
-  if (!video || !cameraActive.value || video.videoWidth === 0 || video.videoHeight === 0) return null
+  if (!video || !cameraActive.value || video.videoWidth === 0 || video.videoHeight === 0)
+    return null
 
   const decoder = await loadJsQr()
   if (!decoder) return null
@@ -140,7 +153,9 @@ const readQrFromVideo = async (): Promise<string | null> => {
 
   context.drawImage(video, 0, 0, canvas.width, canvas.height)
   const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
-  const result = decoder(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' })
+  const result = decoder(imageData.data, imageData.width, imageData.height, {
+    inversionAttempts: 'dontInvert',
+  })
   return result?.data || null
 }
 
@@ -159,7 +174,9 @@ const isPackage = computed(() =>
 )
 const resolvedPackage = computed(() => {
   if (!traceResult.value?.trace_code) return null
-  const matched = deliveryPackages.value.find((item) => item.trace_code === traceResult.value!.trace_code)
+  const matched = deliveryPackages.value.find(
+    (item) => item.trace_code === traceResult.value!.trace_code,
+  )
   return matched || null
 })
 const resolvedPackageId = computed(() => {
@@ -353,7 +370,7 @@ const submitMaterialMovement = () =>
       if (!traceResult.value || !isRawMaterial.value) {
         throw new Error('QR harus bertipe RAW_MATERIAL_LOT untuk transaksi bahan baku.')
       }
-    const eventType = qrAction.value === 'RAW_RECEIVED' ? 'RECEIVED' : 'ISSUED'
+      const eventType = qrAction.value === 'RAW_RECEIVED' ? 'RECEIVED' : 'ISSUED'
       await addTraceEvent(traceResult.value.trace_code, {
         event_type: eventType,
         notes:
@@ -446,7 +463,8 @@ const submitPackageReceive = () =>
       throw new Error('Data paket tidak lengkap. Selesaikan resolve QR lalu coba lagi.')
     }
     if (!resolvedPackage.value?.package_id) {
-      printError.value = 'Data paket belum sinkron ke modul delivery lifecycle. Tetap kirim dengan jejak trace_id.'
+      printError.value =
+        'Data paket belum sinkron ke modul delivery lifecycle. Tetap kirim dengan jejak trace_id.'
     }
     if (receiveForm.latitude === null || receiveForm.longitude === null) {
       throw new Error('GPS penerimaan wajib diambil atau diisi.')
@@ -508,9 +526,10 @@ const startCamera = async () => {
         await loadJsQr()
         scanFrame = window.requestAnimationFrame(() => void scanCameraFrame())
       } catch (cause) {
-        cameraSupportMessage.value = cause instanceof Error
-          ? `Gagal memuat library QR: ${cause.message}`
-          : 'Gagal memuat library QR untuk fallback scan.'
+        cameraSupportMessage.value =
+          cause instanceof Error
+            ? `Gagal memuat library QR: ${cause.message}`
+            : 'Gagal memuat library QR untuk fallback scan.'
         stopCamera()
       }
     }
@@ -535,10 +554,18 @@ onBeforeUnmount(stopCamera)
 <template>
   <div class="space-y-6">
     <PageHeader
-      title="Operasional Lapangan"
-      subtitle="Pencatatan manual saat perangkat IoT belum tersedia, pelaporan GPS armada, dan pemindaian QR melalui web."
-      :badges="['Mobile Ready', 'Manual Fallback', 'Audit Trail']"
-      />
+      :title="isRawMaterialWorkspace ? 'Traceability Bahan Baku' : 'Operasional Lapangan'"
+      :subtitle="
+        isRawMaterialWorkspace
+          ? 'Catat bahan baku masuk dan keluar, pindai identitas lot, serta cetak label QR dari satu halaman.'
+          : 'Pencatatan manual saat perangkat IoT belum tersedia, pelaporan GPS armada, dan pemindaian QR melalui web.'
+      "
+      :badges="
+        isRawMaterialWorkspace
+          ? ['Raw Material', 'QR Print & Scan', 'Audit Trail']
+          : ['Mobile Ready', 'Manual Fallback', 'Audit Trail']
+      "
+    />
     <p
       v-if="cameraSupportMessage"
       class="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700"
@@ -546,7 +573,7 @@ onBeforeUnmount(stopCamera)
       {{ cameraSupportMessage }}
     </p>
 
-    <div class="grid gap-3 md:grid-cols-3">
+    <div v-if="!isRawMaterialWorkspace" class="grid gap-3 md:grid-cols-3">
       <button
         class="glass-panel flex items-center gap-4 p-5 text-left"
         :class="{ 'ring-2 ring-emerald-500': activePanel === 'temperature' }"
@@ -585,7 +612,10 @@ onBeforeUnmount(stopCamera)
     >
       {{ message }}
     </p>
-    <p v-if="printMessage" class="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+    <p
+      v-if="printMessage"
+      class="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700"
+    >
       {{ printMessage }}
     </p>
     <p v-if="error" class="rounded-2xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
@@ -749,6 +779,7 @@ onBeforeUnmount(stopCamera)
         </div>
         <div class="mb-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
           <button
+            v-if="!isRawMaterialWorkspace"
             type="button"
             class="secondary-button justify-center"
             :class="{ 'ring-2 ring-emerald-500': qrAction === 'RAW_RECEIVED' }"
@@ -757,6 +788,7 @@ onBeforeUnmount(stopCamera)
             Barang masuk
           </button>
           <button
+            v-if="!isRawMaterialWorkspace"
             type="button"
             class="secondary-button justify-center"
             :class="{ 'ring-2 ring-emerald-500': qrAction === 'RAW_ISSUED' }"

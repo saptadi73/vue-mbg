@@ -36,10 +36,19 @@ import { readStoredSession } from '@/utils/auth-storage'
 import { formatDateTime } from '@/utils/format'
 
 type Tab = 'trace' | 'safety' | 'alerts' | 'packages'
+const props = withDefaults(defineProps<{ workspace?: 'all' | 'food-security' }>(), {
+  workspace: 'all',
+})
 const session = readStoredSession()
 const tenantId = session?.tenantId || env.devTenantId
 const sppgId = session?.activeSppgId || env.devSppgId
-const activeTab = ref<Tab>('trace')
+const isFoodSecurityWorkspace = computed(() => props.workspace === 'food-security')
+const activeTab = ref<Tab>(props.workspace === 'food-security' ? 'packages' : 'trace')
+const visibleTabs = computed<Tab[]>(() =>
+  isFoodSecurityWorkspace.value
+    ? ['packages', 'trace', 'safety', 'alerts']
+    : ['trace', 'safety', 'alerts', 'packages'],
+)
 const busy = ref(false)
 const message = ref('')
 const error = ref('')
@@ -67,7 +76,12 @@ let jsQrLoading: Promise<JsQrDecoder | null> | null = null
 
 type BarcodeResult = { rawValue: string }
 type JsQrDecodeResult = { data?: string }
-type JsQrDecoder = (data: Uint8ClampedArray, width: number, height: number, options?: unknown) => JsQrDecodeResult | null
+type JsQrDecoder = (
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  options?: unknown,
+) => JsQrDecodeResult | null
 type WindowWithJsQr = Window & { jsQR?: JsQrDecoder }
 type BarcodeDetectorInstance = { detect: (source: HTMLVideoElement) => Promise<BarcodeResult[]> }
 type BarcodeDetectorConstructor = new (options?: { formats?: string[] }) => BarcodeDetectorInstance
@@ -107,7 +121,8 @@ const loadJsQr = async () => {
 
 const readQrFromVideo = async (): Promise<string | null> => {
   const video = videoElement.value
-  if (!video || !cameraActive.value || video.videoWidth === 0 || video.videoHeight === 0) return null
+  if (!video || !cameraActive.value || video.videoWidth === 0 || video.videoHeight === 0)
+    return null
 
   const decoder = await loadJsQr()
   if (!decoder) return null
@@ -120,7 +135,9 @@ const readQrFromVideo = async (): Promise<string | null> => {
 
   context.drawImage(video, 0, 0, canvas.width, canvas.height)
   const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
-  const result = decoder(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' })
+  const result = decoder(imageData.data, imageData.width, imageData.height, {
+    inversionAttempts: 'dontInvert',
+  })
   return result?.data || null
 }
 
@@ -417,7 +434,10 @@ const startCamera = async () => {
   const Detector = (window as typeof window & { BarcodeDetector?: BarcodeDetectorConstructor })
     .BarcodeDetector
   try {
-    cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment' },
+      audio: false,
+    })
     cameraActive.value = true
     await nextTick()
     if (!videoElement.value) return
@@ -431,9 +451,10 @@ const startCamera = async () => {
         await loadJsQr()
         scanFrame = window.requestAnimationFrame(() => void scanCameraFrame())
       } catch (cause) {
-        cameraSupportMessage.value = cause instanceof Error
-          ? `Gagal memuat library QR: ${cause.message}`
-          : 'Gagal memuat library QR untuk fallback scan.'
+        cameraSupportMessage.value =
+          cause instanceof Error
+            ? `Gagal memuat library QR: ${cause.message}`
+            : 'Gagal memuat library QR untuk fallback scan.'
         stopCamera()
       }
     }
@@ -453,22 +474,30 @@ const stopCamera = () => {
 
 onBeforeUnmount(stopCamera)
 
-watch(activeTab, (tab) => {
-  if ((tab === 'safety' || tab === 'alerts') && !profiles.value.length) loadSafety()
-  if (tab === 'packages' && !packages.value.length) loadPackages()
-})
+watch(
+  activeTab,
+  (tab) => {
+    if ((tab === 'safety' || tab === 'alerts') && !profiles.value.length) loadSafety()
+    if (tab === 'packages' && !packages.value.length) loadPackages()
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
   <div class="space-y-6">
     <PageHeader
-      title="Food Safety & Traceability"
-      subtitle="QR lineage end-to-end, safety gate, temperature, alert, HOLD, dan recall berdasarkan API v2.1."
-      :badges="['Traceability v2.1', 'Backend Safety Gate', 'Audit Ready']"
+      :title="isFoodSecurityWorkspace ? 'Food Security' : 'Food Safety & Traceability'"
+      :subtitle="
+        isFoodSecurityWorkspace
+          ? 'Pantau kemasan siap kirim, cetak dan scan QR, status pengiriman, riwayat proses memasak, hingga penerimaan paket.'
+          : 'QR lineage end-to-end, safety gate, temperature, alert, HOLD, dan recall berdasarkan API v2.1.'
+      "
+      :badges="['QR End-to-End', 'Safety Gate', 'Audit Ready']"
     />
     <div class="glass-panel flex flex-wrap gap-2 p-3">
       <button
-        v-for="tab in ['trace', 'safety', 'alerts', 'packages'] as Tab[]"
+        v-for="tab in visibleTabs"
         :key="tab"
         class="secondary-button"
         :class="{ 'primary-button': activeTab === tab }"
@@ -476,12 +505,14 @@ watch(activeTab, (tab) => {
       >
         {{
           tab === 'trace'
-            ? 'QR & Lineage'
+            ? isFoodSecurityWorkspace
+              ? 'Scan & Riwayat Proses'
+              : 'QR & Lineage'
             : tab === 'safety'
               ? 'Safety Check'
               : tab === 'alerts'
                 ? 'Alerts & Actions'
-                : 'Packages'
+                : 'Kemasan & Pengiriman'
         }}
       </button>
     </div>
@@ -571,9 +602,13 @@ watch(activeTab, (tab) => {
         <div v-if="traceLabel" class="surface-subtle rounded-3xl p-5">
           <p class="eyebrow-text">Label payload</p>
           <p class="mt-2 text-sm text-app-body">
-            {{ traceLabel.label?.content || 'Label siap dikirim ke printer / service print barcode.' }}
+            {{
+              traceLabel.label?.content || 'Label siap dikirim ke printer / service print barcode.'
+            }}
           </p>
-          <pre class="mt-2 overflow-x-auto text-xs text-app-muted">{{ JSON.stringify(traceLabel.label?.print_payload || traceLabel.payload, null, 2) }}</pre>
+          <pre class="mt-2 overflow-x-auto text-xs text-app-muted">{{
+            JSON.stringify(traceLabel.label?.print_payload || traceLabel.payload, null, 2)
+          }}</pre>
         </div>
         <div class="border-t border-white/10 pt-4">
           <p class="font-semibold text-app-heading">Catat Event</p>
@@ -851,14 +886,21 @@ watch(activeTab, (tab) => {
               <div>
                 <p class="font-semibold text-app-heading">{{ item.trace_code }}</p>
                 <p class="mt-1 text-sm text-app-body">
-                  {{ item.product_name }} | {{ item.status_label || item.status }} | Porsi {{ item.quantity_portions }}
+                  {{ item.product_name }} | {{ item.status_label || item.status }} | Porsi
+                  {{ item.quantity_portions }}
                 </p>
               </div>
               <div class="flex gap-2">
-                <button class="secondary-button" :disabled="printLoading" @click="printPackageLabel(item.trace_code)">
+                <button
+                  class="secondary-button"
+                  :disabled="printLoading"
+                  @click="printPackageLabel(item.trace_code)"
+                >
                   Cetak label
                 </button>
-                <button class="secondary-button" @click="pickPackage(item.trace_code)">Buka Trace</button>
+                <button class="secondary-button" @click="pickPackage(item.trace_code)">
+                  Buka Trace
+                </button>
               </div>
             </div>
             <div class="mt-2 text-xs text-app-muted">
@@ -866,7 +908,9 @@ watch(activeTab, (tab) => {
               <p v-if="item.destination_name">Tujuan: {{ item.destination_name }}</p>
             </div>
           </div>
-          <p v-if="!packages.length" class="text-sm text-app-muted">Tidak ada paket dalam lifecycle.</p>
+          <p v-if="!packages.length" class="text-sm text-app-muted">
+            Tidak ada paket dalam lifecycle.
+          </p>
         </div>
       </div>
     </section>

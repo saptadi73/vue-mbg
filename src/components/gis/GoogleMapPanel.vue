@@ -49,6 +49,7 @@ let overlays: any[] = []
 
 const mapsApi = () => (window as Window & { google?: { maps?: MapsApi } }).google?.maps
 const shouldRenderGoogle = computed(() => googleMaps.configured && !loadError.value)
+const supportsServiceRadius = computed(() => props.mode !== 'fleet')
 const showOnlyKitchens = ref(false)
 const showRadiusCircles = ref(true)
 const radiusMinMeters = ref(0)
@@ -130,7 +131,9 @@ const addCoverageCircle = (
 }
 
 const buildKitchenInfo = (name: string, serviceRadius: number, coveredCount: number) => {
-  const radiusText = serviceRadius > 0 ? `Radius layanan: ${formatDistance(serviceRadius)}` : null
+  const radiusText = supportsServiceRadius.value && serviceRadius > 0
+    ? `Radius layanan: ${formatDistance(serviceRadius)}`
+    : null
   const coveredText = `Sekolah tercover: ${coveredCount}`
   return `${name}<br>${radiusText ? `${radiusText}<br>` : ''}${coveredText}`
 }
@@ -260,7 +263,7 @@ const render = () => {
   if (modesWithKitchens.includes(props.mode))
     props.dataset.kitchens.forEach((p) => {
       const serviceRadius = Number(p.service_radius_meter || 0)
-      if (!isKitchenRadiusVisible(serviceRadius)) return
+      if (supportsServiceRadius.value && !isKitchenRadiusVisible(serviceRadius)) return
       const coveredSchoolCount = Number.isFinite(p.covered_school_count || 0)
         ? p.covered_school_count || 0
         : 0
@@ -271,7 +274,7 @@ const render = () => {
         buildKitchenInfo(p.name, serviceRadius, coveredSchoolCount),
         bounds,
       )
-      if (showRadiusCircles.value) {
+      if (supportsServiceRadius.value && showRadiusCircles.value) {
         addCoverageCircle(
           { lat: p.latitude, lng: p.longitude },
           serviceRadius,
@@ -414,14 +417,16 @@ onBeforeUnmount(clear)
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <span class="legend-chip"><i class="legend-dot bg-teal-300"></i> Dapur terdaftar</span>
-        <span class="legend-chip"><i class="legend-dot bg-sky-300"></i> Radius layanan (lingkaran)</span>
-        <span class="legend-chip"><i class="legend-dot bg-red-400"></i> Radius belum optimal</span>
-        <span class="legend-chip"><i class="legend-dot bg-amber-400"></i> Radius sedang</span>
-        <span class="legend-chip"><i class="legend-dot bg-green-400"></i> Radius optimal</span>
+        <template v-if="supportsServiceRadius">
+          <span class="legend-chip"><i class="legend-dot bg-sky-300"></i> Radius layanan (lingkaran)</span>
+          <span class="legend-chip"><i class="legend-dot bg-red-400"></i> Radius belum optimal</span>
+          <span class="legend-chip"><i class="legend-dot bg-amber-400"></i> Radius sedang</span>
+          <span class="legend-chip"><i class="legend-dot bg-green-400"></i> Radius optimal</span>
+        </template>
         <span class="legend-chip"><i class="legend-dot bg-sky-200"></i> Sekolah</span>
         <span class="legend-chip"><i class="legend-dot bg-rose-200"></i> Unserved</span>
       </div>
-      <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-app-body">
+      <div v-if="supportsServiceRadius" class="mt-2 flex flex-wrap items-center gap-3 text-xs text-app-body">
         <label class="inline-flex items-center gap-2">
           <input v-model="showOnlyKitchens" type="checkbox" />
           <span>Hanya Dapur + Radius</span>
@@ -454,7 +459,7 @@ onBeforeUnmount(clear)
           Reset layer
         </button>
       </div>
-      <p v-if="radiusFilterRange.minGreaterThanMax" class="text-[11px] text-rose-400">
+      <p v-if="supportsServiceRadius && radiusFilterRange.minGreaterThanMax" class="text-[11px] text-rose-400">
         Min radius tidak boleh lebih besar dari max radius.
       </p>
     </div>

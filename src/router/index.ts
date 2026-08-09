@@ -8,7 +8,6 @@ const MyProfileView = () => import('@/views/MyProfileView.vue')
 const NotificationInboxView = () => import('@/views/NotificationInboxView.vue')
 const DashboardView = () => import('@/views/DashboardView.vue')
 const MealPlansView = () => import('@/views/MealPlansView.vue')
-const InventoryView = () => import('@/views/InventoryView.vue')
 const FinanceView = () => import('@/views/FinanceView.vue')
 const FinanceReportsView = () => import('@/views/FinanceReportsView.vue')
 const AccountsView = () => import('@/views/AccountsView.vue')
@@ -40,6 +39,7 @@ const FieldOperationsView = () => import('@/views/FieldOperationsView.vue')
 const FeedbackView = () => import('@/views/FeedbackView.vue')
 const QualityInspectionsView = () => import('@/views/QualityInspectionsView.vue')
 const FoodSafetyTraceabilityView = () => import('@/views/FoodSafetyTraceabilityView.vue')
+const TraceabilitySecurityView = () => import('@/views/TraceabilitySecurityView.vue')
 const GisView = () => import('@/views/GisView.vue')
 const FleetGisView = () => import('@/views/FleetGisView.vue')
 const SchoolsView = () => import('@/views/SchoolsView.vue')
@@ -118,9 +118,7 @@ const router = createRouter({
     },
     {
       path: '/inventory',
-      name: 'inventory',
-      component: InventoryView,
-      meta: { requiresAuth: true },
+      redirect: { path: '/traceability-security', query: { workspace: 'inventory' } },
     },
     {
       path: '/finance',
@@ -414,6 +412,10 @@ const router = createRouter({
       },
     },
     {
+      path: '/traceability/raw-material',
+      redirect: { path: '/traceability-security', query: { workspace: 'raw-material' } },
+    },
+    {
       path: '/delivery',
       name: 'delivery',
       component: DeliveryView,
@@ -474,6 +476,18 @@ const router = createRouter({
       meta: {
         requiresAuth: true,
         roles: ['super_admin', 'tenant_admin', 'operations_manager', 'quality_officer'],
+      },
+    },
+    {
+      path: '/food-security',
+      redirect: { path: '/traceability-security', query: { workspace: 'food-security' } },
+    },
+    {
+      path: '/traceability-security',
+      name: 'traceability-security',
+      component: TraceabilitySecurityView,
+      meta: {
+        requiresAuth: true,
       },
     },
     { path: '/gis', name: 'gis', component: GisView, meta: { requiresAuth: true } },

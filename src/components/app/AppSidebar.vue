@@ -138,7 +138,6 @@ const sections: NavSection[] = [
     icon: ClipboardList,
     items: [
       { label: 'Paket Makan', to: '/meal-plans', icon: Utensils },
-      { label: 'Inventory', to: '/inventory', icon: Boxes, badge: 'inventoryAttention' },
       {
         label: 'Fleet',
         to: '/fleet',
@@ -206,13 +205,6 @@ const sections: NavSection[] = [
         matchPrefixes: ['/quality'],
       },
       {
-        label: 'Food Safety & Trace',
-        to: '/quality/food-safety',
-        icon: ScanLine,
-        roles: ['super_admin', 'tenant_admin', 'operations_manager', 'quality_officer'],
-        matchPrefixes: ['/quality/food-safety'],
-      },
-      {
         label: 'Procurement',
         to: '/procurement',
         icon: ShoppingCart,
@@ -231,6 +223,20 @@ const sections: NavSection[] = [
         to: '/costing',
         icon: Calculator,
         roles: ['super_admin', 'tenant_admin', 'finance_manager', 'operations_manager'],
+      },
+    ],
+  },
+  {
+    id: 'traceability-security',
+    title: 'Traceability & Security',
+    icon: ShieldCheck,
+    items: [
+      {
+        label: 'Traceability, Inventory & Food Security',
+        to: '/traceability-security',
+        icon: ShieldCheck,
+        matchPrefixes: ['/traceability-security'],
+        badge: 'inventoryAttention',
       },
     ],
   },
@@ -464,7 +470,11 @@ const getDefaultOpenState = () =>
   Object.fromEntries(
     sections.map((section, index) => [
       section.id,
-      section.id === 'operations' || section.id === 'master-data' ? true : index === 0,
+      section.id === 'operations' ||
+      section.id === 'traceability-security' ||
+      section.id === 'master-data'
+        ? true
+        : index === 0,
     ]),
   ) as Record<string, boolean>
 
