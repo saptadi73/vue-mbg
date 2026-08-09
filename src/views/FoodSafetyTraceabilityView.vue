@@ -787,7 +787,8 @@ watch(
   activeTab,
   (tab) => {
     if ((tab === 'safety' || tab === 'alerts') && !profiles.value.length) loadSafety()
-    if ((tab === 'packages' || tab === 'reports') && !productionOrders.value.length) loadPackageWorkspace()
+    if (tab === 'reports') void loadPackageWorkspace()
+    if (tab === 'packages' && !productionOrders.value.length) void loadPackageWorkspace()
   },
   { immediate: true },
 )
